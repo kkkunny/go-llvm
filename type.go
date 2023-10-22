@@ -15,6 +15,11 @@ type Type interface {
 	IsSized() bool
 }
 
+type AggregateType interface {
+	Type
+	aggregate()
+}
+
 func lookupType(ref binding.LLVMTypeRef) Type {
 	switch binding.LLVMGetTypeKind(ref) {
 	case binding.LLVMVoidTypeKind:
@@ -264,6 +269,8 @@ func (t StructType) SetElems(packed bool, elems ...Type) {
 	binding.LLVMStructSetBody(t.binding(), es, packed)
 }
 
+func (StructType) aggregate() {}
+
 type ArrayType binding.LLVMTypeRef
 
 func (ctx Context) ArrayType(elem Type, cap uint32) ArrayType {
@@ -289,6 +296,12 @@ func (t ArrayType) IsSized() bool {
 func (t ArrayType) Capacity() uint32 {
 	return binding.LLVMGetArrayLength(t.binding())
 }
+
+func (t ArrayType) Element() Type {
+	return lookupType(binding.LLVMGetElementType(t.binding()))
+}
+
+func (ArrayType) aggregate() {}
 
 type PointerType binding.LLVMTypeRef
 
@@ -316,10 +329,6 @@ func (t PointerType) Context() Context {
 
 func (t PointerType) IsSized() bool {
 	return true
-}
-
-func (t PointerType) Element() Type {
-	return lookupType(binding.LLVMGetElementType(t.binding()))
 }
 
 func (t PointerType) IsOpaque() bool {

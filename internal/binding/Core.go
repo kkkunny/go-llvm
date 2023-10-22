@@ -2,6 +2,7 @@ package binding
 
 /*
 #include "llvm-c/Core.h"
+#include "Core.h"
 */
 import "C"
 
@@ -498,7 +499,6 @@ func LLVMIsOpaqueStruct(structTy LLVMTypeRef) bool {
 }
 
 // LLVMGetElementType Obtain the element type of an array or vector type.
-// This currently also works for pointer types, but this usage is deprecated.
 // @see llvm::SequentialType::getElementType()
 func LLVMGetElementType(ty LLVMTypeRef) LLVMTypeRef {
 	return LLVMTypeRef{c: C.LLVMGetElementType(ty.c)}
@@ -585,6 +585,10 @@ func LLVMIsNull(val LLVMValueRef) bool {
 	return llvmBool2bool(C.LLVMIsNull(val.c))
 }
 
+func LLVMConstAggregateZero(ty LLVMTypeRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMConstAggregateZero(ty.c)}
+}
+
 // LLVMConstPointerNull Obtain a constant that is a constant pointer pointing to NULL for a specified type.
 func LLVMConstPointerNull(ty LLVMTypeRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstPointerNull(ty.c)}
@@ -627,9 +631,9 @@ func LLVMConstRealGetDouble(constantVal LLVMValueRef) (float64, bool) {
 
 // LLVMConstStringInContext Create a ConstantDataSequential and initialize it with a string.
 // @see llvm::ConstantDataArray::getString()
-func LLVMConstStringInContext(c LLVMContextRef, str string, length uint32, dontNullTerminate bool) LLVMValueRef {
+func LLVMConstStringInContext(c LLVMContextRef, str string, dontNullTerminate bool) LLVMValueRef {
 	return string2CString(str, func(v *C.char) LLVMValueRef {
-		return LLVMValueRef{c: C.LLVMConstStringInContext(c.c, v, C.unsigned(length), bool2LLVMBool(dontNullTerminate))}
+		return LLVMValueRef{c: C.LLVMConstStringInContext(c.c, v, C.unsigned(len(str)), bool2LLVMBool(dontNullTerminate))}
 	})
 }
 

@@ -15,7 +15,7 @@ type Constant interface {
 }
 
 func lookupConstant(ref binding.LLVMValueRef) Constant {
-	switch binding.LLVMGetValueKind(ref) {
+	switch constKind := binding.LLVMGetValueKind(ref); constKind {
 	case binding.LLVMConstantIntValueKind:
 		return Integer(ref)
 	case binding.LLVMConstantFPValueKind:
@@ -24,9 +24,28 @@ func lookupConstant(ref binding.LLVMValueRef) Constant {
 		return Array(ref)
 	case binding.LLVMConstantStructValueKind:
 		return Struct(ref)
+	case binding.LLVMConstantPointerNullValueKind:
+		return Pointer(ref)
+	case binding.LLVMConstantAggregateZeroValueKind:
+		switch typeKind := binding.LLVMGetTypeKind(binding.LLVMTypeOf(ref)); typeKind {
+		case binding.LLVMArrayTypeKind:
+			return Array(ref)
+		case binding.LLVMStructTypeKind:
+			return Struct(ref)
+		default:
+			panic(fmt.Errorf("unknown enum value `%d`", typeKind))
+		}
 	default:
-		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetValueKind(ref)))
+		panic(fmt.Errorf("unknown enum value `%d`", constKind))
 	}
+}
+
+func (ctx Context) ConstNull(t Type) Constant {
+	return lookupConstant(binding.LLVMConstNull(t.binding()))
+}
+
+func (ctx Context) ConstAggregateZero(t AggregateType) Constant {
+	return lookupConstant(binding.LLVMConstAggregateZero(t.binding()))
 }
 
 type Integer binding.LLVMValueRef
@@ -94,6 +113,10 @@ func (ctx Context) ConstArray(et Type, elems []Constant) Array {
 	return Array(binding.LLVMConstArray(et.binding(), es))
 }
 
+func (ctx Context) ConstString(s string) Array {
+	return Array(binding.LLVMConstStringInContext(ctx.binding(), s, true))
+}
+
 func (c Array) String() string {
 	return binding.LLVMPrintValueToString(c.binding())
 }
@@ -151,3 +174,23 @@ func (Struct) constant() {}
 func (c Struct) GetElem(i uint) Constant {
 	return lookupConstant(binding.LLVMGetAggregateElement(c.binding(), uint32(i)))
 }
+
+type Pointer binding.LLVMValueRef
+
+func (ctx Context) ConstPointer(t Type) Pointer {
+	return Pointer(binding.LLVMConstPointerNull(t.binding()))
+}
+
+func (c Pointer) String() string {
+	return binding.LLVMPrintValueToString(c.binding())
+}
+
+func (c Pointer) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(c)
+}
+
+func (c Pointer) Type() Type {
+	return lookupType(binding.LLVMTypeOf(c.binding()))
+}
+
+func (Pointer) constant() {}
