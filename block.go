@@ -15,3 +15,7 @@ func (b Block) binding() binding.LLVMBasicBlockRef {
 func (b Block) Belong() Function {
 	return Function(binding.LLVMGetBasicBlockParent(b.binding()))
 }
+
+func (b Block) Name() string {
+	return binding.LLVMGetBasicBlockName(b.binding())
+}

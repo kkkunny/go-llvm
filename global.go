@@ -47,6 +47,28 @@ func (f Function) EntryBlock() Block {
 	return Block(binding.LLVMGetEntryBasicBlock(f.binding()))
 }
 
+func (f Function) CountParams() uint {
+	return uint(binding.LLVMCountParams(f.binding()))
+}
+
+func (f Function) Params() []Param {
+	return lo.Map(binding.LLVMGetParams(f.binding()), func(item binding.LLVMValueRef, index int) Param {
+		return Param(item)
+	})
+}
+
+func (f Function) GetParam(i uint) Param {
+	return Param(binding.LLVMGetParam(f.binding(), uint32(i)))
+}
+
+func (f Function) FirstParam() Param {
+	return Param(binding.LLVMGetFirstParam(f.binding()))
+}
+
+func (f Function) LastParam() Param {
+	return Param(binding.LLVMGetLastParam(f.binding()))
+}
+
 type GlobalValue binding.LLVMValueRef
 
 func (m Module) NewGlobal(name string, t Type) GlobalValue {

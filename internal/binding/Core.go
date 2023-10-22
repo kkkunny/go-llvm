@@ -933,6 +933,65 @@ func LLVMGetNamedGlobal(m LLVMModuleRef, name string) LLVMValueRef {
 	})
 }
 
+// LLVMCountParams Obtain the number of parameters in a function.
+func LLVMCountParams(fn LLVMValueRef) uint32 {
+	return uint32(C.LLVMCountParams(fn.c))
+}
+
+// LLVMGetParams Obtain the parameters in a function.
+func LLVMGetParams(fn LLVMValueRef) []LLVMValueRef {
+	length := LLVMCountParams(fn)
+	params := make([]LLVMValueRef, length)
+	ptr, _ := slice2Ptr[LLVMValueRef, C.LLVMValueRef](params)
+	C.LLVMGetParams(fn.c, ptr)
+	return params
+}
+
+// LLVMGetParam Obtain the parameter at the specified index.
+// Parameters are indexed from 0.
+func LLVMGetParam(fn LLVMValueRef, index uint32) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetParam(fn.c, C.unsigned(index))}
+}
+
+// LLVMGetParamParent Obtain the function to which this argument belongs.
+// Unlike other functions in this group, this one takes an LLVMValueRef that corresponds to a llvm::Attribute.
+// The returned LLVMValueRef is the llvm::Function to which this argument belongs.
+func LLVMGetParamParent(fn LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetParamParent(fn.c)}
+}
+
+// LLVMGetFirstParam Obtain the first parameter to a function.
+func LLVMGetFirstParam(fn LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetFirstParam(fn.c)}
+}
+
+// LLVMGetLastParam Obtain the last parameter to a function.
+func LLVMGetLastParam(fn LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetLastParam(fn.c)}
+}
+
+// LLVMGetNextParam Obtain the next parameter to a function.
+// This takes an LLVMValueRef obtained from LLVMGetFirstParam() (which is actually a wrapped iterator) and obtains the next parameter from the underlying iterator.
+func LLVMGetNextParam(arg LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetNextParam(arg.c)}
+}
+
+// LLVMGetPreviousParam Obtain the previous parameter to a function.
+// This is the opposite of LLVMGetNextParam().
+func LLVMGetPreviousParam(arg LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetPreviousParam(arg.c)}
+}
+
+// LLVMSetParamAlignment Set the alignment for a function parameter.
+func LLVMSetParamAlignment(arg LLVMValueRef, align uint32) {
+	C.LLVMSetParamAlignment(arg.c, C.unsigned(align))
+}
+
+// LLVMGetBasicBlockName Obtain the string name of a basic block.
+func LLVMGetBasicBlockName(bb LLVMBasicBlockRef) string {
+	return C.GoString(C.LLVMGetBasicBlockName(bb.c))
+}
+
 // LLVMGetBasicBlockParent Obtain the function to which a basic block belongs.
 func LLVMGetBasicBlockParent(bb LLVMBasicBlockRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMGetBasicBlockParent(bb.c)}
