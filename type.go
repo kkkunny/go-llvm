@@ -208,6 +208,10 @@ func (ctx Context) NamedStructType(name string, packed bool, elems ...Type) Stru
 	return st
 }
 
+func (ctx Context) GetTypeByName(name string) StructType {
+	return StructType(binding.LLVMGetTypeByName(ctx.binding(), name))
+}
+
 func (t StructType) String() string {
 	return binding.LLVMPrintTypeToString(t.binding())
 }

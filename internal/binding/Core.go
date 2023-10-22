@@ -236,6 +236,13 @@ func LLVMContextDispose(c LLVMContextRef) {
 	C.LLVMContextDispose(c.c)
 }
 
+// LLVMGetTypeByName Obtain a Type from a context by its registered name.
+func LLVMGetTypeByName(c LLVMContextRef, name string) LLVMTypeRef {
+	return string2CString(name, func(name *C.char) LLVMTypeRef {
+		return LLVMTypeRef{c: C.LLVMGetTypeByName2(c.c, name)}
+	})
+}
+
 // LLVMModuleCreateWithNameInContext Create a new, empty module in a specific context.
 // Every invocation should be paired with LLVMDisposeModule() or memory will be leaked.
 func LLVMModuleCreateWithNameInContext(moduleID string, c LLVMContextRef) LLVMModuleRef {
