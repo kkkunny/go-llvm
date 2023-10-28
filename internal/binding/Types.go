@@ -24,3 +24,10 @@ type (
 	// LLVMBuilderRef Represents an LLVM basic block builder.
 	LLVMBuilderRef struct{ c C.LLVMBuilderRef }
 )
+
+func (ref LLVMContextRef) IsNil() bool    { return ref.c == nil }
+func (ref LLVMModuleRef) IsNil() bool     { return ref.c == nil }
+func (ref LLVMTypeRef) IsNil() bool       { return ref.c == nil }
+func (ref LLVMValueRef) IsNil() bool      { return ref.c == nil }
+func (ref LLVMBasicBlockRef) IsNil() bool { return ref.c == nil }
+func (ref LLVMBuilderRef) IsNil() bool    { return ref.c == nil }

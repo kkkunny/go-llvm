@@ -1008,6 +1008,13 @@ func LLVMGetBasicBlockParent(bb LLVMBasicBlockRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMGetBasicBlockParent(bb.c)}
 }
 
+// LLVMGetBasicBlockTerminator Obtain the terminator instruction for a basic block.
+// If the basic block does not have a terminator (it is not well-formed if it doesn't), then NULL is returned.
+// The returned LLVMValueRef corresponds to an llvm::Instruction.
+func LLVMGetBasicBlockTerminator(bb LLVMBasicBlockRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetBasicBlockTerminator(bb.c)}
+}
+
 // LLVMCountBasicBlocks Obtain the number of basic blocks in a function.
 func LLVMCountBasicBlocks(fn LLVMValueRef) uint32 {
 	return uint32(C.LLVMCountBasicBlocks(fn.c))
@@ -1062,6 +1069,19 @@ func LLVMGetInstructionParent(inst LLVMValueRef) LLVMBasicBlockRef {
 	return LLVMBasicBlockRef{c: C.LLVMGetInstructionParent(inst.c)}
 }
 
+// LLVMGetNextInstruction Obtain the instruction that occurs after the one specified.
+// The next instruction will be from the same basic block.
+// If this is the last instruction in a basic block, NULL will be returned.
+func LLVMGetNextInstruction(inst LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetNextInstruction(inst.c)}
+}
+
+// LLVMGetPreviousInstruction Obtain the instruction that occurred before this one.
+// If the instruction is the first instruction in a basic block, NULL will be returned.
+func LLVMGetPreviousInstruction(inst LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetPreviousInstruction(inst.c)}
+}
+
 // LLVMGetInstructionOpcode Obtain the code opcode for an individual instruction.
 func LLVMGetInstructionOpcode(inst LLVMValueRef) LLVMOpcode {
 	return LLVMOpcode(C.LLVMGetInstructionOpcode(inst.c))
@@ -1077,6 +1097,20 @@ func LLVMGetICmpPredicate(inst LLVMValueRef) LLVMIntPredicate {
 // This is only valid for instructions that correspond to llvm::FCmpInst or llvm::ConstantExpr whose opcode is llvm::Instruction::FCmp.
 func LLVMGetFCmpPredicate(inst LLVMValueRef) LLVMRealPredicate {
 	return LLVMRealPredicate(C.LLVMGetFCmpPredicate(inst.c))
+}
+
+// LLVMInstructionClone Create a copy of 'this' instruction that is identical in all ways
+// except the following:
+//   - The instruction has no parent
+//   - The instruction has no name
+func LLVMInstructionClone(inst LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMInstructionClone(inst.c)}
+}
+
+// LLVMIsATerminatorInst Determine whether an instruction is a terminator.
+// This routine is named to be compatible with historical functions that did this by querying the underlying C++ type.
+func LLVMIsATerminatorInst(inst LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMIsATerminatorInst(inst.c)}
 }
 
 func LLVMCreateBuilderInContext(c LLVMContextRef) LLVMBuilderRef {

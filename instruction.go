@@ -74,6 +74,24 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 	}
 }
 
+type Terminator interface {
+	Instruction
+	terminator()
+}
+
+func lookupTerminator(ref binding.LLVMValueRef) Terminator {
+	switch binding.LLVMGetInstructionOpcode(ref) {
+	case binding.LLVMRet:
+		return Return(ref)
+	case binding.LLVMBr:
+		return Br(ref)
+	case binding.LLVMUnreachable:
+		return Unreachable(ref)
+	default:
+		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetInstructionOpcode(ref)))
+	}
+}
+
 type Return binding.LLVMValueRef
 
 func (b Builder) CreateRet(v *Value) Return {
@@ -91,6 +109,8 @@ func (i Return) binding() binding.LLVMValueRef {
 func (i Return) Belong() Block {
 	return Block(binding.LLVMGetInstructionParent(i.binding()))
 }
+
+func (Return) terminator() {}
 
 type Br binding.LLVMValueRef
 
@@ -110,6 +130,8 @@ func (i Br) Belong() Block {
 	return Block(binding.LLVMGetInstructionParent(i.binding()))
 }
 
+func (Br) terminator() {}
+
 type Unreachable binding.LLVMValueRef
 
 func (b Builder) CreateUnreachable() Unreachable {
@@ -123,6 +145,8 @@ func (i Unreachable) binding() binding.LLVMValueRef {
 func (i Unreachable) Belong() Block {
 	return Block(binding.LLVMGetInstructionParent(i.binding()))
 }
+
+func (Unreachable) terminator() {}
 
 type Add binding.LLVMValueRef
 

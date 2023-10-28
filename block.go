@@ -19,3 +19,15 @@ func (b Block) Belong() Function {
 func (b Block) Name() string {
 	return binding.LLVMGetBasicBlockName(b.binding())
 }
+
+func (b Block) GetTerminator() Terminator {
+	t := lookupTerminator(binding.LLVMGetBasicBlockTerminator(b.binding()))
+	if t.binding().IsNil() {
+		return nil
+	}
+	return t
+}
+
+func (b Block) IsTerminating() bool {
+	return b.GetTerminator() != nil
+}
