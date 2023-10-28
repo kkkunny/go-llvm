@@ -1113,6 +1113,28 @@ func LLVMIsATerminatorInst(inst LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMIsATerminatorInst(inst.c)}
 }
 
+// LLVMAddIncoming Add an incoming value to the end of a PHI list.
+func LLVMAddIncoming(phiNode LLVMValueRef, incomingValues []LLVMValueRef, incomingBlocks []LLVMBasicBlockRef) {
+	ptr1, count := slice2Ptr[LLVMValueRef, C.LLVMValueRef](incomingValues)
+	ptr2, count := slice2Ptr[LLVMBasicBlockRef, C.LLVMBasicBlockRef](incomingBlocks)
+	C.LLVMAddIncoming(phiNode.c, ptr1, ptr2, count)
+}
+
+// LLVMCountIncoming Obtain the number of incoming basic blocks to a PHI node.
+func LLVMCountIncoming(phiNode LLVMValueRef) uint32 {
+	return uint32(C.LLVMCountIncoming(phiNode.c))
+}
+
+// LLVMGetIncomingValue Obtain an incoming value to a PHI node as an LLVMValueRef.
+func LLVMGetIncomingValue(phiNode LLVMValueRef, index uint32) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetIncomingValue(phiNode.c, C.unsigned(index))}
+}
+
+// LLVMGetIncomingBlock Obtain an incoming value to a PHI node as an LLVMValueRef.
+func LLVMGetIncomingBlock(phiNode LLVMValueRef, index uint32) LLVMBasicBlockRef {
+	return LLVMBasicBlockRef{c: C.LLVMGetIncomingBlock(phiNode.c, C.unsigned(index))}
+}
+
 func LLVMCreateBuilderInContext(c LLVMContextRef) LLVMBuilderRef {
 	return LLVMBuilderRef{c: C.LLVMCreateBuilderInContext(c.c)}
 }
@@ -1552,6 +1574,12 @@ func LLVMBuildICmp(builder LLVMBuilderRef, op LLVMIntPredicate, lHS, rHS LLVMVal
 func LLVMBuildFCmp(builder LLVMBuilderRef, op LLVMRealPredicate, lHS, rHS LLVMValueRef, name string) LLVMValueRef {
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMBuildFCmp(builder.c, C.LLVMRealPredicate(op), lHS.c, rHS.c, name)}
+	})
+}
+
+func LLVMBuildPhi(builder LLVMBuilderRef, ty LLVMTypeRef, name string) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildPhi(builder.c, ty.c, name)}
 	})
 }
 

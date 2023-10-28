@@ -67,6 +67,8 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 		return IntCmp(ref)
 	case binding.LLVMFCmp:
 		return IntCmp(ref)
+	case binding.LLVMPHI:
+		return PHI(ref)
 	case binding.LLVMCall:
 		return Call(ref)
 	default:
@@ -832,4 +834,72 @@ func (v Call) Type() Type {
 
 func (v Call) String() string {
 	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type PHI binding.LLVMValueRef
+
+func (b Builder) CreatePHI(name string, t Type, incomings ...struct {
+	Value Value
+	Block Block
+}) PHI {
+	phi := PHI(binding.LLVMBuildPhi(b.binding(), t.binding(), name))
+	phi.AddIncomings(incomings...)
+	return phi
+}
+
+func (i PHI) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i PHI) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v PHI) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v PHI) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+func (phi PHI) AddIncomings(incomings ...struct {
+	Value Value
+	Block Block
+}) {
+	values := lo.Map(incomings, func(item struct {
+		Value Value
+		Block Block
+	}, index int) binding.LLVMValueRef {
+		return item.Value.binding()
+	})
+	blocks := lo.Map(incomings, func(item struct {
+		Value Value
+		Block Block
+	}, index int) binding.LLVMBasicBlockRef {
+		return item.Block.binding()
+	})
+	binding.LLVMAddIncoming(phi.binding(), values, blocks)
+}
+
+func (phi PHI) CountIncomings() uint {
+	return uint(binding.LLVMCountIncoming(phi.binding()))
+}
+
+func (phi PHI) GetIncoming(i uint) (Value, Block) {
+	return lookupValue(binding.LLVMGetIncomingValue(phi.binding(), uint32(i))), Block(binding.LLVMGetIncomingBlock(phi.binding(), uint32(i)))
+}
+
+func (phi PHI) Incomings() (res []struct {
+	Value Value
+	Block Block
+}) {
+	for i := uint(0); i < phi.CountIncomings(); i++ {
+		v, b := phi.GetIncoming(i)
+		res = append(res, struct {
+			Value Value
+			Block Block
+		}{Value: v, Block: b})
+	}
+	return res
 }
