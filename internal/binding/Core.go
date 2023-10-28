@@ -706,10 +706,6 @@ func LLVMConstNUWNeg(constantVal LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstNUWNeg(constantVal.c)}
 }
 
-func LLVMConstFNeg(constantVal LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstFNeg(constantVal.c)}
-}
-
 func LLVMConstNot(constantVal LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstNot(constantVal.c)}
 }
@@ -866,10 +862,6 @@ func LLVMConstIntCast(constantVal LLVMValueRef, toType LLVMTypeRef, isSigned boo
 
 func LLVMConstFPCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstFPCast(constantVal.c, toType.c)}
-}
-
-func LLVMConstSelect(constantCondition, constantIfTrue, constantIfFalse LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstSelect(constantCondition.c, constantIfTrue.c, constantIfFalse.c)}
 }
 
 func LLVMConstExtractElement(vectorConstant, indexConstant LLVMValueRef) LLVMValueRef {
