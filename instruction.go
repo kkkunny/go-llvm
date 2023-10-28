@@ -31,8 +31,10 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 		return Div(ref)
 	case binding.LLVMSRem, binding.LLVMURem, binding.LLVMFRem:
 		return Rem(ref)
-	case binding.LLVMShl, binding.LLVMLShr, binding.LLVMAShr:
+	case binding.LLVMShl:
 		return Shl(ref)
+	case binding.LLVMLShr, binding.LLVMAShr:
+		return Shr(ref)
 	case binding.LLVMAnd:
 		return And(ref)
 	case binding.LLVMOr:
@@ -306,12 +308,8 @@ func (v Rem) String() string {
 
 type Shl binding.LLVMValueRef
 
-func (b Builder) CreateLShr(name string, l, r Value) Shl {
-	return Shl(binding.LLVMBuildLShr(b.binding(), l.binding(), r.binding(), name))
-}
-
-func (b Builder) CreateAShr(name string, l, r Value) Shl {
-	return Shl(binding.LLVMBuildAShr(b.binding(), l.binding(), r.binding(), name))
+func (b Builder) CreateShl(name string, l, r Value) Shl {
+	return Shl(binding.LLVMBuildShl(b.binding(), l.binding(), r.binding(), name))
 }
 
 func (i Shl) binding() binding.LLVMValueRef {
@@ -327,6 +325,32 @@ func (v Shl) Type() Type {
 }
 
 func (v Shl) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type Shr binding.LLVMValueRef
+
+func (b Builder) CreateLShr(name string, l, r Value) Shr {
+	return Shr(binding.LLVMBuildLShr(b.binding(), l.binding(), r.binding(), name))
+}
+
+func (b Builder) CreateAShr(name string, l, r Value) Shr {
+	return Shr(binding.LLVMBuildAShr(b.binding(), l.binding(), r.binding(), name))
+}
+
+func (i Shr) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i Shr) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v Shr) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v Shr) String() string {
 	return binding.LLVMPrintValueToString(v.binding())
 }
 
