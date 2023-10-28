@@ -71,6 +71,10 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 		return PHI(ref)
 	case binding.LLVMCall:
 		return Call(ref)
+	case binding.LLVMExtractElement:
+		return ExtractElement(ref)
+	case binding.LLVMExtractValue:
+		return ExtractValue(ref)
 	default:
 		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetInstructionOpcode(ref)))
 	}
@@ -902,4 +906,48 @@ func (phi PHI) Incomings() (res []struct {
 		}{Value: v, Block: b})
 	}
 	return res
+}
+
+type ExtractElement binding.LLVMValueRef
+
+func (b Builder) CreateExtractElement(name string, vec, index Value) ExtractElement {
+	return ExtractElement(binding.LLVMBuildExtractElement(b.binding(), vec.binding(), index.binding(), name))
+}
+
+func (i ExtractElement) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i ExtractElement) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v ExtractElement) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v ExtractElement) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type ExtractValue binding.LLVMValueRef
+
+func (b Builder) CreateExtractValue(name string, vec Value, index uint) ExtractValue {
+	return ExtractValue(binding.LLVMBuildExtractValue(b.binding(), vec.binding(), uint32(index), name))
+}
+
+func (i ExtractValue) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i ExtractValue) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v ExtractValue) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v ExtractValue) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
 }
