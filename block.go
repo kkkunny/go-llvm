@@ -21,11 +21,11 @@ func (b Block) Name() string {
 }
 
 func (b Block) GetTerminator() Terminator {
-	t := lookupTerminator(binding.LLVMGetBasicBlockTerminator(b.binding()))
-	if t.binding().IsNil() {
+	inst := binding.LLVMGetBasicBlockTerminator(b.binding())
+	if inst.IsNil() {
 		return nil
 	}
-	return t
+	return lookupTerminator(inst)
 }
 
 func (b Block) IsTerminating() bool {
