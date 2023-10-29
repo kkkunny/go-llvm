@@ -4,11 +4,25 @@ This library provides bindings to a system-installed LLVM.
 
 Currently supported:
 
-* LLVM 15(check in linux/amd64).
-* LLVM 17(check in windows/amd64).
+* LLVM 15
+* LLVM 16
+* LLVM 17
 
 ## Usage
 
-If you have a supported LLVM installation, you should be able to do a simple `go get`:
+First, you need to make sure that you have installed a supported version of LLVM.
 
-    go get github.com/kkkunny/go-llvm@llvm17
+And then
+
+```shell
+go get github.com/kkkunny/go-llvm
+```
+
+```shell
+curl -O https://raw.githubusercontent.com/kkkunny/go-llvm/master/Makefile
+```
+
+```shell
+make config EXPECT_VERSION=VERION OF LLVM
+# eg.make config EXPECT_VERSION=15
+```
