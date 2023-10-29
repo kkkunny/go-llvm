@@ -123,6 +123,66 @@ const (
 	LLVMX86_AMXTypeKind
 )
 
+type LLVMLinkage int32
+
+const (
+	// LLVMExternalLinkage Externally visible function
+	LLVMExternalLinkage LLVMLinkage = iota
+	LLVMAvailableExternallyLinkage
+	// LLVMLinkOnceAnyLinkage Keep one copy of function when linking (inline)
+	LLVMLinkOnceAnyLinkage
+	// LLVMLinkOnceODRLinkage Same, but only replaced by something equivalent.
+	LLVMLinkOnceODRLinkage
+	// LLVMLinkOnceODRAutoHideLinkage Obsolete
+	LLVMLinkOnceODRAutoHideLinkage
+	// LLVMWeakAnyLinkage Keep one copy of function when linking (weak)
+	LLVMWeakAnyLinkage
+	// LLVMWeakODRLinkage Same, but only replaced by something equivalent.
+	LLVMWeakODRLinkage
+	// LLVMAppendingLinkage Special purpose, only applies to global arrays
+	LLVMAppendingLinkage
+	// LLVMInternalLinkage Rename collisions when linking (static functions)
+	LLVMInternalLinkage
+	// LLVMPrivateLinkage Like Internal, but omit from symbol table
+	LLVMPrivateLinkage
+	// LLVMDLLImportLinkage Obsolete
+	LLVMDLLImportLinkage
+	// LLVMDLLExportLinkage Obsolete
+	LLVMDLLExportLinkage
+	// LLVMExternalWeakLinkage ExternalWeak linkage description
+	LLVMExternalWeakLinkage
+	// LLVMGhostLinkage Obsolete
+	LLVMGhostLinkage
+	// LLVMCommonLinkage Tentative definitions
+	LLVMCommonLinkage
+	// LLVMLinkerPrivateLinkage Like Private, but linker removes.
+	LLVMLinkerPrivateLinkage
+	// LLVMLinkerPrivateWeakLinkage Like LinkerPrivate, but is weak.
+	LLVMLinkerPrivateWeakLinkage
+)
+
+type LLVMVisibility int32
+
+const (
+	// LLVMDefaultVisibility The GV is visible
+	LLVMDefaultVisibility LLVMVisibility = iota
+	// LLVMHiddenVisibility The GV is hidden
+	LLVMHiddenVisibility
+	// LLVMProtectedVisibility The GV is protected
+	LLVMProtectedVisibility
+)
+
+type LLVMUnnamedAddr int32
+
+const (
+	// LLVMNoUnnamedAddr Address of the GV is significant.
+	LLVMNoUnnamedAddr LLVMUnnamedAddr = iota
+	// LLVMLocalUnnamedAddr Address of the GV is locally insignificant.
+	LLVMLocalUnnamedAddr
+	// LLVMGlobalUnnamedAddr Address of the GV is globally insignificant.
+	LLVMGlobalUnnamedAddr
+)
+
 type LLVMValueKind int32
 
 const (
@@ -214,6 +274,16 @@ const (
 	LLVMRealUNE
 	// LLVMRealPredicateTrue Always true (always folded)
 	LLVMRealPredicateTrue
+)
+
+type LLVMThreadLocalMode int32
+
+const (
+	LLVMNotThreadLocal LLVMThreadLocalMode = iota
+	LLVMGeneralDynamicTLSModel
+	LLVMLocalDynamicTLSModel
+	LLVMInitialExecTLSModel
+	LLVMLocalExecTLSModel
 )
 
 func LLVMDisposeMessage(message *C.char) {
@@ -890,6 +960,34 @@ func LLVMGetGlobalParent(global LLVMValueRef) LLVMModuleRef {
 	return LLVMModuleRef{c: C.LLVMGetGlobalParent(global.c)}
 }
 
+func LLVMIsDeclaration(global LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsDeclaration(global.c))
+}
+
+func LLVMGetLinkage(global LLVMValueRef) LLVMLinkage {
+	return LLVMLinkage(C.LLVMGetLinkage(global.c))
+}
+
+func LLVMSetLinkage(global LLVMValueRef, linkage LLVMLinkage) {
+	C.LLVMSetLinkage(global.c, C.LLVMLinkage(linkage))
+}
+
+func LLVMGetVisibility(global LLVMValueRef) LLVMVisibility {
+	return LLVMVisibility(C.LLVMGetVisibility(global.c))
+}
+
+func LLVMSetVisibility(global LLVMValueRef, viz LLVMVisibility) {
+	C.LLVMSetVisibility(global.c, C.LLVMVisibility(viz))
+}
+
+func LLVMGetUnnamedAddress(global LLVMValueRef) LLVMUnnamedAddr {
+	return LLVMUnnamedAddr(C.LLVMGetUnnamedAddress(global.c))
+}
+
+func LLVMSetUnnamedAddress(global LLVMValueRef, unnamedAddr LLVMUnnamedAddr) {
+	C.LLVMSetUnnamedAddress(global.c, C.LLVMUnnamedAddr(unnamedAddr))
+}
+
 // LLVMGlobalGetValueType Returns the "value type" of a global value.  This differs from the formal type of a global value which is always a pointer type.
 // @see llvm::GlobalValue::getValueType()
 func LLVMGlobalGetValueType(global LLVMValueRef) LLVMTypeRef {
@@ -934,6 +1032,42 @@ func LLVMGetNamedGlobal(m LLVMModuleRef, name string) LLVMValueRef {
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMGetNamedGlobal(m.c, name)}
 	})
+}
+
+func LLVMSetInitializer(globalVar LLVMValueRef, constantVal LLVMValueRef) {
+	C.LLVMSetInitializer(globalVar.c, constantVal.c)
+}
+
+func LLVMIsThreadLocal(globalVar LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsThreadLocal(globalVar.c))
+}
+
+func LLVMSetThreadLocal(globalVar LLVMValueRef, isThreadLocal bool) {
+	C.LLVMSetThreadLocal(globalVar.c, bool2LLVMBool(isThreadLocal))
+}
+
+func LLVMIsGlobalConstant(globalVar LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsGlobalConstant(globalVar.c))
+}
+
+func LLVMSetGlobalConstant(globalVar LLVMValueRef, isConstant bool) {
+	C.LLVMSetGlobalConstant(globalVar.c, bool2LLVMBool(isConstant))
+}
+
+func LLVMGetThreadLocalMode(globalVar LLVMValueRef) LLVMThreadLocalMode {
+	return LLVMThreadLocalMode(C.LLVMGetThreadLocalMode(globalVar.c))
+}
+
+func LLVMSetThreadLocalMode(globalVar LLVMValueRef, mode LLVMThreadLocalMode) {
+	C.LLVMSetThreadLocalMode(globalVar.c, C.LLVMThreadLocalMode(mode))
+}
+
+func LLVMIsExternallyInitialized(globalVar LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsExternallyInitialized(globalVar.c))
+}
+
+func LLVMSetExternallyInitialized(globalVar LLVMValueRef, isExtInit bool) {
+	C.LLVMSetExternallyInitialized(globalVar.c, bool2LLVMBool(isExtInit))
 }
 
 // LLVMCountParams Obtain the number of parameters in a function.

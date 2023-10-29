@@ -98,3 +98,115 @@ func (g GlobalValue) Module() Module {
 func (g GlobalValue) ValueType() Type {
 	return lookupType(binding.LLVMGlobalGetValueType(g.binding()))
 }
+
+func (g GlobalValue) IsDeclaration() bool {
+	return binding.LLVMIsDeclaration(g.binding())
+}
+
+type Linkage binding.LLVMLinkage
+
+const (
+	ExternalLinkage            = Linkage(binding.LLVMExternalLinkage)
+	AvailableExternallyLinkage = Linkage(binding.LLVMAvailableExternallyLinkage)
+	LinkOnceAnyLinkage         = Linkage(binding.LLVMLinkOnceAnyLinkage)
+	LinkOnceODRLinkage         = Linkage(binding.LLVMLinkOnceODRLinkage)
+	LinkOnceODRAutoHideLinkage = Linkage(binding.LLVMLinkOnceODRAutoHideLinkage)
+	WeakAnyLinkage             = Linkage(binding.LLVMWeakAnyLinkage)
+	WeakODRLinkage             = Linkage(binding.LLVMWeakODRLinkage)
+	AppendingLinkage           = Linkage(binding.LLVMAppendingLinkage)
+	InternalLinkage            = Linkage(binding.LLVMInternalLinkage)
+	PrivateLinkage             = Linkage(binding.LLVMPrivateLinkage)
+	DLLImportLinkage           = Linkage(binding.LLVMDLLImportLinkage)
+	DLLExportLinkage           = Linkage(binding.LLVMDLLExportLinkage)
+	ExternalWeakLinkage        = Linkage(binding.LLVMExternalWeakLinkage)
+	GhostLinkage               = Linkage(binding.LLVMGhostLinkage)
+	CommonLinkage              = Linkage(binding.LLVMCommonLinkage)
+	LinkerPrivateLinkage       = Linkage(binding.LLVMLinkerPrivateLinkage)
+	LinkerPrivateWeakLinkage   = Linkage(binding.LLVMLinkerPrivateWeakLinkage)
+)
+
+func (g GlobalValue) Linkage() Linkage {
+	return Linkage(binding.LLVMGetLinkage(g.binding()))
+}
+
+func (g GlobalValue) SetLinkage(linkage Linkage) {
+	binding.LLVMSetLinkage(g.binding(), binding.LLVMLinkage(linkage))
+}
+
+type Visibility binding.LLVMVisibility
+
+const (
+	DefaultVisibility   = Visibility(binding.LLVMDefaultVisibility)
+	HiddenVisibility    = Visibility(binding.LLVMHiddenVisibility)
+	ProtectedVisibility = Visibility(binding.LLVMProtectedVisibility)
+)
+
+func (g GlobalValue) Visibility() Visibility {
+	return Visibility(binding.LLVMGetVisibility(g.binding()))
+}
+
+func (g GlobalValue) SetVisibility(visibility Visibility) {
+	binding.LLVMSetVisibility(g.binding(), binding.LLVMVisibility(visibility))
+}
+
+type UnnamedAddr binding.LLVMUnnamedAddr
+
+const (
+	NoUnnamedAddr     = UnnamedAddr(binding.LLVMNoUnnamedAddr)
+	LocalUnnamedAddr  = UnnamedAddr(binding.LLVMLocalUnnamedAddr)
+	GlobalUnnamedAddr = UnnamedAddr(binding.LLVMGlobalUnnamedAddr)
+)
+
+func (g GlobalValue) UnnamedAddress() UnnamedAddr {
+	return UnnamedAddr(binding.LLVMGetUnnamedAddress(g.binding()))
+}
+
+func (g GlobalValue) SetUnnamedAddress(unnamedAddr UnnamedAddr) {
+	binding.LLVMSetUnnamedAddress(g.binding(), binding.LLVMUnnamedAddr(unnamedAddr))
+}
+
+func (g GlobalValue) SetInitializer(v Constant) {
+	binding.LLVMSetInitializer(g.binding(), v.binding())
+}
+
+func (g GlobalValue) IsThreadLocal() bool {
+	return binding.LLVMIsThreadLocal(g.binding())
+}
+
+func (g GlobalValue) SetThreadLocal(isThreadLocal bool) {
+	binding.LLVMSetThreadLocal(g.binding(), isThreadLocal)
+}
+
+func (g GlobalValue) IsGlobalConstant() bool {
+	return binding.LLVMIsGlobalConstant(g.binding())
+}
+
+func (g GlobalValue) SetGlobalConstant(isConstant bool) {
+	binding.LLVMSetGlobalConstant(g.binding(), isConstant)
+}
+
+type ThreadLocalMode binding.LLVMThreadLocalMode
+
+const (
+	NotThreadLocal         = ThreadLocalMode(binding.LLVMNotThreadLocal)
+	GeneralDynamicTLSModel = ThreadLocalMode(binding.LLVMGeneralDynamicTLSModel)
+	LocalDynamicTLSModel   = ThreadLocalMode(binding.LLVMLocalDynamicTLSModel)
+	InitialExecTLSModel    = ThreadLocalMode(binding.LLVMInitialExecTLSModel)
+	LocalExecTLSModel      = ThreadLocalMode(binding.LLVMLocalExecTLSModel)
+)
+
+func (g GlobalValue) ThreadLocalMode() ThreadLocalMode {
+	return ThreadLocalMode(binding.LLVMGetThreadLocalMode(g.binding()))
+}
+
+func (g GlobalValue) SetThreadLocalMode(mode ThreadLocalMode) {
+	binding.LLVMSetThreadLocalMode(g.binding(), binding.LLVMThreadLocalMode(mode))
+}
+
+func (g GlobalValue) IsExternallyInitialized() bool {
+	return binding.LLVMIsExternallyInitialized(g.binding())
+}
+
+func (g GlobalValue) SetExternallyInitialized(isConstant bool) {
+	binding.LLVMSetExternallyInitialized(g.binding(), isConstant)
+}

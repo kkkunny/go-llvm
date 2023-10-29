@@ -22,3 +22,6 @@ go.work
 
 # IDE
 .idea
+
+# config
+llvm_config_*.go
