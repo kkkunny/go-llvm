@@ -17,8 +17,12 @@ func (m Module) NewFunction(name string, t FunctionType) Function {
 	return Function(binding.LLVMAddFunction(m.binding(), name, t.binding()))
 }
 
-func (m Module) GetFunction(name string) Function {
-	return Function(binding.LLVMGetNamedFunction(m.binding(), name))
+func (m Module) GetFunction(name string) *Function {
+	f := Function(binding.LLVMGetNamedFunction(m.binding(), name))
+	if f.binding().IsNil() {
+		return nil
+	}
+	return &f
 }
 
 func (c Function) String() string {
@@ -35,6 +39,14 @@ func (c Function) Type() Type {
 
 func (g Function) Module() Module {
 	return Module(binding.LLVMGetGlobalParent(g.binding()))
+}
+
+func (f Function) FirstBlock() Block {
+	return Block(binding.LLVMGetFirstBasicBlock(f.binding()))
+}
+
+func (f Function) LastBlock() Block {
+	return Block(binding.LLVMGetLastBasicBlock(f.binding()))
 }
 
 func (f Function) Blocks() []Block {
@@ -75,8 +87,12 @@ func (m Module) NewGlobal(name string, t Type) GlobalValue {
 	return GlobalValue(binding.LLVMAddGlobal(m.binding(), t.binding(), name))
 }
 
-func (m Module) GetGlobal(name string) GlobalValue {
-	return GlobalValue(binding.LLVMGetNamedGlobal(m.binding(), name))
+func (m Module) GetGlobal(name string) *GlobalValue {
+	v := GlobalValue(binding.LLVMGetNamedGlobal(m.binding(), name))
+	if v.binding().IsNil() {
+		return nil
+	}
+	return &v
 }
 
 func (v GlobalValue) String() string {
