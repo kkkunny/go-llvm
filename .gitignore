@@ -22,4 +22,3 @@ go.work
 
 # IDE
 .idea
-internal/binding/include/.vscode
