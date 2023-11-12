@@ -41,12 +41,12 @@ func (m Module) SetSource(source string) {
 	binding.LLVMSetSourceFileName(m.binding(), source)
 }
 
-func (m Module) RunPasses(target Target, option PassOption, pass ...string) error {
+func (m Module) RunPasses(target *Target, option PassOption, pass ...string) error {
 	return binding.LLVMRunPasses(m.binding(), strings.Join(pass, ","), target.machine, option.binding())
 }
 
 func (m Module) Verify() error {
-	msg, fail := binding.LLVMVerifyModule(m.binding(), binding.LLVMPrintMessageAction)
+	msg, fail := binding.LLVMVerifyModule(m.binding(), binding.LLVMReturnStatusAction)
 	if fail {
 		return errors.New(msg)
 	}
