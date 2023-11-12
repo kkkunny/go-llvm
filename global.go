@@ -81,6 +81,18 @@ func (f Function) LastParam() Param {
 	return Param(binding.LLVMGetLastParam(f.binding()))
 }
 
+func (f Function) Verify() bool {
+	return !binding.LLVMVerifyFunction(f.binding(), binding.LLVMReturnStatusAction)
+}
+
+func (f Function) VerifyWithCFG(only bool) {
+	if !only {
+		binding.LLVMViewFunctionCFG(f.binding())
+	} else {
+		binding.LLVMViewFunctionCFGOnly(f.binding())
+	}
+}
+
 type GlobalValue binding.LLVMValueRef
 
 func (m Module) NewGlobal(name string, t Type) GlobalValue {

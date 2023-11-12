@@ -22,7 +22,8 @@ type (
 	LLVMBasicBlockRef struct{ c C.LLVMBasicBlockRef }
 
 	// LLVMBuilderRef Represents an LLVM basic block builder.
-	LLVMBuilderRef struct{ c C.LLVMBuilderRef }
+	LLVMBuilderRef     struct{ c C.LLVMBuilderRef }
+	LLVMPassManagerRef struct{ c C.LLVMPassManagerRef }
 )
 
 func (ref LLVMContextRef) IsNil() bool    { return ref.c == nil }

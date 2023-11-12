@@ -1,6 +1,11 @@
 package llvm
 
-import "github.com/kkkunny/go-llvm/internal/binding"
+import (
+	"errors"
+	"strings"
+
+	"github.com/kkkunny/go-llvm/internal/binding"
+)
 
 type Module binding.LLVMModuleRef
 
@@ -34,4 +39,16 @@ func (m Module) GetSource() string {
 
 func (m Module) SetSource(source string) {
 	binding.LLVMSetSourceFileName(m.binding(), source)
+}
+
+func (m Module) RunPasses(target Target, option PassOption, pass ...string) error {
+	return binding.LLVMRunPasses(m.binding(), strings.Join(pass, ","), target.machine, option.binding())
+}
+
+func (m Module) Verify() error {
+	msg, fail := binding.LLVMVerifyModule(m.binding(), binding.LLVMPrintMessageAction)
+	if fail {
+		return errors.New(msg)
+	}
+	return nil
 }

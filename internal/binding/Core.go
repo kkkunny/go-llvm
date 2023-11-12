@@ -1751,3 +1751,46 @@ func LLVMBuildPtrDiff(builder LLVMBuilderRef, elemTy LLVMTypeRef, lHS, rHS LLVMV
 		return LLVMValueRef{c: C.LLVMBuildPtrDiff2(builder.c, elemTy.c, lHS.c, rHS.c, name)}
 	})
 }
+
+// LLVMCreatePassManager Constructs a new whole-module pass pipeline.
+// This type of pipeline is suitable for link-time optimization and whole-module transformations.
+func LLVMCreatePassManager() LLVMPassManagerRef {
+	return LLVMPassManagerRef{c: C.LLVMCreatePassManager()}
+}
+
+// LLVMCreateFunctionPassManagerForModule Constructs a new function-by-function pass pipeline over the module provider.
+// It does not take ownership of the module provider.
+// This type of pipeline is suitable for code generation and JIT compilation tasks.
+func LLVMCreateFunctionPassManagerForModule(m LLVMModuleRef) LLVMPassManagerRef {
+	return LLVMPassManagerRef{c: C.LLVMCreateFunctionPassManagerForModule(m.c)}
+}
+
+// LLVMRunPassManager Initializes, executes on the provided module, and finalizes all of the passes scheduled in the pass manager.
+// Returns true if any of the passes modified the module, false otherwise.
+func LLVMRunPassManager(pm LLVMPassManagerRef, m LLVMModuleRef) bool {
+	return llvmBool2bool(C.LLVMRunPassManager(pm.c, m.c))
+}
+
+// LLVMInitializeFunctionPassManager Initializes all of the function passes scheduled in the function pass manager.
+// Returns true if any of the passes modified the module, false otherwise.
+func LLVMInitializeFunctionPassManager(fpm LLVMPassManagerRef) bool {
+	return llvmBool2bool(C.LLVMInitializeFunctionPassManager(fpm.c))
+}
+
+// LLVMRunFunctionPassManager Executes all of the function passes scheduled in the function pass manager on the provided function.
+// Returns true if any of the passes modified the function, false otherwise.
+func LLVMRunFunctionPassManager(fpm LLVMPassManagerRef, f LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMRunFunctionPassManager(fpm.c, f.c))
+}
+
+// LLVMFinalizeFunctionPassManager Finalizes all of the function passes scheduled in the function pass manager.
+// Returns true if any of the passes modified the module, false otherwise.
+func LLVMFinalizeFunctionPassManager(fpm LLVMPassManagerRef) bool {
+	return llvmBool2bool(C.LLVMFinalizeFunctionPassManager(fpm.c))
+}
+
+// LLVMDisposePassManager Frees the memory of a pass pipeline.
+// For function pipelines, does not free the module provider.
+func LLVMDisposePassManager(pm LLVMPassManagerRef) {
+	C.LLVMDisposePassManager(pm.c)
+}
