@@ -631,6 +631,26 @@ func LLVMGetValueKind(val LLVMValueRef) LLVMValueKind {
 	return LLVMValueKind(C.LLVMGetValueKind(val.c))
 }
 
+// LLVMGetValueName Obtain the string name of a value.
+func LLVMGetValueName(val LLVMValueRef) string {
+	var length C.size_t
+	s := C.LLVMGetValueName2(val.c, &length)
+	return C.GoStringN(s, C.int(length))
+}
+
+// LLVMSetValueName Set the string name of a value.
+func LLVMSetValueName(val LLVMValueRef, name string) {
+	string2CString(name, func(cname *C.char) bool {
+		C.LLVMSetValueName2(val.c, cname, C.size_t(len(name)))
+		return false
+	})
+}
+
+// LLVMDumpValue Dump a representation of a value to stderr.
+func LLVMDumpValue(val LLVMValueRef) {
+	C.LLVMDumpValue(val.c)
+}
+
 // LLVMPrintValueToString Return a string representation of the value.
 func LLVMPrintValueToString(val LLVMValueRef) string {
 	cstring := C.LLVMPrintValueToString(val.c)

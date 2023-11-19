@@ -41,6 +41,14 @@ func (g Function) Module() Module {
 	return Module(binding.LLVMGetGlobalParent(g.binding()))
 }
 
+func (c Function) Name() string {
+	return binding.LLVMGetValueName(c.binding())
+}
+
+func (c Function) SetName(name string) {
+	binding.LLVMSetValueName(c.binding(), name)
+}
+
 func (f Function) FirstBlock() Block {
 	return Block(binding.LLVMGetFirstBasicBlock(f.binding()))
 }
@@ -93,6 +101,14 @@ func (f Function) VerifyWithCFG(only bool) {
 	}
 }
 
+func (g Function) Linkage() Linkage {
+	return Linkage(binding.LLVMGetLinkage(g.binding()))
+}
+
+func (g Function) SetLinkage(linkage Linkage) {
+	binding.LLVMSetLinkage(g.binding(), binding.LLVMLinkage(linkage))
+}
+
 type GlobalValue binding.LLVMValueRef
 
 func (m Module) NewGlobal(name string, t Type) GlobalValue {
@@ -127,6 +143,10 @@ func (g GlobalValue) Module() Module {
 
 func (g GlobalValue) ValueType() Type {
 	return lookupType(binding.LLVMGlobalGetValueType(g.binding()))
+}
+
+func (g GlobalValue) SetAlign(align uint) {
+	binding.LLVMSetAlignment(g.binding(), uint32(align))
 }
 
 func (g GlobalValue) IsDeclaration() bool {
