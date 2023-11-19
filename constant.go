@@ -114,7 +114,7 @@ func (ctx Context) ConstArray(et Type, elems []Constant) Array {
 }
 
 func (ctx Context) ConstString(s string) Array {
-	return Array(binding.LLVMConstStringInContext(ctx.binding(), s, true))
+	return Array(binding.LLVMConstStringInContext(ctx.binding(), s, false))
 }
 
 func (c Array) String() string {
@@ -137,20 +137,20 @@ func (c Array) GetElem(i uint) Constant {
 
 type Struct binding.LLVMValueRef
 
-func (ctx Context) ConstStruct(packed bool, elems []Constant) Struct {
+func (ctx Context) ConstStruct(packed bool, elem ...Constant) Struct {
 	var es []binding.LLVMValueRef
-	if len(elems) > 0 {
-		es = lo.Map(elems, func(item Constant, index int) binding.LLVMValueRef {
+	if len(elem) > 0 {
+		es = lo.Map(elem, func(item Constant, index int) binding.LLVMValueRef {
 			return item.binding()
 		})
 	}
 	return Struct(binding.LLVMConstStructInContext(ctx.binding(), es, packed))
 }
 
-func (ctx Context) ConstNamedStruct(t StructType, elems []Constant) Struct {
+func (ctx Context) ConstNamedStruct(t StructType, elem ...Constant) Struct {
 	var es []binding.LLVMValueRef
-	if len(elems) > 0 {
-		es = lo.Map(elems, func(item Constant, index int) binding.LLVMValueRef {
+	if len(elem) > 0 {
+		es = lo.Map(elem, func(item Constant, index int) binding.LLVMValueRef {
 			return item.binding()
 		})
 	}

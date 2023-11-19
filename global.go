@@ -107,6 +107,8 @@ func (m Module) GetGlobal(name string) *GlobalValue {
 	return &v
 }
 
+func (v GlobalValue) constant() {}
+
 func (v GlobalValue) String() string {
 	return binding.LLVMPrintValueToString(v.binding())
 }

@@ -213,8 +213,13 @@ func (ctx Context) NamedStructType(name string, packed bool, elems ...Type) Stru
 	return st
 }
 
-func (ctx Context) GetTypeByName(name string) StructType {
-	return StructType(binding.LLVMGetTypeByName(ctx.binding(), name))
+func (ctx Context) GetTypeByName(name string) *StructType {
+	st := binding.LLVMGetTypeByName(ctx.binding(), name)
+	if st.IsNil() {
+		return nil
+	}
+	t := StructType(st)
+	return &t
 }
 
 func (t StructType) String() string {
