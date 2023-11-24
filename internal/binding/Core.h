@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 LLVMValueRef LLVMConstAggregateZero(LLVMTypeRef ty);
+LLVMTypeRef LLVMGetFunctionType(LLVMValueRef f);
 
 #ifdef __cplusplus
 }

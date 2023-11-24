@@ -1259,6 +1259,15 @@ func LLVMIsATerminatorInst(inst LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMIsATerminatorInst(inst.c)}
 }
 
+// LLVMGetCalledFunctionType Obtain the function type called by this instruction.
+func LLVMGetCalledFunctionType(c LLVMValueRef) LLVMTypeRef {
+	return LLVMTypeRef{c: C.LLVMGetCalledFunctionType(c.c)}
+}
+
+func LLVMGetFunctionType(c LLVMValueRef) LLVMTypeRef {
+	return LLVMTypeRef{c: C.LLVMGetFunctionType(c.c)}
+}
+
 // LLVMAddIncoming Add an incoming value to the end of a PHI list.
 func LLVMAddIncoming(phiNode LLVMValueRef, incomingValues []LLVMValueRef, incomingBlocks []LLVMBasicBlockRef) {
 	ptr1, count := slice2Ptr[LLVMValueRef, C.LLVMValueRef](incomingValues)

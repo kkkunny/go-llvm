@@ -93,6 +93,10 @@ func (f Function) Verify() bool {
 	return !binding.LLVMVerifyFunction(f.binding(), binding.LLVMReturnStatusAction)
 }
 
+func (f Function) FunctionType() FunctionType {
+	return lookupType(binding.LLVMGetFunctionType(f.binding())).(FunctionType)
+}
+
 func (f Function) VerifyWithCFG(only bool) {
 	if !only {
 		binding.LLVMViewFunctionCFG(f.binding())
