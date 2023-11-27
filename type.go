@@ -151,10 +151,10 @@ func (t IntegerType) Bits() uint32 {
 
 type FunctionType binding.LLVMTypeRef
 
-func (ctx Context) FunctionType(ret Type, params []Type, isVarArg bool) FunctionType {
+func (ctx Context) FunctionType(isVarArg bool, ret Type, param ...Type) FunctionType {
 	var ps []binding.LLVMTypeRef
-	if len(params) > 0 {
-		ps = lo.Map(params, func(e Type, index int) binding.LLVMTypeRef {
+	if len(param) > 0 {
+		ps = lo.Map(param, func(e Type, index int) binding.LLVMTypeRef {
 			return e.binding()
 		})
 	}

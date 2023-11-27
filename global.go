@@ -17,13 +17,15 @@ func (m Module) NewFunction(name string, t FunctionType) Function {
 	return Function(binding.LLVMAddFunction(m.binding(), name, t.binding()))
 }
 
-func (m Module) GetFunction(name string) *Function {
+func (m Module) GetFunction(name string) (Function, bool) {
 	f := Function(binding.LLVMGetNamedFunction(m.binding(), name))
 	if f.binding().IsNil() {
-		return nil
+		return Function{}, false
 	}
-	return &f
+	return f, true
 }
+
+func (Function) constant() {}
 
 func (c Function) String() string {
 	return binding.LLVMPrintValueToString(c.binding())
@@ -119,12 +121,16 @@ func (m Module) NewGlobal(name string, t Type) GlobalValue {
 	return GlobalValue(binding.LLVMAddGlobal(m.binding(), t.binding(), name))
 }
 
-func (m Module) GetGlobal(name string) *GlobalValue {
+func (m Module) DelGlobal(g GlobalValue) {
+	binding.LLVMDeleteGlobal(g.binding())
+}
+
+func (m Module) GetGlobal(name string) (GlobalValue, bool) {
 	v := GlobalValue(binding.LLVMGetNamedGlobal(m.binding(), name))
 	if v.binding().IsNil() {
-		return nil
+		return GlobalValue{}, false
 	}
-	return &v
+	return v, true
 }
 
 func (v GlobalValue) constant() {}
@@ -217,6 +223,14 @@ func (g GlobalValue) UnnamedAddress() UnnamedAddr {
 
 func (g GlobalValue) SetUnnamedAddress(unnamedAddr UnnamedAddr) {
 	binding.LLVMSetUnnamedAddress(g.binding(), binding.LLVMUnnamedAddr(unnamedAddr))
+}
+
+func (g GlobalValue) GetInitializer() (Constant, bool) {
+	init := binding.LLVMGetInitializer(g.binding())
+	if init.IsNil() {
+		return nil, false
+	}
+	return lookupConstant(init), true
 }
 
 func (g GlobalValue) SetInitializer(v Constant) {

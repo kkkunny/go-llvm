@@ -1054,6 +1054,14 @@ func LLVMGetNamedGlobal(m LLVMModuleRef, name string) LLVMValueRef {
 	})
 }
 
+func LLVMDeleteGlobal(globalVar LLVMValueRef) {
+	C.LLVMDeleteGlobal(globalVar.c)
+}
+
+func LLVMGetInitializer(globalVar LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetInitializer(globalVar.c)}
+}
+
 func LLVMSetInitializer(globalVar LLVMValueRef, constantVal LLVMValueRef) {
 	C.LLVMSetInitializer(globalVar.c, constantVal.c)
 }

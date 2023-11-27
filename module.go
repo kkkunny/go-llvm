@@ -52,3 +52,55 @@ func (m Module) Verify() error {
 	}
 	return nil
 }
+
+func (m Module) AddConstructor(prior uint16, f Function) {
+	name := "llvm.global_ctors"
+	ctx := m.Context()
+	ft := ctx.FunctionType(false, ctx.VoidType())
+	st := ctx.StructType(false, ctx.IntegerType(32), ctx.PointerType(ft), ctx.PointerType(ctx.IntegerType(8)))
+	stv := ctx.ConstNamedStruct(st, ctx.ConstInteger(st.GetElem(0).(IntegerType), int64(prior)), f, ctx.ConstNull(st.GetElem(2)))
+
+	var elems []Constant
+	ctors, ok := m.GetGlobal(name)
+	if ok {
+		v, ok := ctors.GetInitializer()
+		if ok {
+			av := v.(Array)
+			avt := av.Type().(ArrayType)
+			for i := uint32(0); i < avt.Capacity(); i++ {
+				elems = append(elems, av.GetElem(uint(i)))
+			}
+		}
+		m.DelGlobal(ctors)
+	}
+	elems = append(elems, stv)
+	ctors = m.NewGlobal(name, ctx.ArrayType(st, uint32(len(elems))))
+	ctors.SetLinkage(AppendingLinkage)
+	ctors.SetInitializer(ctx.ConstArray(st, elems...))
+}
+
+func (m Module) AddDestructor(prior uint16, f Function) {
+	name := "llvm.global_dtors"
+	ctx := m.Context()
+	ft := ctx.FunctionType(false, ctx.VoidType())
+	st := ctx.StructType(false, ctx.IntegerType(32), ctx.PointerType(ft), ctx.PointerType(ctx.IntegerType(8)))
+	stv := ctx.ConstNamedStruct(st, ctx.ConstInteger(st.GetElem(0).(IntegerType), int64(prior)), f, ctx.ConstNull(st.GetElem(2)))
+
+	var elems []Constant
+	dtors, ok := m.GetGlobal(name)
+	if ok {
+		v, ok := dtors.GetInitializer()
+		if ok {
+			av := v.(Array)
+			avt := av.Type().(ArrayType)
+			for i := uint32(0); i < avt.Capacity(); i++ {
+				elems = append(elems, av.GetElem(uint(i)))
+			}
+		}
+		m.DelGlobal(dtors)
+	}
+	elems = append(elems, stv)
+	dtors = m.NewGlobal(name, ctx.ArrayType(st, uint32(len(elems))))
+	dtors.SetLinkage(AppendingLinkage)
+	dtors.SetInitializer(ctx.ConstArray(st, elems...))
+}

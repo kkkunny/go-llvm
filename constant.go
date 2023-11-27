@@ -103,10 +103,10 @@ func (c Float) Value() float64 {
 
 type Array binding.LLVMValueRef
 
-func (ctx Context) ConstArray(et Type, elems []Constant) Array {
+func (ctx Context) ConstArray(et Type, elem ...Constant) Array {
 	var es []binding.LLVMValueRef
-	if len(elems) > 0 {
-		es = lo.Map(elems, func(item Constant, index int) binding.LLVMValueRef {
+	if len(elem) > 0 {
+		es = lo.Map(elem, func(item Constant, index int) binding.LLVMValueRef {
 			return item.binding()
 		})
 	}
