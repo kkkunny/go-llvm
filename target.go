@@ -135,7 +135,7 @@ func (t Target) getTargetRef() binding.LLVMTargetRef {
 }
 
 func (t Target) String() string {
-	return t.Name()
+	return t.Triple()
 }
 
 func (t Target) Name() string {
@@ -221,13 +221,13 @@ func (t Target) WriteOBJToFile(m Module, file string, opt CodeOptLevel, reloc Re
 }
 
 func (t Target) IsLinux() bool {
-	return strings.Contains(t.Name(), "linux")
+	return strings.Contains(t.String(), "linux")
 }
 
 func (t Target) IsDarwin() bool {
-	return strings.Contains(t.Name(), "darwin")
+	return strings.Contains(t.String(), "darwin")
 }
 
 func (t Target) IsWindows() bool {
-	return strings.Contains(t.Name(), "windows")
+	return strings.Contains(t.String(), "windows")
 }
