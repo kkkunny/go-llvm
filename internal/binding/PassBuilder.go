@@ -80,10 +80,6 @@ func LLVMPassBuilderOptionsSetMergeFunctions(options LLVMPassBuilderOptionsRef, 
 	C.LLVMPassBuilderOptionsSetMergeFunctions(options.c, bool2LLVMBool(mergeFunctions))
 }
 
-func LLVMPassBuilderOptionsSetInlinerThreshold(options LLVMPassBuilderOptionsRef, threshold int32) {
-	C.LLVMPassBuilderOptionsSetInlinerThreshold(options.c, C.int(threshold))
-}
-
 // LLVMDisposePassBuilderOptions Dispose of a heap-allocated PassBuilderOptions instance
 func LLVMDisposePassBuilderOptions(options LLVMPassBuilderOptionsRef) {
 	C.LLVMDisposePassBuilderOptions(options.c)

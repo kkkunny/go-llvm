@@ -2,6 +2,7 @@
 #define GOLLVM_BINDINGS_CORE_H
 
 #include "llvm-c/Core.h"
+#include "llvm-c/Transforms/PassBuilder.h"
 #ifdef __cplusplus
 #include "llvm/Support/CBindingWrapping.h"
 #endif

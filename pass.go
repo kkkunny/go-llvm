@@ -56,10 +56,6 @@ func (o PassOption) SetMergeFunctions(v bool) {
 	binding.LLVMPassBuilderOptionsSetMergeFunctions(o.binding(), v)
 }
 
-func (o PassOption) SetInlinerThreshold(v int32) {
-	binding.LLVMPassBuilderOptionsSetInlinerThreshold(o.binding(), v)
-}
-
 func (o PassOption) Free() {
 	binding.LLVMDisposePassBuilderOptions(o.binding())
 }
