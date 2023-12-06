@@ -2,6 +2,8 @@ package llvm
 
 import "C"
 import (
+	"strings"
+
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
@@ -216,4 +218,16 @@ func (t Target) WriteOBJToFile(m Module, file string, opt CodeOptLevel, reloc Re
 	machine := binding.LLVMCreateTargetMachine(t.getTargetRef(), t.Triple(), t.CPU(), t.Feature(), binding.LLVMCodeGenOptLevel(opt), binding.LLVMRelocMode(reloc), binding.LLVMCodeModel(code))
 	defer binding.LLVMDisposeTargetMachine(machine)
 	return binding.LLVMTargetMachineEmitToFile(machine, m.binding(), file, binding.LLVMObjectFile)
+}
+
+func (t Target) IsLinux() bool {
+	return strings.Contains(t.Name(), "linux")
+}
+
+func (t Target) IsDarwin() bool {
+	return strings.Contains(t.Name(), "darwin")
+}
+
+func (t Target) IsWindows() bool {
+	return strings.Contains(t.Name(), "windows")
 }
