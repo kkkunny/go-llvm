@@ -8,6 +8,8 @@ import "errors"
 
 type LLVMTargetDataRef struct{ c C.LLVMTargetDataRef }
 
+func (ref LLVMTargetDataRef) IsNil() bool { return ref.c == nil }
+
 // LLVMInitializeAllTargetInfos The main program should call this function if it wants access to all available targets that LLVM is configured to support.
 func LLVMInitializeAllTargetInfos() {
 	C.LLVMInitializeAllTargetInfos()

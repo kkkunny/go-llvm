@@ -10,6 +10,9 @@ type (
 	LLVMTargetRef        struct{ c C.LLVMTargetRef }
 )
 
+func (ref LLVMTargetMachineRef) IsNil() bool { return ref.c == nil }
+func (ref LLVMTargetRef) IsNil() bool        { return ref.c == nil }
+
 type LLVMCodeGenOptLevel int32
 
 const (

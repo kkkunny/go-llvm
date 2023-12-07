@@ -5,7 +5,7 @@ import "github.com/kkkunny/go-llvm/internal/binding"
 type Block binding.LLVMBasicBlockRef
 
 func (f Function) NewBlock(name string) Block {
-	return Block(binding.LLVMAppendBasicBlockInContext(f.Module().Context().binding(), f.binding(), name))
+	return Block(binding.LLVMAppendBasicBlockInContext(binding.LLVMGetTypeContext(f.Type().binding()), f.binding(), name))
 }
 
 func (b Block) binding() binding.LLVMBasicBlockRef {

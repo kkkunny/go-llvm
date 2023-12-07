@@ -8,7 +8,7 @@ import (
 
 type Global interface {
 	binding() binding.LLVMValueRef
-	Module() Module
+	global()
 }
 
 type Function binding.LLVMValueRef
@@ -27,6 +27,8 @@ func (m Module) GetFunction(name string) (Function, bool) {
 
 func (Function) constant() {}
 
+func (Function) global() {}
+
 func (c Function) String() string {
 	return binding.LLVMPrintValueToString(c.binding())
 }
@@ -37,10 +39,6 @@ func (c Function) binding() binding.LLVMValueRef {
 
 func (c Function) Type() Type {
 	return lookupType(binding.LLVMTypeOf(c.binding()))
-}
-
-func (g Function) Module() Module {
-	return Module(binding.LLVMGetGlobalParent(g.binding()))
 }
 
 func (c Function) Name() string {
@@ -147,10 +145,6 @@ func (v GlobalValue) Type() Type {
 	return lookupType(binding.LLVMTypeOf(v.binding()))
 }
 
-func (g GlobalValue) Module() Module {
-	return Module(binding.LLVMGetGlobalParent(g.binding()))
-}
-
 func (g GlobalValue) ValueType() Type {
 	return lookupType(binding.LLVMGlobalGetValueType(g.binding()))
 }
@@ -204,6 +198,8 @@ const (
 func (g GlobalValue) Visibility() Visibility {
 	return Visibility(binding.LLVMGetVisibility(g.binding()))
 }
+
+func (GlobalValue) global() {}
 
 func (g GlobalValue) SetVisibility(visibility Visibility) {
 	binding.LLVMSetVisibility(g.binding(), binding.LLVMVisibility(visibility))

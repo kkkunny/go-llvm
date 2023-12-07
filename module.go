@@ -7,14 +7,21 @@ import (
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
-type Module binding.LLVMModuleRef
+type Module struct {
+	binding.LLVMModuleRef
+	target *Target
+}
+
+func newModule(ref binding.LLVMModuleRef) Module {
+	return Module{LLVMModuleRef: ref}
+}
 
 func (ctx Context) NewModule(name string) Module {
-	return Module(binding.LLVMModuleCreateWithNameInContext(name, ctx.binding()))
+	return newModule(binding.LLVMModuleCreateWithNameInContext(name, ctx.binding()))
 }
 
 func (m Module) binding() binding.LLVMModuleRef {
-	return binding.LLVMModuleRef(m)
+	return m.LLVMModuleRef
 }
 
 func (m Module) Free() {
@@ -26,7 +33,10 @@ func (m Module) String() string {
 }
 
 func (m Module) Clone() Module {
-	return Module(binding.LLVMCloneModule(m.binding()))
+	return Module{
+		LLVMModuleRef: binding.LLVMCloneModule(m.binding()),
+		target:        m.target,
+	}
 }
 
 func (m Module) Context() Context {

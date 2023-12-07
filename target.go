@@ -119,15 +119,17 @@ func NewTargetFromTriple(triple string, cpu, feature string) (*Target, error) {
 	}, nil
 }
 
-func (m Module) SetTarget(t *Target) {
+func (m *Module) SetTarget(t *Target) {
 	binding.LLVMSetModuleDataLayout(m.binding(), t.dataLayout.binding())
 	binding.LLVMSetTarget(m.binding(), t.Triple())
+	m.target = t
 }
 
-func (m Module) GetTarget(cpu, feature string) *Target {
-	triple := binding.LLVMGetTarget(m.binding())
-	target, _ := NewTargetFromTriple(triple, cpu, feature)
-	return target
+func (m Module) GetTarget() (*Target, bool) {
+	if m.target == nil {
+		return nil, false
+	}
+	return m.target, true
 }
 
 func (t Target) getTargetRef() binding.LLVMTargetRef {
