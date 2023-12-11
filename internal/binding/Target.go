@@ -72,6 +72,121 @@ func LLVMInitializeNativeDisassembler() error {
 	return nil
 }
 
+func LLVMInitializeAArch64TargetInfo()     { C.LLVMInitializeAArch64TargetInfo() }
+func LLVMInitializeAMDGPUTargetInfo()      { C.LLVMInitializeAMDGPUTargetInfo() }
+func LLVMInitializeARMTargetInfo()         { C.LLVMInitializeARMTargetInfo() }
+func LLVMInitializeAVRTargetInfo()         { C.LLVMInitializeAVRTargetInfo() }
+func LLVMInitializeBPFTargetInfo()         { C.LLVMInitializeBPFTargetInfo() }
+func LLVMInitializeHexagonTargetInfo()     { C.LLVMInitializeHexagonTargetInfo() }
+func LLVMInitializeLanaiTargetInfo()       { C.LLVMInitializeLanaiTargetInfo() }
+func LLVMInitializeLoongArchTargetInfo()   { C.LLVMInitializeLoongArchTargetInfo() }
+func LLVMInitializeMipsTargetInfo()        { C.LLVMInitializeMipsTargetInfo() }
+func LLVMInitializeMSP430TargetInfo()      { C.LLVMInitializeMSP430TargetInfo() }
+func LLVMInitializeNVPTXTargetInfo()       { C.LLVMInitializeNVPTXTargetInfo() }
+func LLVMInitializePowerPCTargetInfo()     { C.LLVMInitializePowerPCTargetInfo() }
+func LLVMInitializeRISCVTargetInfo()       { C.LLVMInitializeRISCVTargetInfo() }
+func LLVMInitializeSparcTargetInfo()       { C.LLVMInitializeSparcTargetInfo() }
+func LLVMInitializeSystemZTargetInfo()     { C.LLVMInitializeSystemZTargetInfo() }
+func LLVMInitializeVETargetInfo()          { C.LLVMInitializeVETargetInfo() }
+func LLVMInitializeWebAssemblyTargetInfo() { C.LLVMInitializeWebAssemblyTargetInfo() }
+func LLVMInitializeX86TargetInfo()         { C.LLVMInitializeX86TargetInfo() }
+func LLVMInitializeXCoreTargetInfo()       { C.LLVMInitializeXCoreTargetInfo() }
+
+func LLVMInitializeAArch64Target()     { C.LLVMInitializeAArch64Target() }
+func LLVMInitializeAMDGPUTarget()      { C.LLVMInitializeAMDGPUTarget() }
+func LLVMInitializeARMTarget()         { C.LLVMInitializeARMTarget() }
+func LLVMInitializeAVRTarget()         { C.LLVMInitializeAVRTarget() }
+func LLVMInitializeBPFTarget()         { C.LLVMInitializeBPFTarget() }
+func LLVMInitializeHexagonTarget()     { C.LLVMInitializeHexagonTarget() }
+func LLVMInitializeLanaiTarget()       { C.LLVMInitializeLanaiTarget() }
+func LLVMInitializeLoongArchTarget()   { C.LLVMInitializeLoongArchTarget() }
+func LLVMInitializeMipsTarget()        { C.LLVMInitializeMipsTarget() }
+func LLVMInitializeMSP430Target()      { C.LLVMInitializeMSP430Target() }
+func LLVMInitializeNVPTXTarget()       { C.LLVMInitializeNVPTXTarget() }
+func LLVMInitializePowerPCTarget()     { C.LLVMInitializePowerPCTarget() }
+func LLVMInitializeRISCVTarget()       { C.LLVMInitializeRISCVTarget() }
+func LLVMInitializeSparcTarget()       { C.LLVMInitializeSparcTarget() }
+func LLVMInitializeSystemZTarget()     { C.LLVMInitializeSystemZTarget() }
+func LLVMInitializeVETarget()          { C.LLVMInitializeVETarget() }
+func LLVMInitializeWebAssemblyTarget() { C.LLVMInitializeWebAssemblyTarget() }
+func LLVMInitializeX86Target()         { C.LLVMInitializeX86Target() }
+func LLVMInitializeXCoreTarget()       { C.LLVMInitializeXCoreTarget() }
+
+func LLVMInitializeAArch64TargetMC()     { C.LLVMInitializeAArch64TargetMC() }
+func LLVMInitializeAMDGPUTargetMC()      { C.LLVMInitializeAMDGPUTargetMC() }
+func LLVMInitializeARMTargetMC()         { C.LLVMInitializeARMTargetMC() }
+func LLVMInitializeAVRTargetMC()         { C.LLVMInitializeAVRTargetMC() }
+func LLVMInitializeBPFTargetMC()         { C.LLVMInitializeBPFTargetMC() }
+func LLVMInitializeHexagonTargetMC()     { C.LLVMInitializeHexagonTargetMC() }
+func LLVMInitializeLanaiTargetMC()       { C.LLVMInitializeLanaiTargetMC() }
+func LLVMInitializeLoongArchTargetMC()   { C.LLVMInitializeLoongArchTargetMC() }
+func LLVMInitializeMipsTargetMC()        { C.LLVMInitializeMipsTargetMC() }
+func LLVMInitializeMSP430TargetMC()      { C.LLVMInitializeMSP430TargetMC() }
+func LLVMInitializeNVPTXTargetMC()       { C.LLVMInitializeNVPTXTargetMC() }
+func LLVMInitializePowerPCTargetMC()     { C.LLVMInitializePowerPCTargetMC() }
+func LLVMInitializeRISCVTargetMC()       { C.LLVMInitializeRISCVTargetMC() }
+func LLVMInitializeSparcTargetMC()       { C.LLVMInitializeSparcTargetMC() }
+func LLVMInitializeSystemZTargetMC()     { C.LLVMInitializeSystemZTargetMC() }
+func LLVMInitializeVETargetMC()          { C.LLVMInitializeVETargetMC() }
+func LLVMInitializeWebAssemblyTargetMC() { C.LLVMInitializeWebAssemblyTargetMC() }
+func LLVMInitializeX86TargetMC()         { C.LLVMInitializeX86TargetMC() }
+func LLVMInitializeXCoreTargetMC()       { C.LLVMInitializeXCoreTargetMC() }
+
+func LLVMInitializeAArch64AsmParser()     { C.LLVMInitializeAArch64AsmParser() }
+func LLVMInitializeAMDGPUAsmParser()      { C.LLVMInitializeAMDGPUAsmParser() }
+func LLVMInitializeARMAsmParser()         { C.LLVMInitializeARMAsmParser() }
+func LLVMInitializeAVRAsmParser()         { C.LLVMInitializeAVRAsmParser() }
+func LLVMInitializeBPFAsmParser()         { C.LLVMInitializeBPFAsmParser() }
+func LLVMInitializeHexagonAsmParser()     { C.LLVMInitializeHexagonAsmParser() }
+func LLVMInitializeLanaiAsmParser()       { C.LLVMInitializeLanaiAsmParser() }
+func LLVMInitializeLoongArchAsmParser()   { C.LLVMInitializeLoongArchAsmParser() }
+func LLVMInitializeMipsAsmParser()        { C.LLVMInitializeMipsAsmParser() }
+func LLVMInitializeMSP430AsmParser()      { C.LLVMInitializeMSP430AsmParser() }
+func LLVMInitializePowerPCAsmParser()     { C.LLVMInitializePowerPCAsmParser() }
+func LLVMInitializeRISCVAsmParser()       { C.LLVMInitializeRISCVAsmParser() }
+func LLVMInitializeSparcAsmParser()       { C.LLVMInitializeSparcAsmParser() }
+func LLVMInitializeSystemZAsmParser()     { C.LLVMInitializeSystemZAsmParser() }
+func LLVMInitializeVEAsmParser()          { C.LLVMInitializeVEAsmParser() }
+func LLVMInitializeWebAssemblyAsmParser() { C.LLVMInitializeWebAssemblyAsmParser() }
+func LLVMInitializeX86AsmParser()         { C.LLVMInitializeX86AsmParser() }
+
+func LLVMInitializeAArch64AsmPrinter()     { C.LLVMInitializeAArch64AsmPrinter() }
+func LLVMInitializeAMDGPUAsmPrinter()      { C.LLVMInitializeAMDGPUAsmPrinter() }
+func LLVMInitializeARMAsmPrinter()         { C.LLVMInitializeARMAsmPrinter() }
+func LLVMInitializeAVRAsmPrinter()         { C.LLVMInitializeAVRAsmPrinter() }
+func LLVMInitializeBPFAsmPrinter()         { C.LLVMInitializeBPFAsmPrinter() }
+func LLVMInitializeHexagonAsmPrinter()     { C.LLVMInitializeHexagonAsmPrinter() }
+func LLVMInitializeLanaiAsmPrinter()       { C.LLVMInitializeLanaiAsmPrinter() }
+func LLVMInitializeLoongArchAsmPrinter()   { C.LLVMInitializeLoongArchAsmPrinter() }
+func LLVMInitializeMipsAsmPrinter()        { C.LLVMInitializeMipsAsmPrinter() }
+func LLVMInitializeMSP430AsmPrinter()      { C.LLVMInitializeMSP430AsmPrinter() }
+func LLVMInitializePowerPCAsmPrinter()     { C.LLVMInitializePowerPCAsmPrinter() }
+func LLVMInitializeRISCVAsmPrinter()       { C.LLVMInitializeRISCVAsmPrinter() }
+func LLVMInitializeSparcAsmPrinter()       { C.LLVMInitializeSparcAsmPrinter() }
+func LLVMInitializeSystemZAsmPrinter()     { C.LLVMInitializeSystemZAsmPrinter() }
+func LLVMInitializeVEAsmPrinter()          { C.LLVMInitializeVEAsmPrinter() }
+func LLVMInitializeWebAssemblyAsmPrinter() { C.LLVMInitializeWebAssemblyAsmPrinter() }
+func LLVMInitializeX86AsmPrinter()         { C.LLVMInitializeX86AsmPrinter() }
+
+func LLVMInitializeAArch64Disassembler()     { C.LLVMInitializeAArch64Disassembler() }
+func LLVMInitializeAMDGPUDisassembler()      { C.LLVMInitializeAMDGPUDisassembler() }
+func LLVMInitializeARMDisassembler()         { C.LLVMInitializeARMDisassembler() }
+func LLVMInitializeAVRDisassembler()         { C.LLVMInitializeAVRDisassembler() }
+func LLVMInitializeBPFDisassembler()         { C.LLVMInitializeBPFDisassembler() }
+func LLVMInitializeHexagonDisassembler()     { C.LLVMInitializeHexagonDisassembler() }
+func LLVMInitializeLanaiDisassembler()       { C.LLVMInitializeLanaiDisassembler() }
+func LLVMInitializeLoongArchDisassembler()   { C.LLVMInitializeLoongArchDisassembler() }
+func LLVMInitializeMipsDisassembler()        { C.LLVMInitializeMipsDisassembler() }
+func LLVMInitializeMSP430Disassembler()      { C.LLVMInitializeMSP430Disassembler() }
+func LLVMInitializePowerPCDisassembler()     { C.LLVMInitializePowerPCDisassembler() }
+func LLVMInitializeRISCVDisassembler()       { C.LLVMInitializeRISCVDisassembler() }
+func LLVMInitializeSparcDisassembler()       { C.LLVMInitializeSparcDisassembler() }
+func LLVMInitializeSystemZDisassembler()     { C.LLVMInitializeSystemZDisassembler() }
+func LLVMInitializeVEDisassembler()          { C.LLVMInitializeVEDisassembler() }
+func LLVMInitializeWebAssemblyDisassembler() { C.LLVMInitializeWebAssemblyDisassembler() }
+func LLVMInitializeX86Disassembler()         { C.LLVMInitializeX86Disassembler() }
+func LLVMInitializeXCoreDisassembler()       { C.LLVMInitializeXCoreDisassembler() }
+
 // LLVMGetModuleDataLayout Obtain the data layout for a module.
 func LLVMGetModuleDataLayout(m LLVMModuleRef) LLVMTargetDataRef {
 	return LLVMTargetDataRef{c: C.LLVMGetModuleDataLayout(m.c)}
