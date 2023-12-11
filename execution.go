@@ -35,36 +35,51 @@ func (v ExecutionValue) Float(t FloatType) float64 {
 	return binding.LLVMGenericValueToFloat(t.binding(), v.binding())
 }
 
-type ExecutionEngine binding.LLVMExecutionEngineRef
+type ExecutionEngine struct{
+	bind binding.LLVMExecutionEngineRef
+	
+	funcMaps map[uint64]any
+}
 
-func NewExecutionEngine(m Module) (ExecutionEngine, error) {
+func newExecutionEngine(b binding.LLVMExecutionEngineRef)*ExecutionEngine{
+	return &ExecutionEngine{
+		bind: b,
+		funcMaps: make(map[uint64]any),
+	}
+}
+
+func NewExecutionEngine(m Module) (*ExecutionEngine, error) {
 	b, err := binding.LLVMCreateExecutionEngineForModule(m.binding())
-	return ExecutionEngine(b), err
+	return newExecutionEngine(b), err
 }
 
-func NewInterpreter(m Module) (ExecutionEngine, error) {
+func NewInterpreter(m Module) (*ExecutionEngine, error) {
 	b, err := binding.LLVMCreateInterpreterForModule(m.binding())
-	return ExecutionEngine(b), err
+	return newExecutionEngine(b), err
 }
 
-func NewJITCompiler(m Module, opt CodeOptLevel) (ExecutionEngine, error) {
+func NewJITCompiler(m Module, opt CodeOptLevel) (*ExecutionEngine, error) {
 	b, err := binding.LLVMCreateJITCompilerForModule(m.binding(), uint32(opt))
-	return ExecutionEngine(b), err
+	return newExecutionEngine(b), err
 }
 
-func DefaultMCJITCompiler(m Module) (ExecutionEngine, error) {
+func DefaultMCJITCompiler(m Module) (*ExecutionEngine, error) {
 	var option binding.LLVMMCJITCompilerOptions
 	binding.LLVMInitializeMCJITCompilerOptions(&option)
 	b, err := binding.LLVMCreateMCJITCompilerForModule(m.binding(), option)
-	return ExecutionEngine(b), err
+	return newExecutionEngine(b), err
 }
 
 func (engine ExecutionEngine) binding() binding.LLVMExecutionEngineRef {
-	return binding.LLVMExecutionEngineRef(engine)
+	return engine.bind
 }
 
 func (engine ExecutionEngine) Free() {
 	binding.LLVMDisposeExecutionEngine(engine.binding())
+}
+
+func (engine ExecutionEngine) RunMainFunction(f Function, argv, envp []string) uint8 {
+	return uint8(binding.LLVMRunFunctionAsMain(engine.binding(), f.binding(), argv, envp))
 }
 
 func (engine ExecutionEngine) RunFunction(f Function, args ...ExecutionValue) ExecutionValue {
@@ -83,6 +98,7 @@ func (engine ExecutionEngine) GetFunction(name string) *Function {
 	return &f
 }
 
-func (engine ExecutionEngine) MapGlobal(g Global, to unsafe.Pointer) {
+// MapGlobalToC 映射全局值到c语言值
+func (engine ExecutionEngine) MapGlobalToC(g Global, to unsafe.Pointer) {
 	binding.LLVMAddGlobalMapping(engine.binding(), g.binding(), to)
 }

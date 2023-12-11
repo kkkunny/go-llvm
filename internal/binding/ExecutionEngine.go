@@ -7,6 +7,8 @@ package binding
 import "C"
 import (
 	"unsafe"
+
+	"github.com/samber/lo"
 )
 
 type (
@@ -136,19 +138,25 @@ func LLVMRunStaticDestructors(ee LLVMExecutionEngineRef) {
 	C.LLVMRunStaticDestructors(ee.c)
 }
 
-func LLVMRunFunctionAsMain(ee LLVMExecutionEngineRef, f LLVMValueRef, argc uint32, argv *string, envp *string) int32 {
-	var argvp, envpp **C.char
-	if argv != nil {
-		cargv := C.CString(*argv)
-		defer C.free(unsafe.Pointer(cargv))
-		argvp = &cargv
+func LLVMRunFunctionAsMain(ee LLVMExecutionEngineRef, f LLVMValueRef, argv []string, envp []string) int32 {
+	cargv := lo.Map(argv, func(item string, _ int) *C.char {
+		return C.CString(item)
+	})
+	for _, v := range cargv{
+		defer C.free(unsafe.Pointer(v))
 	}
-	if envp != nil {
-		cenvp := C.CString(*envp)
-		defer C.free(unsafe.Pointer(cenvp))
-		envpp = &cenvp
+	cargv = append(cargv, nil)
+	argvp := &cargv[0]
+
+	cenvp := lo.Map(envp, func(item string, _ int) *C.char {
+		return C.CString(item)
+	})
+	for _, v := range cenvp{
+		defer C.free(unsafe.Pointer(v))
 	}
-	return int32(C.LLVMRunFunctionAsMain(ee.c, f.c, C.unsigned(argc), argvp, envpp))
+	cenvp = append(cenvp, nil)
+	envpp := &cenvp[0]
+	return int32(C.LLVMRunFunctionAsMain(ee.c, f.c, C.unsigned(len(argv)), argvp, envpp))
 }
 
 func LLVMRunFunction(ee LLVMExecutionEngineRef, f LLVMValueRef, args []LLVMGenericValueRef) LLVMGenericValueRef {
