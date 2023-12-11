@@ -410,7 +410,7 @@ func NativeTarget() (*Target, error) {
 func NewTargetFromTriple(triple string, cpu, feature string) (*Target, error) {
 	t, err := binding.LLVMGetTargetFromTriple(triple)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	machine := binding.LLVMCreateTargetMachine(t, triple, cpu, feature, binding.LLVMCodeGenLevelNone, binding.LLVMRelocDefault, binding.LLVMCodeModelDefault)
 	layout := binding.LLVMCreateTargetDataLayout(machine)
