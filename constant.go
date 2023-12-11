@@ -16,6 +16,8 @@ type Constant interface {
 
 func lookupConstant(ref binding.LLVMValueRef) Constant {
 	switch constKind := binding.LLVMGetValueKind(ref); constKind {
+	case binding.LLVMGlobalVariableValueKind:
+		return GlobalValue(ref)
 	case binding.LLVMConstantIntValueKind:
 		return Integer(ref)
 	case binding.LLVMConstantFPValueKind:

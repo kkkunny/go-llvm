@@ -1,6 +1,5 @@
 package llvm
 
-import "C"
 import (
 	"os"
 	"unsafe"
@@ -39,15 +38,12 @@ func (v ExecutionValue) Float(t FloatType) float64 {
 type ExecutionEngine struct {
 	bind   binding.LLVMExecutionEngineRef
 	module Module
-
-	funcMaps map[uint64]any
 }
 
 func newExecutionEngine(m Module, b binding.LLVMExecutionEngineRef) *ExecutionEngine {
 	return &ExecutionEngine{
 		bind:     b,
 		module:   m,
-		funcMaps: make(map[uint64]any),
 	}
 }
 
