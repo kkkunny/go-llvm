@@ -194,3 +194,21 @@ func (c Pointer) Type() Type {
 }
 
 func (Pointer) constant() {}
+
+func (ctx Context) ConstGEP(t Type, v Constant, indice ...Constant) Constant {
+	indices := lo.Map(indice, func(item Constant, _ int) binding.LLVMValueRef {
+		return item.binding()
+	})
+	return lookupConstant(binding.LLVMConstGEP(t.binding(), v.binding(), indices))
+}
+
+func (ctx Context) ConstInBoundsGEP(t Type, v Constant, indice ...Constant) Constant {
+	indices := lo.Map(indice, func(item Constant, _ int) binding.LLVMValueRef {
+		return item.binding()
+	})
+	return lookupConstant(binding.LLVMConstInBoundsGEP(t.binding(), v.binding(), indices))
+}
+
+func (ctx Context) ConstExtractElement(v, index Constant) Constant {
+	return lookupConstant(binding.LLVMConstExtractElement(v.binding(), index.binding()))
+}

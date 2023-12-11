@@ -44,3 +44,7 @@ func (v Param) Type() Type {
 func (p Param) Belong() Function {
 	return Function(binding.LLVMGetParamParent(p.binding()))
 }
+
+func (p Param) SetAlign(align uint32) {
+	binding.LLVMSetParamAlignment(p.binding(), uint32(align))
+}

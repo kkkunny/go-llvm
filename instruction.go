@@ -498,6 +498,14 @@ func (v Alloca) String() string {
 	return binding.LLVMPrintValueToString(v.binding())
 }
 
+func (v Alloca) SetAlign(align uint32) {
+	binding.LLVMSetAlignment(v.binding(), uint32(align))
+}
+
+func (v Alloca) GetAlign() uint32 {
+	return binding.LLVMGetAlignment(v.binding())
+}
+
 type Load binding.LLVMValueRef
 
 func (b Builder) CreateLoad(name string, t Type, p Value) Load {
@@ -520,6 +528,14 @@ func (v Load) String() string {
 	return binding.LLVMPrintValueToString(v.binding())
 }
 
+func (v Load) SetAlign(align uint32) {
+	binding.LLVMSetAlignment(v.binding(), uint32(align))
+}
+
+func (v Load) GetAlign() uint32 {
+	return binding.LLVMGetAlignment(v.binding())
+}
+
 type Store binding.LLVMValueRef
 
 func (b Builder) CreateStore(from, to Value) Store {
@@ -532,6 +548,14 @@ func (i Store) binding() binding.LLVMValueRef {
 
 func (i Store) Belong() Block {
 	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (i Store) SetAlign(align uint32) {
+	binding.LLVMSetAlignment(i.binding(), uint32(align))
+}
+
+func (i Store) GetAlign() uint32 {
+	return binding.LLVMGetAlignment(i.binding())
 }
 
 type GetElementPtr binding.LLVMValueRef
@@ -846,6 +870,30 @@ func (b Builder) CreateCall(name string, ft Type, fn Value, args ...Value) Call 
 		})
 	}
 	return Call(binding.LLVMBuildCall(b.binding(), ft.binding(), fn.binding(), as, name))
+}
+
+func (b Builder) CreateMalloc(name string, t Type) Call {
+	return Call(binding.LLVMBuildMalloc(b.binding(), t.binding(), name))
+}
+
+func (b Builder) CreateMallocWithSize(t Type, size Value, name string) Call {
+	return Call(binding.LLVMBuildArrayMalloc(b.binding(), t.binding(), size.binding(), name))
+}
+
+func (b Builder) CreateFree(name string, p Value) Call {
+	return Call(binding.LLVMBuildFree(b.binding(), p.binding()))
+}
+
+func (b Builder) CreateMemSet(ptr, value, length Value, align uint32) Call {
+	return Call(binding.LLVMBuildMemSet(b.binding(), ptr.binding(), value.binding(), length.binding(), align))
+}
+
+func (b Builder) CreateMemCpy(dst Value, dstAlign32 uint32, src Value, srcAlign uint32, size Value) Call {
+	return Call(binding.LLVMBuildMemCpy(b.binding(), dst.binding(), dstAlign32, src.binding(), srcAlign, size.binding()))
+}
+
+func (b Builder) CreateMemMove(dst Value, dstAlign32 uint32, src Value, srcAlign uint32, size Value) Call {
+	return Call(binding.LLVMBuildMemMove(b.binding(), dst.binding(), dstAlign32, src.binding(), srcAlign, size.binding()))
 }
 
 func (i Call) binding() binding.LLVMValueRef {

@@ -1542,6 +1542,21 @@ func LLVMBuildArrayMalloc(builder LLVMBuilderRef, ty LLVMTypeRef, val LLVMValueR
 	})
 }
 
+// LLVMBuildMemSet Creates and inserts a memset to the specified pointer and the specified value.
+func LLVMBuildMemSet(b LLVMBuilderRef, ptr, val, len LLVMValueRef, align uint32)LLVMValueRef{
+	return LLVMValueRef{c: C.LLVMBuildMemSet(b.c, ptr.c, val.c, len.c, C.unsigned(align))}
+}
+
+// LLVMBuildMemCpy Creates and inserts a memcpy between the specified pointers.
+func LLVMBuildMemCpy(b LLVMBuilderRef, dst LLVMValueRef, dstAlign uint32, src LLVMValueRef, srcAlign uint32, size LLVMValueRef)LLVMValueRef{
+	return LLVMValueRef{c: C.LLVMBuildMemCpy(b.c, dst.c, C.unsigned(dstAlign), src.c, C.unsigned(srcAlign), size.c)}
+}
+
+// LLVMBuildMemMove Creates and inserts a memmove between the specified pointers.
+func LLVMBuildMemMove(b LLVMBuilderRef, dst LLVMValueRef, dstAlign uint32, src LLVMValueRef, srcAlign uint32, size LLVMValueRef)LLVMValueRef{
+	return LLVMValueRef{c: C.LLVMBuildMemMove(b.c, dst.c, C.unsigned(dstAlign), src.c, C.unsigned(srcAlign), size.c)}
+}
+
 func LLVMBuildAlloca(builder LLVMBuilderRef, ty LLVMTypeRef, name string) LLVMValueRef {
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMBuildAlloca(builder.c, ty.c, name)}

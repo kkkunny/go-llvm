@@ -149,10 +149,6 @@ func (g GlobalValue) ValueType() Type {
 	return lookupType(binding.LLVMGlobalGetValueType(g.binding()))
 }
 
-func (g GlobalValue) SetAlign(align uint) {
-	binding.LLVMSetAlignment(g.binding(), uint32(align))
-}
-
 func (g GlobalValue) IsDeclaration() bool {
 	return binding.LLVMIsDeclaration(g.binding())
 }
@@ -247,6 +243,14 @@ func (g GlobalValue) IsGlobalConstant() bool {
 
 func (g GlobalValue) SetGlobalConstant(isConstant bool) {
 	binding.LLVMSetGlobalConstant(g.binding(), isConstant)
+}
+
+func (g GlobalValue) SetAlign(align uint32) {
+	binding.LLVMSetAlignment(g.binding(), uint32(align))
+}
+
+func (g GlobalValue) GetAlign() uint32 {
+	return binding.LLVMGetAlignment(g.binding())
 }
 
 type ThreadLocalMode binding.LLVMThreadLocalMode
