@@ -113,6 +113,33 @@ func (g Function) SetLinkage(linkage Linkage) {
 	binding.LLVMSetLinkage(g.binding(), binding.LLVMLinkage(linkage))
 }
 
+type FuncAttribute uint8
+
+const (
+	FuncAttributeNoReturn FuncAttribute = iota
+	FuncAttributeAlwaysInline
+	FuncAttributeNoInline
+)
+
+func (f Function) AddAttribute(attr ...FuncAttribute) {
+	ctx := binding.LLVMGetTypeContext(f.FunctionType().binding())
+	for _, a := range attr {
+		var kind uint32
+		switch a {
+		case FuncAttributeNoReturn:
+			kind = binding.LLVMGetEnumAttributeKindForName("noreturn")
+		case FuncAttributeAlwaysInline:
+			kind = binding.LLVMGetEnumAttributeKindForName("alwaysinline")
+		case FuncAttributeNoInline:
+			kind = binding.LLVMGetEnumAttributeKindForName("noinline")
+		default:
+			panic("unreachable")
+		}
+		bindAttr := binding.LLVMCreateEnumAttribute(ctx, kind, 0)
+		binding.LLVMAddAttributeAtIndex(f.binding(), binding.LLVMAttributeFunctionIndex, bindAttr)
+	}
+}
+
 type GlobalValue binding.LLVMValueRef
 
 func (m Module) NewGlobal(name string, t Type) GlobalValue {

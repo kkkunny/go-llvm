@@ -286,6 +286,13 @@ const (
 	LLVMLocalExecTLSModel
 )
 
+type LLVMAttributeIndex int32
+
+const (
+	LLVMAttributeReturnIndex   LLVMAttributeIndex = C.LLVMAttributeReturnIndex
+	LLVMAttributeFunctionIndex LLVMAttributeIndex = C.LLVMAttributeFunctionIndex
+)
+
 func LLVMDisposeMessage(message *C.char) {
 	C.LLVMDisposeMessage(message)
 }
@@ -305,6 +312,20 @@ func LLVMGetGlobalContext() LLVMContextRef {
 // This should be called for every call to LLVMContextCreate() or memory will be leaked.
 func LLVMContextDispose(c LLVMContextRef) {
 	C.LLVMContextDispose(c.c)
+}
+
+// LLVMGetEnumAttributeKindForName Return an unique id given the name of a enum attribute, or 0 if no attribute by that name exists.
+// http://llvm.org/docs/LangRef.html#parameter-attributes
+// http://llvm.org/docs/LangRef.html#function-attributes
+func LLVMGetEnumAttributeKindForName(name string) uint32 {
+	return string2CString(name, func(cname *C.char) uint32 {
+		return uint32(C.LLVMGetEnumAttributeKindForName(cname, C.size_t(len(name))))
+	})
+}
+
+// LLVMCreateEnumAttribute Create an enum attribute.
+func LLVMCreateEnumAttribute(c LLVMContextRef, kindID uint32, val uint64) LLVMAttributeRef {
+	return LLVMAttributeRef{c: C.LLVMCreateEnumAttribute(c.c, C.unsigned(kindID), C.uint64_t(val))}
 }
 
 // LLVMGetTypeByName Obtain a Type from a context by its registered name.
@@ -1098,6 +1119,11 @@ func LLVMSetExternallyInitialized(globalVar LLVMValueRef, isExtInit bool) {
 	C.LLVMSetExternallyInitialized(globalVar.c, bool2LLVMBool(isExtInit))
 }
 
+// LLVMAddAttributeAtIndex Add an attribute to a function.
+func LLVMAddAttributeAtIndex(f LLVMValueRef, idx LLVMAttributeIndex, a LLVMAttributeRef) {
+	C.LLVMAddAttributeAtIndex(f.c, C.LLVMAttributeIndex(idx), a.c)
+}
+
 // LLVMCountParams Obtain the number of parameters in a function.
 func LLVMCountParams(fn LLVMValueRef) uint32 {
 	return uint32(C.LLVMCountParams(fn.c))
@@ -1543,17 +1569,17 @@ func LLVMBuildArrayMalloc(builder LLVMBuilderRef, ty LLVMTypeRef, val LLVMValueR
 }
 
 // LLVMBuildMemSet Creates and inserts a memset to the specified pointer and the specified value.
-func LLVMBuildMemSet(b LLVMBuilderRef, ptr, val, len LLVMValueRef, align uint32)LLVMValueRef{
+func LLVMBuildMemSet(b LLVMBuilderRef, ptr, val, len LLVMValueRef, align uint32) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMBuildMemSet(b.c, ptr.c, val.c, len.c, C.unsigned(align))}
 }
 
 // LLVMBuildMemCpy Creates and inserts a memcpy between the specified pointers.
-func LLVMBuildMemCpy(b LLVMBuilderRef, dst LLVMValueRef, dstAlign uint32, src LLVMValueRef, srcAlign uint32, size LLVMValueRef)LLVMValueRef{
+func LLVMBuildMemCpy(b LLVMBuilderRef, dst LLVMValueRef, dstAlign uint32, src LLVMValueRef, srcAlign uint32, size LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMBuildMemCpy(b.c, dst.c, C.unsigned(dstAlign), src.c, C.unsigned(srcAlign), size.c)}
 }
 
 // LLVMBuildMemMove Creates and inserts a memmove between the specified pointers.
-func LLVMBuildMemMove(b LLVMBuilderRef, dst LLVMValueRef, dstAlign uint32, src LLVMValueRef, srcAlign uint32, size LLVMValueRef)LLVMValueRef{
+func LLVMBuildMemMove(b LLVMBuilderRef, dst LLVMValueRef, dstAlign uint32, src LLVMValueRef, srcAlign uint32, size LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMBuildMemMove(b.c, dst.c, C.unsigned(dstAlign), src.c, C.unsigned(srcAlign), size.c)}
 }
 
