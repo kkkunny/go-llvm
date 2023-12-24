@@ -116,28 +116,38 @@ func (g Function) SetLinkage(linkage Linkage) {
 type FuncAttribute uint8
 
 const (
-	FuncAttributeNoReturn FuncAttribute = iota
-	FuncAttributeAlwaysInline
-	FuncAttributeNoInline
+	FuncAttributeNoReturn     FuncAttribute = iota // 函数不会返回
+	FuncAttributeInlineHint                        // 自动内联
+	FuncAttributeAlwaysInline                      // 必须内联
+	FuncAttributeNoInline                          // 禁止内联
+	// FuncAttributeAllocKind 内存分配类型
+	// 1-alloc 2-realloc 1|2-alloc,realloc 4-free 8-uninitialized 16-zeroed 32-aligned
+	FuncAttributeAllocKind
 )
 
-func (f Function) AddAttribute(attr ...FuncAttribute) {
+func (f Function) AddAttribute(attr FuncAttribute, attrValue ...uint) {
 	ctx := binding.LLVMGetTypeContext(f.FunctionType().binding())
-	for _, a := range attr {
-		var kind uint32
-		switch a {
-		case FuncAttributeNoReturn:
-			kind = binding.LLVMGetEnumAttributeKindForName("noreturn")
-		case FuncAttributeAlwaysInline:
-			kind = binding.LLVMGetEnumAttributeKindForName("alwaysinline")
-		case FuncAttributeNoInline:
-			kind = binding.LLVMGetEnumAttributeKindForName("noinline")
-		default:
-			panic("unreachable")
-		}
-		bindAttr := binding.LLVMCreateEnumAttribute(ctx, kind, 0)
-		binding.LLVMAddAttributeAtIndex(f.binding(), binding.LLVMAttributeFunctionIndex, bindAttr)
+	var kind uint32
+	switch attr {
+	case FuncAttributeNoReturn:
+		kind = binding.LLVMGetEnumAttributeKindForName("noreturn")
+	case FuncAttributeInlineHint:
+		kind = binding.LLVMGetEnumAttributeKindForName("inlinehint")
+	case FuncAttributeAlwaysInline:
+		kind = binding.LLVMGetEnumAttributeKindForName("alwaysinline")
+	case FuncAttributeNoInline:
+		kind = binding.LLVMGetEnumAttributeKindForName("noinline")
+	case FuncAttributeAllocKind:
+		kind = binding.LLVMGetEnumAttributeKindForName("allockind")
+	default:
+		panic("unreachable")
 	}
+	var val uint64
+	if len(attrValue) > 0 {
+		val = uint64(attrValue[0])
+	}
+	bindAttr := binding.LLVMCreateEnumAttribute(ctx, kind, val)
+	binding.LLVMAddAttributeAtIndex(f.binding(), binding.LLVMAttributeFunctionIndex, bindAttr)
 }
 
 type GlobalValue binding.LLVMValueRef
