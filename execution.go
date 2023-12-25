@@ -1,6 +1,8 @@
 package llvm
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"unsafe"
 
@@ -38,12 +40,16 @@ func (v ExecutionValue) Float(t FloatType) float64 {
 type ExecutionEngine struct {
 	bind   binding.LLVMExecutionEngineRef
 	module Module
+
+	funcMap map[string]int32
 }
 
 func newExecutionEngine(m Module, b binding.LLVMExecutionEngineRef) *ExecutionEngine {
 	return &ExecutionEngine{
-		bind:     b,
-		module:   m,
+		bind:   b,
+		module: m,
+
+		funcMap: make(map[string]int32),
 	}
 }
 
@@ -115,6 +121,18 @@ func (engine ExecutionEngine) GetVariableRuntimePointer(v GlobalValue) (unsafe.P
 }
 
 // MapGlobalToC 映射全局值到c语言值
-func (engine ExecutionEngine) MapGlobalToC(g Global, to unsafe.Pointer) {
-	binding.LLVMAddGlobalMapping(engine.binding(), g.binding(), to)
+func (engine ExecutionEngine) MapGlobalToC(name string, to unsafe.Pointer) error {
+	if name == ""{
+		return errors.New("expect a name which is not empty")
+	}
+	if f, ok := engine.module.GetFunction(name); ok {
+		binding.LLVMAddGlobalMapping(engine.binding(), f.binding(), to)
+	} else {
+		g, ok := engine.module.GetGlobal(name)
+		if !ok {
+			return fmt.Errorf("unknown global which named `%s`", name)
+		}
+		binding.LLVMAddGlobalMapping(engine.binding(), g.binding(), to)
+	}
+	return nil
 }

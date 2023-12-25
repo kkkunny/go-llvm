@@ -478,7 +478,7 @@ func (b Builder) CreateAlloca(name string, t Type) Alloca {
 	return Alloca(binding.LLVMBuildAlloca(b.binding(), t.binding(), name))
 }
 
-func (b Builder) CreateAllocaWithSize(t Type, size Value, name string) Alloca {
+func (b Builder) CreateAllocaWithSize(name string, t Type, size Value) Alloca {
 	return Alloca(binding.LLVMBuildArrayAlloca(b.binding(), t.binding(), size.binding(), name))
 }
 

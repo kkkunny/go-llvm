@@ -10,6 +10,7 @@
 
 # Test binary, built with `go test -c`
 *.test
+test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
@@ -22,6 +23,3 @@ go.work
 
 # IDE
 .idea
-
-# config
-llvm_config_*.go
