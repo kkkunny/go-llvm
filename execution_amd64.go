@@ -138,7 +138,6 @@ func llvmPtr2GoReflectValue(t reflect.Type, ptr unsafe.Pointer) reflect.Value {
 }
 
 func goReflectValue2llvmPtr(val reflect.Value) unsafe.Pointer {
-	valVal := reflect.ValueOf(val)
-	ptr := valVal.FieldByName("ptr").UnsafePointer()
+	ptr := unsafeGetPointer(val.Interface())
 	return ptr
 }
