@@ -26,3 +26,34 @@ curl -O https://raw.githubusercontent.com/kkkunny/go-llvm/master/Makefile
 make config EXPECT_VERSION=VERION OF LLVM
 # eg.make config EXPECT_VERSION=15
 ```
+
+```go
+package main
+
+import (
+	"os"
+
+	"github.com/kkkunny/go-llvm"
+)
+
+func main() {
+	ctx := llvm.NewContext()
+	module := ctx.NewModule("main")
+	builder := ctx.NewBuilder()
+
+	mainFn := module.NewFunction("main", ctx.FunctionType(false, ctx.IntegerType(8)))
+	mainFnEntry := mainFn.NewBlock("entry")
+	builder.MoveToAfter(mainFnEntry)
+	var ret llvm.Value = ctx.ConstInteger(ctx.IntegerType(8), 0)
+	builder.CreateRet(&ret)
+
+	_ = llvm.InitializeNativeTarget()
+	_ = llvm.InitializeNativeAsmPrinter()
+
+	jiter, err := llvm.NewJITCompiler(module, llvm.CodeOptLevelNone)
+	if err != nil {
+		panic(err)
+	}
+	os.Exit(int(jiter.RunMainFunction(mainFn, nil, nil)))
+}
+```
