@@ -1360,6 +1360,51 @@ func LLVMBuildCondBr(builder LLVMBuilderRef, ifv LLVMValueRef, thenb, elseb LLVM
 	return LLVMValueRef{c: C.LLVMBuildCondBr(builder.c, ifv.c, thenb.c, elseb.c)}
 }
 
+func LLVMBuildInvoke(builder LLVMBuilderRef, ty LLVMTypeRef, fn LLVMValueRef, args []LLVMValueRef, then, catch LLVMBasicBlockRef, name string) LLVMValueRef {
+	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](args)
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildInvoke2(builder.c, ty.c, fn.c, ptr, length, then.c, catch.c, name)}
+	})
+}
+
+func LLVMBuildResume(builder LLVMBuilderRef, ext LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMBuildResume(builder.c, ext.c)}
+}
+
+func LLVMBuildLandingPad(builder LLVMBuilderRef, ty LLVMTypeRef, persFn LLVMValueRef, numClauses uint32, name string) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildLandingPad(builder.c, ty.c, persFn.c, C.unsigned(numClauses), name)}
+	})
+}
+
+func LLVMBuildCleanupRet(builder LLVMBuilderRef, catchPad LLVMValueRef, bb LLVMBasicBlockRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMBuildCleanupRet(builder.c, catchPad.c, bb.c)}
+}
+
+func LLVMBuildCatchRet(builder LLVMBuilderRef, catchPad LLVMValueRef, bb LLVMBasicBlockRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMBuildCatchRet(builder.c, catchPad.c, bb.c)}
+}
+
+func LLVMBuildCatchPad(builder LLVMBuilderRef, parentPad LLVMValueRef, args []LLVMValueRef, name string) LLVMValueRef {
+	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](args)
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildCatchPad(builder.c, parentPad.c, ptr, length, name)}
+	})
+}
+
+func LLVMBuildCleanupPad(builder LLVMBuilderRef, parentPad LLVMValueRef, args []LLVMValueRef, name string) LLVMValueRef {
+	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](args)
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildCleanupPad(builder.c, parentPad.c, ptr, length, name)}
+	})
+}
+
+func LLVMBuildCatchSwitch(builder LLVMBuilderRef, parentPad LLVMValueRef, unwindBB LLVMBasicBlockRef, numHandlers uint32, name string) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildCatchSwitch(builder.c, parentPad.c, unwindBB.c, C.unsigned(numHandlers), name)}
+	})
+}
+
 func LLVMBuildUnreachable(builder LLVMBuilderRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMBuildUnreachable(builder.c)}
 }

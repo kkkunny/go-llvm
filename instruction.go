@@ -73,10 +73,26 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 		return PHI(ref)
 	case binding.LLVMCall:
 		return Call(ref)
+	case binding.LLVMInvoke:
+		return Invoke(ref)
 	case binding.LLVMExtractElement:
 		return ExtractElement(ref)
 	case binding.LLVMExtractValue:
 		return ExtractValue(ref)
+	case binding.LLVMResume:
+		return Resume(ref)
+	case binding.LLVMLandingPad:
+		return LandingPad(ref)
+	case binding.LLVMCleanupRet:
+		return CleanupRet(ref)
+	case binding.LLVMCatchRet:
+		return CatchRet(ref)
+	case binding.LLVMCatchPad:
+		return CatchPad(ref)
+	case binding.LLVMCleanupPad:
+		return CleanupPad(ref)
+	case binding.LLVMCatchSwitch:
+		return CatchSwitch(ref)
 	default:
 		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetInstructionOpcode(ref)))
 	}
@@ -880,7 +896,7 @@ func (b Builder) CreateMallocWithSize(t Type, size Value, name string) Call {
 	return Call(binding.LLVMBuildArrayMalloc(b.binding(), t.binding(), size.binding(), name))
 }
 
-func (b Builder) CreateFree(name string, p Value) Call {
+func (b Builder) CreateFree(p Value) Call {
 	return Call(binding.LLVMBuildFree(b.binding(), p.binding()))
 }
 
@@ -1021,5 +1037,203 @@ func (v ExtractValue) Type() Type {
 }
 
 func (v ExtractValue) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type Invoke binding.LLVMValueRef
+
+func (b Builder) CreateInvoke(name string, ft Type, then, catch Block, fn Value, args ...Value) Invoke {
+	var as []binding.LLVMValueRef
+	if len(args) > 0 {
+		as = lo.Map(args, func(item Value, index int) binding.LLVMValueRef {
+			return item.binding()
+		})
+	}
+	return Invoke(binding.LLVMBuildInvoke(b.binding(), ft.binding(), fn.binding(), as, then.binding(), catch.binding(), name))
+}
+
+func (i Invoke) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i Invoke) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v Invoke) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v Invoke) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type Resume binding.LLVMValueRef
+
+func (b Builder) CreateResume(v *Value) Resume {
+	if v == nil {
+		ctx := b.CurrentBlock().Belong().FunctionType().Context()
+		return Resume(binding.LLVMBuildResume(b.binding(), ctx.ConstNull(ctx.VoidType()).binding()))
+	}
+	return Resume(binding.LLVMBuildResume(b.binding(), (*v).binding()))
+}
+
+func (i Resume) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i Resume) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v Resume) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v Resume) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type LandingPad binding.LLVMValueRef
+
+func (b Builder) CreateLandingPad(name string, t Type, f Value, numClauses uint32) LandingPad {
+	return LandingPad(binding.LLVMBuildLandingPad(b.binding(), t.binding(), f.binding(), numClauses, name))
+}
+
+func (i LandingPad) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i LandingPad) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v LandingPad) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v LandingPad) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type CleanupRet binding.LLVMValueRef
+
+func (b Builder) CreateCleanupRet(catchPad Value, bb Block) CleanupRet {
+	return CleanupRet(binding.LLVMBuildCleanupRet(b.binding(), catchPad.binding(), bb.binding()))
+}
+
+func (i CleanupRet) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i CleanupRet) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v CleanupRet) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v CleanupRet) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type CatchRet binding.LLVMValueRef
+
+func (b Builder) CreateCatchRet(catchPad Value, bb Block) CatchRet {
+	return CatchRet(binding.LLVMBuildCatchRet(b.binding(), catchPad.binding(), bb.binding()))
+}
+
+func (i CatchRet) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i CatchRet) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v CatchRet) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v CatchRet) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type CatchPad binding.LLVMValueRef
+
+func (b Builder) CreateCatchPad(name string, parentPad Value, arg ...Value) CatchPad {
+	var args []binding.LLVMValueRef
+	if len(arg) > 0 {
+		args = lo.Map(arg, func(item Value, index int) binding.LLVMValueRef {
+			return item.binding()
+		})
+	}
+	return CatchPad(binding.LLVMBuildCatchPad(b.binding(), parentPad.binding(), args, name))
+}
+
+func (i CatchPad) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i CatchPad) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v CatchPad) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v CatchPad) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type CleanupPad binding.LLVMValueRef
+
+func (b Builder) CreateCleanupPad(name string, parentPad Value, arg ...Value) CleanupPad {
+	var args []binding.LLVMValueRef
+	if len(arg) > 0 {
+		args = lo.Map(arg, func(item Value, index int) binding.LLVMValueRef {
+			return item.binding()
+		})
+	}
+	return CleanupPad(binding.LLVMBuildCleanupPad(b.binding(), parentPad.binding(), args, name))
+}
+
+func (i CleanupPad) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i CleanupPad) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v CleanupPad) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v CleanupPad) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
+
+type CatchSwitch binding.LLVMValueRef
+
+func (b Builder) CreateCatchSwitch(name string, parentPad Value, unwindBB Block, numHandlers uint32) CatchSwitch {
+	return CatchSwitch(binding.LLVMBuildCatchSwitch(b.binding(), parentPad.binding(), unwindBB.binding(), numHandlers, name))
+}
+
+func (i CatchSwitch) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i CatchSwitch) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v CatchSwitch) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v CatchSwitch) String() string {
 	return binding.LLVMPrintValueToString(v.binding())
 }
