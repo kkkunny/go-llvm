@@ -93,6 +93,8 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 		return CleanupPad(ref)
 	case binding.LLVMCatchSwitch:
 		return CatchSwitch(ref)
+	case binding.LLVMSwitch:
+		return Switch(ref)
 	default:
 		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetInstructionOpcode(ref)))
 	}
@@ -1237,3 +1239,26 @@ func (v CatchSwitch) Type() Type {
 func (v CatchSwitch) String() string {
 	return binding.LLVMPrintValueToString(v.binding())
 }
+
+type Switch binding.LLVMValueRef
+
+func (b Builder) CreateSwitch(v Value, defaultBlock Block, conds ...struct {
+	Value Value
+	Block Block
+}) Switch {
+	inst := binding.LLVMBuildSwitch(b.binding(), v.binding(), defaultBlock.binding(), uint32(len(conds)))
+	for _, cond := range conds{
+		binding.LLVMAddCase(inst, cond.Value.binding(), cond.Block.binding())
+	}
+	return Switch(inst)
+}
+
+func (i Switch) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i Switch) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (Switch) terminator() {}

@@ -1360,6 +1360,10 @@ func LLVMBuildCondBr(builder LLVMBuilderRef, ifv LLVMValueRef, thenb, elseb LLVM
 	return LLVMValueRef{c: C.LLVMBuildCondBr(builder.c, ifv.c, thenb.c, elseb.c)}
 }
 
+func LLVMBuildSwitch(builder LLVMBuilderRef, v LLVMValueRef, elseBlock LLVMBasicBlockRef, numCases uint32)LLVMValueRef{
+	return LLVMValueRef{c: C.LLVMBuildSwitch(builder.c, v.c, elseBlock.c, C.unsigned(numCases))}
+}
+
 func LLVMBuildInvoke(builder LLVMBuilderRef, ty LLVMTypeRef, fn LLVMValueRef, args []LLVMValueRef, then, catch LLVMBasicBlockRef, name string) LLVMValueRef {
 	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](args)
 	return string2CString(name, func(name *C.char) LLVMValueRef {
@@ -1403,6 +1407,10 @@ func LLVMBuildCatchSwitch(builder LLVMBuilderRef, parentPad LLVMValueRef, unwind
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMBuildCatchSwitch(builder.c, parentPad.c, unwindBB.c, C.unsigned(numHandlers), name)}
 	})
+}
+
+func LLVMAddCase(v LLVMValueRef, onVal LLVMValueRef, dest LLVMBasicBlockRef){
+	C.LLVMAddCase(v.c, onVal.c, dest.c)
 }
 
 func LLVMBuildUnreachable(builder LLVMBuilderRef) LLVMValueRef {
