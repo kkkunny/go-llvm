@@ -95,6 +95,8 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 		return CatchSwitch(ref)
 	case binding.LLVMSwitch:
 		return Switch(ref)
+	case binding.LLVMSelect:
+		return Select(ref)
 	default:
 		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetInstructionOpcode(ref)))
 	}
@@ -1262,3 +1264,25 @@ func (i Switch) Belong() Block {
 }
 
 func (Switch) terminator() {}
+
+type Select binding.LLVMValueRef
+
+func (b Builder) CreateSelect(name string, cond Value, trueValue, falseValue Value) Select {
+	return Select(binding.LLVMBuildSelect(b.binding(), cond.binding(), trueValue.binding(), falseValue.binding(), name))
+}
+
+func (i Select) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(i)
+}
+
+func (i Select) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(i.binding()))
+}
+
+func (v Select) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.binding()))
+}
+
+func (v Select) String() string {
+	return binding.LLVMPrintValueToString(v.binding())
+}
