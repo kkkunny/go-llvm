@@ -8,6 +8,7 @@ package binding
 */
 import "C"
 
+// Deprecated
 func LLVMConstFNeg(constantVal LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstFNeg(constantVal.c)}
 }

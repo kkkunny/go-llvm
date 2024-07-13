@@ -857,14 +857,6 @@ func LLVMConstNUWMul(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstNUWMul(lHSConstant.c, rHSConstant.c)}
 }
 
-func LLVMConstAnd(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstAnd(lHSConstant.c, rHSConstant.c)}
-}
-
-func LLVMConstOr(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstOr(lHSConstant.c, rHSConstant.c)}
-}
-
 func LLVMConstXor(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstXor(lHSConstant.c, rHSConstant.c)}
 }
@@ -881,14 +873,6 @@ func LLVMConstShl(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstShl(lHSConstant.c, rHSConstant.c)}
 }
 
-func LLVMConstLShr(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstLShr(lHSConstant.c, rHSConstant.c)}
-}
-
-func LLVMConstAShr(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstAShr(lHSConstant.c, rHSConstant.c)}
-}
-
 func LLVMConstGEP(ty LLVMTypeRef, constantVal LLVMValueRef, constantIndices []LLVMValueRef) LLVMValueRef {
 	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](constantIndices)
 	return LLVMValueRef{c: C.LLVMConstGEP2(ty.c, constantVal.c, ptr, length)}
@@ -901,38 +885,6 @@ func LLVMConstInBoundsGEP(ty LLVMTypeRef, constantVal LLVMValueRef, constantIndi
 
 func LLVMConstTrunc(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstTrunc(constantVal.c, toType.c)}
-}
-
-func LLVMConstSExt(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstSExt(constantVal.c, toType.c)}
-}
-
-func LLVMConstZExt(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstZExt(constantVal.c, toType.c)}
-}
-
-func LLVMConstFPTrunc(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstFPTrunc(constantVal.c, toType.c)}
-}
-
-func LLVMConstFPExt(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstFPExt(constantVal.c, toType.c)}
-}
-
-func LLVMConstUIToFP(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstUIToFP(constantVal.c, toType.c)}
-}
-
-func LLVMConstSIToFP(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstSIToFP(constantVal.c, toType.c)}
-}
-
-func LLVMConstFPToUI(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstFPToUI(constantVal.c, toType.c)}
-}
-
-func LLVMConstFPToSI(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstFPToSI(constantVal.c, toType.c)}
 }
 
 func LLVMConstPtrToInt(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
@@ -951,28 +903,12 @@ func LLVMConstAddrSpaceCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMVa
 	return LLVMValueRef{c: C.LLVMConstAddrSpaceCast(constantVal.c, toType.c)}
 }
 
-func LLVMConstZExtOrBitCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstZExtOrBitCast(constantVal.c, toType.c)}
-}
-
-func LLVMConstSExtOrBitCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstSExtOrBitCast(constantVal.c, toType.c)}
-}
-
 func LLVMConstTruncOrBitCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstTruncOrBitCast(constantVal.c, toType.c)}
 }
 
 func LLVMConstPointerCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstPointerCast(constantVal.c, toType.c)}
-}
-
-func LLVMConstIntCast(constantVal LLVMValueRef, toType LLVMTypeRef, isSigned bool) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstIntCast(constantVal.c, toType.c, bool2LLVMBool(isSigned))}
-}
-
-func LLVMConstFPCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstFPCast(constantVal.c, toType.c)}
 }
 
 func LLVMConstExtractElement(vectorConstant, indexConstant LLVMValueRef) LLVMValueRef {
@@ -1360,7 +1296,7 @@ func LLVMBuildCondBr(builder LLVMBuilderRef, ifv LLVMValueRef, thenb, elseb LLVM
 	return LLVMValueRef{c: C.LLVMBuildCondBr(builder.c, ifv.c, thenb.c, elseb.c)}
 }
 
-func LLVMBuildSwitch(builder LLVMBuilderRef, v LLVMValueRef, elseBlock LLVMBasicBlockRef, numCases uint32)LLVMValueRef{
+func LLVMBuildSwitch(builder LLVMBuilderRef, v LLVMValueRef, elseBlock LLVMBasicBlockRef, numCases uint32) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMBuildSwitch(builder.c, v.c, elseBlock.c, C.unsigned(numCases))}
 }
 
@@ -1409,7 +1345,7 @@ func LLVMBuildCatchSwitch(builder LLVMBuilderRef, parentPad LLVMValueRef, unwind
 	})
 }
 
-func LLVMAddCase(v LLVMValueRef, onVal LLVMValueRef, dest LLVMBasicBlockRef){
+func LLVMAddCase(v LLVMValueRef, onVal LLVMValueRef, dest LLVMBasicBlockRef) {
 	C.LLVMAddCase(v.c, onVal.c, dest.c)
 }
 

@@ -7,6 +7,7 @@ Currently supported:
 * LLVM 15
 * LLVM 16
 * LLVM 17
+* LLVM 18
 
 ## Usage
 

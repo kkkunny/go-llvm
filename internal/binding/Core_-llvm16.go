@@ -8,6 +8,7 @@ package binding
 */
 import "C"
 
+// Deprecated
 func LLVMConstSelect(constantCondition, constantIfTrue, constantIfFalse LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstSelect(constantCondition.c, constantIfTrue.c, constantIfFalse.c)}
 }
