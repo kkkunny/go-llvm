@@ -50,6 +50,10 @@ func (ctx Context) ConstAggregateZero(t AggregateType) Constant {
 	return lookupConstant(binding.LLVMConstAggregateZero(t.binding()))
 }
 
+func (ctx Context) ConstZero(t Type) Constant {
+	return ctx.ConstNull(t)
+}
+
 type Integer binding.LLVMValueRef
 
 func (ctx Context) ConstIntegerFromString(t IntegerType, s string, radix uint8) Integer {
