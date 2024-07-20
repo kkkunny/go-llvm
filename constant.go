@@ -41,6 +41,8 @@ func lookupConstant(ref binding.LLVMValueRef) Constant {
 		switch opcode := binding.LLVMGetConstOpcode(ref); opcode {
 		case binding.LLVMExtractElement:
 			return ConstExtractElement(ref)
+		case binding.LLVMGetElementPtr:
+			return ConstGetElementPtr(ref)
 		default:
 			panic(fmt.Errorf("unknown opcode `%d`", opcode))
 		}
@@ -216,19 +218,35 @@ func (c ConstPointer) Type() Type {
 
 func (ConstPointer) constant() {}
 
-func (ctx Context) ConstGEP(t Type, v Constant, indice ...Constant) Constant {
+type ConstGetElementPtr binding.LLVMValueRef
+
+func (ctx Context) ConstGEP(t Type, v Constant, indice ...Constant) ConstGetElementPtr {
 	indices := lo.Map(indice, func(item Constant, _ int) binding.LLVMValueRef {
 		return item.binding()
 	})
-	return lookupConstant(binding.LLVMConstGEP(t.binding(), v.binding(), indices))
+	return ConstGetElementPtr(binding.LLVMConstGEP(t.binding(), v.binding(), indices))
 }
 
-func (ctx Context) ConstInBoundsGEP(t Type, v Constant, indice ...Constant) Constant {
+func (ctx Context) ConstInBoundsGEP(t Type, v Constant, indice ...Constant) ConstGetElementPtr {
 	indices := lo.Map(indice, func(item Constant, _ int) binding.LLVMValueRef {
 		return item.binding()
 	})
-	return lookupConstant(binding.LLVMConstInBoundsGEP(t.binding(), v.binding(), indices))
+	return ConstGetElementPtr(binding.LLVMConstInBoundsGEP(t.binding(), v.binding(), indices))
 }
+
+func (c ConstGetElementPtr) String() string {
+	return binding.LLVMPrintValueToString(c.binding())
+}
+
+func (c ConstGetElementPtr) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(c)
+}
+
+func (c ConstGetElementPtr) Type() Type {
+	return lookupType(binding.LLVMTypeOf(c.binding()))
+}
+
+func (ConstGetElementPtr) constant() {}
 
 type ConstExtractElement binding.LLVMValueRef
 
