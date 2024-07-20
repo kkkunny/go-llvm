@@ -156,6 +156,13 @@ func (m Module) NewGlobal(name string, t Type) GlobalValue {
 	return GlobalValue(binding.LLVMAddGlobal(m.binding(), t.binding(), name))
 }
 
+func (m Module) NewConstant(name string, v Constant) GlobalValue {
+	gv := m.NewGlobal(name, v.Type())
+	gv.SetInitializer(v)
+	gv.SetGlobalConstant(true)
+	return gv
+}
+
 func (m Module) DelGlobal(g GlobalValue) {
 	binding.LLVMDeleteGlobal(g.binding())
 }
