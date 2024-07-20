@@ -1249,7 +1249,7 @@ func (b Builder) CreateSwitch(v Value, defaultBlock Block, conds ...struct {
 	Block Block
 }) Switch {
 	inst := binding.LLVMBuildSwitch(b.binding(), v.binding(), defaultBlock.binding(), uint32(len(conds)))
-	for _, cond := range conds{
+	for _, cond := range conds {
 		binding.LLVMAddCase(inst, cond.Value.binding(), cond.Block.binding())
 	}
 	return Switch(inst)

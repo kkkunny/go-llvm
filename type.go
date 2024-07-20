@@ -13,6 +13,7 @@ type Type interface {
 	binding() binding.LLVMTypeRef
 	Context() Context
 	IsSized() bool
+	Equal(dst Type) bool
 }
 
 type AggregateType interface {
@@ -64,6 +65,10 @@ func (t VoidType) IsSized() bool {
 	return true
 }
 
+func (t VoidType) Equal(dst Type) bool {
+	return is[VoidType](dst)
+}
+
 type IntegerType binding.LLVMTypeRef
 
 func (ctx Context) IntegerType(bits uint32) IntegerType {
@@ -96,6 +101,14 @@ func (t IntegerType) IsSized() bool {
 
 func (t IntegerType) Bits() uint32 {
 	return binding.LLVMGetIntTypeWidth(t.binding())
+}
+
+func (t IntegerType) Equal(dst Type) bool {
+	tt, ok := dst.(IntegerType)
+	if !ok {
+		return false
+	}
+	return t.Bits() == tt.Bits()
 }
 
 type FloatTypeKind binding.LLVMTypeKind
@@ -153,6 +166,14 @@ func (t FloatType) IsSized() bool {
 	return true
 }
 
+func (t FloatType) Equal(dst Type) bool {
+	tt, ok := dst.(FloatType)
+	if !ok {
+		return false
+	}
+	return t.Kind() == tt.Kind()
+}
+
 type FunctionType binding.LLVMTypeRef
 
 func (ctx Context) FunctionType(isVarArg bool, ret Type, param ...Type) FunctionType {
@@ -197,6 +218,29 @@ func (t FunctionType) Params() []Type {
 	return lo.Map(binding.LLVMGetParamTypes(t.binding()), func(e binding.LLVMTypeRef, index int) Type {
 		return lookupType(e)
 	})
+}
+
+func (t FunctionType) Equal(dst Type) bool {
+	tt, ok := dst.(FunctionType)
+	if !ok {
+		return false
+	}
+	if t.IsVarArg() != tt.IsVarArg() {
+		return false
+	}
+	if t.CountParams() != tt.CountParams() {
+		return false
+	}
+	if !t.ReturnType().Equal(tt.ReturnType()) {
+		return false
+	}
+	fps, tps := t.Params(), tt.Params()
+	for i, p := range fps {
+		if !p.Equal(tps[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 type StructType binding.LLVMTypeRef
@@ -280,6 +324,28 @@ func (t StructType) SetElems(packed bool, elems ...Type) {
 
 func (StructType) aggregate() {}
 
+func (t StructType) Equal(dst Type) bool {
+	tt, ok := dst.(StructType)
+	if !ok {
+		return false
+	}
+	if t.Name() != tt.Name() {
+		return false
+	}
+	if t.IsPacked() != tt.IsPacked() || t.IsOpaque() != tt.IsOpaque() {
+		return false
+	}
+	if t.CountElems() != tt.CountElems() {
+		return false
+	}
+	for i := uint32(0); i < t.CountElems(); i++ {
+		if !t.GetElem(i).Equal(tt.GetElem(i)) {
+			return false
+		}
+	}
+	return true
+}
+
 type ArrayType binding.LLVMTypeRef
 
 func (ctx Context) ArrayType(elem Type, cap uint32) ArrayType {
@@ -306,11 +372,19 @@ func (t ArrayType) Capacity() uint32 {
 	return binding.LLVMGetArrayLength(t.binding())
 }
 
-func (t ArrayType) Element() Type {
+func (t ArrayType) Elem() Type {
 	return lookupType(binding.LLVMGetElementType(t.binding()))
 }
 
 func (ArrayType) aggregate() {}
+
+func (t ArrayType) Equal(dst Type) bool {
+	tt, ok := dst.(ArrayType)
+	if !ok {
+		return false
+	}
+	return t.Capacity() == tt.Capacity() && t.Elem().Equal(tt.Elem())
+}
 
 type PointerType binding.LLVMTypeRef
 
@@ -346,4 +420,12 @@ func (t PointerType) IsOpaque() bool {
 
 func (t PointerType) AddressSpace() uint32 {
 	return binding.LLVMGetPointerAddressSpace(t.binding())
+}
+
+func (t PointerType) Equal(dst Type) bool {
+	tt, ok := dst.(PointerType)
+	if !ok {
+		return false
+	}
+	return t.IsOpaque() == tt.IsOpaque() && t.AddressSpace() == tt.AddressSpace()
 }
