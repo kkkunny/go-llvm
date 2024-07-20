@@ -152,13 +152,16 @@ func (f Function) AddAttribute(attr FuncAttribute, attrValue ...uint) {
 
 type GlobalValue binding.LLVMValueRef
 
-func (m Module) NewGlobal(name string, t Type) GlobalValue {
-	return GlobalValue(binding.LLVMAddGlobal(m.binding(), t.binding(), name))
+func (m Module) NewGlobal(name string, t Type, v Constant) GlobalValue {
+	gv := GlobalValue(binding.LLVMAddGlobal(m.binding(), t.binding(), name))
+	if v != nil {
+		gv.SetInitializer(v)
+	}
+	return gv
 }
 
 func (m Module) NewConstant(name string, v Constant) GlobalValue {
-	gv := m.NewGlobal(name, v.Type())
-	gv.SetInitializer(v)
+	gv := m.NewGlobal(name, v.Type(), v)
 	gv.SetGlobalConstant(true)
 	return gv
 }

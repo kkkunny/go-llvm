@@ -46,5 +46,5 @@ func (p Param) Belong() Function {
 }
 
 func (p Param) SetAlign(align uint32) {
-	binding.LLVMSetParamAlignment(p.binding(), uint32(align))
+	binding.LLVMSetParamAlignment(p.binding(), align)
 }

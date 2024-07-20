@@ -84,9 +84,8 @@ func (m Module) AddConstructor(prior uint16, f Function) {
 		m.DelGlobal(ctors)
 	}
 	elems = append(elems, stv)
-	ctors = m.NewGlobal(name, ctx.ArrayType(st, uint32(len(elems))))
+	ctors = m.NewGlobal(name, ctx.ArrayType(st, uint32(len(elems))), ctx.ConstArray(st, elems...))
 	ctors.SetLinkage(AppendingLinkage)
-	ctors.SetInitializer(ctx.ConstArray(st, elems...))
 }
 
 func (m Module) AddDestructor(prior uint16, f Function) {
@@ -110,7 +109,6 @@ func (m Module) AddDestructor(prior uint16, f Function) {
 		m.DelGlobal(dtors)
 	}
 	elems = append(elems, stv)
-	dtors = m.NewGlobal(name, ctx.ArrayType(st, uint32(len(elems))))
+	dtors = m.NewGlobal(name, ctx.ArrayType(st, uint32(len(elems))), ctx.ConstArray(st, elems...))
 	dtors.SetLinkage(AppendingLinkage)
-	dtors.SetInitializer(ctx.ConstArray(st, elems...))
 }
