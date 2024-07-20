@@ -60,6 +60,14 @@ func (ctx Context) ConstInteger(t IntegerType, v int64) Integer {
 	return ctx.ConstIntegerFromString(t, strconv.FormatInt(v, 10), 10)
 }
 
+func (ctx Context) ConstBoolean(v bool) Integer {
+	if v {
+		return ctx.ConstInteger(ctx.BooleanType(), 1)
+	} else {
+		return ctx.ConstInteger(ctx.BooleanType(), 0)
+	}
+}
+
 func (c Integer) String() string {
 	return binding.LLVMPrintValueToString(c.binding())
 }

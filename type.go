@@ -64,6 +64,40 @@ func (t VoidType) IsSized() bool {
 	return true
 }
 
+type IntegerType binding.LLVMTypeRef
+
+func (ctx Context) IntegerType(bits uint32) IntegerType {
+	return IntegerType(binding.LLVMIntTypeInContext(ctx.binding(), bits))
+}
+
+func (ctx Context) BooleanType() IntegerType {
+	return ctx.IntegerType(1)
+}
+
+func (ctx Context) IntPtrType(t *Target) IntegerType {
+	return IntegerType(binding.LLVMIntPtrTypeInContext(ctx.binding(), t.dataLayout.binding()))
+}
+
+func (t IntegerType) String() string {
+	return binding.LLVMPrintTypeToString(t.binding())
+}
+
+func (t IntegerType) binding() binding.LLVMTypeRef {
+	return binding.LLVMTypeRef(t)
+}
+
+func (t IntegerType) Context() Context {
+	return Context(binding.LLVMGetTypeContext(t.binding()))
+}
+
+func (t IntegerType) IsSized() bool {
+	return true
+}
+
+func (t IntegerType) Bits() uint32 {
+	return binding.LLVMGetIntTypeWidth(t.binding())
+}
+
 type FloatTypeKind binding.LLVMTypeKind
 
 const (
@@ -117,36 +151,6 @@ func (t FloatType) Kind() FloatTypeKind {
 
 func (t FloatType) IsSized() bool {
 	return true
-}
-
-type IntegerType binding.LLVMTypeRef
-
-func (ctx Context) IntegerType(bits uint32) IntegerType {
-	return IntegerType(binding.LLVMIntTypeInContext(ctx.binding(), bits))
-}
-
-func (ctx Context) IntPtrType(t *Target) IntegerType {
-	return IntegerType(binding.LLVMIntPtrTypeInContext(ctx.binding(), t.dataLayout.binding()))
-}
-
-func (t IntegerType) String() string {
-	return binding.LLVMPrintTypeToString(t.binding())
-}
-
-func (t IntegerType) binding() binding.LLVMTypeRef {
-	return binding.LLVMTypeRef(t)
-}
-
-func (t IntegerType) Context() Context {
-	return Context(binding.LLVMGetTypeContext(t.binding()))
-}
-
-func (t IntegerType) IsSized() bool {
-	return true
-}
-
-func (t IntegerType) Bits() uint32 {
-	return binding.LLVMGetIntTypeWidth(t.binding())
 }
 
 type FunctionType binding.LLVMTypeRef
