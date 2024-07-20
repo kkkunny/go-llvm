@@ -30,15 +30,15 @@ func lookupValue(ref binding.LLVMValueRef) Value {
 
 type Param binding.LLVMValueRef
 
-func (v Param) String() string {
-	return binding.LLVMPrintValueToString(v.binding())
+func (p Param) String() string {
+	return binding.LLVMPrintValueToString(p.binding())
 }
-func (v Param) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(v)
+func (p Param) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(p)
 }
 
-func (v Param) Type() Type {
-	return lookupType(binding.LLVMTypeOf(v.binding()))
+func (p Param) Type() Type {
+	return lookupType(binding.LLVMTypeOf(p.binding()))
 }
 
 func (p Param) Belong() Function {

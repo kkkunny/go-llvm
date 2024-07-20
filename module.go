@@ -75,7 +75,7 @@ func (m Module) AddConstructor(prior uint16, f Function) {
 	if ok {
 		v, ok := ctors.GetInitializer()
 		if ok {
-			av := v.(Array)
+			av := v.(ConstArray)
 			avt := av.Type().(ArrayType)
 			for i := uint32(0); i < avt.Capacity(); i++ {
 				elems = append(elems, av.GetElem(uint(i)))
@@ -100,7 +100,7 @@ func (m Module) AddDestructor(prior uint16, f Function) {
 	if ok {
 		v, ok := dtors.GetInitializer()
 		if ok {
-			av := v.(Array)
+			av := v.(ConstArray)
 			avt := av.Type().(ArrayType)
 			for i := uint32(0); i < avt.Capacity(); i++ {
 				elems = append(elems, av.GetElem(uint(i)))

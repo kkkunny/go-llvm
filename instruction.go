@@ -1006,12 +1006,12 @@ func (b Builder) CreateExtractElement(name string, vec, index Value) ExtractElem
 	return ExtractElement(binding.LLVMBuildExtractElement(b.binding(), vec.binding(), index.binding(), name))
 }
 
-func (i ExtractElement) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(i)
+func (v ExtractElement) binding() binding.LLVMValueRef {
+	return binding.LLVMValueRef(v)
 }
 
-func (i ExtractElement) Belong() Block {
-	return Block(binding.LLVMGetInstructionParent(i.binding()))
+func (v ExtractElement) Belong() Block {
+	return Block(binding.LLVMGetInstructionParent(v.binding()))
 }
 
 func (v ExtractElement) Type() Type {
