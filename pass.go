@@ -1,6 +1,10 @@
 package llvm
 
-import "github.com/kkkunny/go-llvm/internal/binding"
+import (
+	"strings"
+
+	"github.com/kkkunny/go-llvm/internal/binding"
+)
 
 type PassOption binding.LLVMPassBuilderOptionsRef
 
@@ -58,4 +62,15 @@ func (o PassOption) SetMergeFunctions(v bool) {
 
 func (o PassOption) Free() {
 	binding.LLVMDisposePassBuilderOptions(o.binding())
+}
+
+// RunPasses https://llvm.org/docs/Passes.html
+func (m Module) RunPasses(option PassOption, pass ...string) error {
+	target, err := m.GetTarget()
+	if err != nil {
+		return err
+	}
+	machine := newMachine(target.targetInfo, target.triple, "generic", "", CodeOptLevelNone, RelocModeDefault, CodeModelDefault)
+	defer machine.Free()
+	return binding.LLVMRunPasses(m.binding(), strings.Join(pass, ","), machine.binding(), option.binding())
 }

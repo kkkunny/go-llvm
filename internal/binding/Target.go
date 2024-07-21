@@ -8,6 +8,13 @@ import "errors"
 
 type LLVMTargetDataRef struct{ c C.LLVMTargetDataRef }
 
+type LLVMByteOrdering int32
+
+const (
+	LLVMBigEndian    LLVMByteOrdering = C.LLVMBigEndian
+	LLVMLittleEndian LLVMByteOrdering = C.LLVMLittleEndian
+)
+
 func (ref LLVMTargetDataRef) IsNil() bool { return ref.c == nil }
 
 // LLVMInitializeAllTargetInfos The main program should call this function if it wants access to all available targets that LLVM is configured to support.
@@ -214,6 +221,11 @@ func LLVMCopyStringRepOfTargetData(td LLVMTargetDataRef) string {
 	cstring := C.LLVMCopyStringRepOfTargetData(td.c)
 	defer LLVMDisposeMessage(cstring)
 	return C.GoString(cstring)
+}
+
+// LLVMByteOrder Returns the byte order of a target, either LLVMBigEndian or LLVMLittleEndian.
+func LLVMByteOrder(td LLVMTargetDataRef) LLVMByteOrdering {
+	return LLVMByteOrdering(C.LLVMByteOrder(td.c))
 }
 
 // LLVMPointerSize Returns the pointer size in bytes for a target.

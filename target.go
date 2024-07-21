@@ -36,6 +36,46 @@ const (
 // ErrUnknownArch 未知的架构
 var ErrUnknownArch = errors.New("unknown arch")
 
+type CodeOptLevel binding.LLVMCodeGenOptLevel
+
+const (
+	CodeOptLevelNone       = CodeOptLevel(binding.LLVMCodeGenLevelNone)
+	CodeOptLevelLess       = CodeOptLevel(binding.LLVMCodeGenLevelLess)
+	CodeOptLevelDefault    = CodeOptLevel(binding.LLVMCodeGenLevelDefault)
+	CodeOptLevelAggressive = CodeOptLevel(binding.LLVMCodeGenLevelAggressive)
+)
+
+type RelocMode binding.LLVMRelocMode
+
+const (
+	RelocModeDefault      = RelocMode(binding.LLVMRelocDefault)
+	RelocModeStatic       = RelocMode(binding.LLVMRelocStatic)
+	RelocModePIC          = RelocMode(binding.LLVMRelocPIC)
+	RelocModeDynamicNoPic = RelocMode(binding.LLVMRelocDynamicNoPic)
+	RelocModeROPI         = RelocMode(binding.LLVMRelocROPI)
+	RelocModeRWPI         = RelocMode(binding.LLVMRelocRWPI)
+	RelocModeROPI_RWPI    = RelocMode(binding.LLVMRelocROPI_RWPI)
+)
+
+type CodeModel binding.LLVMRelocMode
+
+const (
+	CodeModelDefault    = CodeModel(binding.LLVMCodeModelDefault)
+	CodeModelJITDefault = CodeModel(binding.LLVMCodeModelJITDefault)
+	CodeModelTiny       = CodeModel(binding.LLVMCodeModelTiny)
+	CodeModelSmall      = CodeModel(binding.LLVMCodeModelSmall)
+	CodeModelKernel     = CodeModel(binding.LLVMCodeModelKernel)
+	CodeModelMedium     = CodeModel(binding.LLVMCodeModelMedium)
+	CodeModelLarge      = CodeModel(binding.LLVMCodeModelLarge)
+)
+
+type ByteOrder binding.LLVMThreadLocalMode
+
+const (
+	ByteOrderBigEndian    = ByteOrder(binding.LLVMBigEndian)
+	ByteOrderLittleEndian = ByteOrder(binding.LLVMLittleEndian)
+)
+
 func InitializeAllTargetInfos() {
 	binding.LLVMInitializeAllTargetInfos()
 }
@@ -348,6 +388,40 @@ func InitializeNativeDisassembler() error {
 	return binding.LLVMInitializeNativeDisassembler()
 }
 
+type targetInfo binding.LLVMTargetRef
+
+func (d targetInfo) binding() binding.LLVMTargetRef {
+	return binding.LLVMTargetRef(d)
+}
+
+func getTargetInfoFromTriple(triple string) (targetInfo, error) {
+	ref, err := binding.LLVMGetTargetFromTriple(triple)
+	if err != nil {
+		return targetInfo{}, err
+	}
+	return targetInfo(ref), nil
+}
+
+func (t targetInfo) Name() string {
+	return binding.LLVMGetTargetName(t.binding())
+}
+
+func (t targetInfo) Description() string {
+	return binding.LLVMGetTargetDescription(t.binding())
+}
+
+func (t targetInfo) HasJIT() bool {
+	return binding.LLVMTargetHasJIT(t.binding())
+}
+
+func (t targetInfo) HasTargetMachine() bool {
+	return binding.LLVMTargetHasTargetMachine(t.binding())
+}
+
+func (t targetInfo) HasAsmBackend() bool {
+	return binding.LLVMTargetHasAsmBackend(t.binding())
+}
+
 type dataLayout binding.LLVMTargetDataRef
 
 func (d dataLayout) binding() binding.LLVMTargetDataRef {
@@ -358,169 +432,173 @@ func (d dataLayout) Free() {
 	binding.LLVMDisposeTargetData(d.binding())
 }
 
+func (m Module) getDataLayout() dataLayout {
+	return dataLayout(binding.LLVMGetModuleDataLayout(m.binding()))
+}
+
+func newDataLayout(layout string) dataLayout {
+	return dataLayout(binding.LLVMCreateTargetData(layout))
+}
+
 func (d dataLayout) String() string {
 	return binding.LLVMCopyStringRepOfTargetData(d.binding())
+}
+
+func (d dataLayout) ByteOrder() ByteOrder {
+	return ByteOrder(binding.LLVMByteOrder(d.binding()))
 }
 
 func (d dataLayout) PointerSize() uint {
 	return uint(binding.LLVMPointerSize(d.binding()))
 }
 
+// GetSizeOfType 编译器视角size 单位byte
 func (d dataLayout) GetSizeOfType(t Type) uint {
 	return uint(binding.LLVMSizeOfTypeInBits(d.binding(), t.binding()))
 }
 
+// GetStoreSizeOfType 实际存储size 单位byte
 func (d dataLayout) GetStoreSizeOfType(t Type) uint {
 	return uint(binding.LLVMStoreSizeOfType(d.binding(), t.binding()))
 }
 
+// GetABISizeOfType ABI视角size 单位byte
 func (d dataLayout) GetABISizeOfType(t Type) uint {
 	return uint(binding.LLVMABISizeOfType(d.binding(), t.binding()))
 }
 
+// GetABIAlignOfType ABI实际align 单位byte
 func (d dataLayout) GetABIAlignOfType(t Type) uint {
 	return uint(binding.LLVMABIAlignmentOfType(d.binding(), t.binding()))
 }
 
+// GetCallFrameAlignOfType 函数调用栈align 单位byte
 func (d dataLayout) GetCallFrameAlignOfType(t Type) uint {
 	return uint(binding.LLVMCallFrameAlignmentOfType(d.binding(), t.binding()))
 }
 
+// GetPrefAlignOfType 编译器推荐align 单位byte
 func (d dataLayout) GetPrefAlignOfType(t Type) uint {
 	return uint(binding.LLVMPreferredAlignmentOfType(d.binding(), t.binding()))
 }
 
+// GetPrefAlignOfGlobal 编译器推荐align 单位byte
 func (d dataLayout) GetPrefAlignOfGlobal(g GlobalValue) uint {
 	return uint(binding.LLVMPreferredAlignmentOfGlobal(d.binding(), g.binding()))
 }
 
+// GetOffsetOfElem 获取结构体元素的offset 单位byte
 func (d dataLayout) GetOffsetOfElem(st StructType, i uint) uint {
 	return uint(binding.LLVMOffsetOfElement(d.binding(), st.binding(), uint32(i)))
 }
 
+type machine binding.LLVMTargetMachineRef
+
+func (m machine) binding() binding.LLVMTargetMachineRef {
+	return binding.LLVMTargetMachineRef(m)
+}
+
+func (m machine) Free() {
+	binding.LLVMDisposeTargetMachine(m.binding())
+}
+
+func newMachine(target targetInfo, triple string, cpu string, features string, codeOptLevel CodeOptLevel, reloc RelocMode, codeModel CodeModel) machine {
+	return machine(binding.LLVMCreateTargetMachine(target.binding(), triple, cpu, features, binding.LLVMCodeGenOptLevel(codeOptLevel), binding.LLVMRelocMode(reloc), binding.LLVMCodeModel(codeModel)))
+}
+
+func (m machine) getTargetInfo() targetInfo {
+	return targetInfo(binding.LLVMGetTargetMachineTarget(m.binding()))
+}
+
+func (m machine) Triple() string {
+	return binding.LLVMGetTargetMachineTriple(m.binding())
+}
+
+func (m machine) CPU() string {
+	return binding.LLVMGetTargetMachineCPU(m.binding())
+}
+
+func (m machine) Feature() string {
+	return binding.LLVMGetTargetMachineFeatureString(m.binding())
+}
+
+func (m machine) createDataLayout() dataLayout {
+	return dataLayout(binding.LLVMCreateTargetDataLayout(m.binding()))
+}
+
 type Target struct {
+	triple string
+	targetInfo
 	dataLayout
-	machine binding.LLVMTargetMachineRef
 }
 
-func NativeTarget() (*Target, error) {
-	return NewTargetFromTriple(binding.LLVMGetDefaultTargetTriple(), CPUName, CPUFeatures)
-}
-
-func NewTargetFromTriple(triple string, cpu, feature string) (*Target, error) {
-	t, err := binding.LLVMGetTargetFromTriple(triple)
-	if err != nil {
-		return nil, err
+func NativeTarget() (Target, error) {
+	if err := InitializeNativeTarget(); err != nil {
+		return Target{}, err
 	}
-	machine := binding.LLVMCreateTargetMachine(t, triple, cpu, feature, binding.LLVMCodeGenLevelNone, binding.LLVMRelocDefault, binding.LLVMCodeModelDefault)
-	layout := binding.LLVMCreateTargetDataLayout(machine)
-	return &Target{
-		dataLayout: dataLayout(layout),
-		machine:    machine,
+	return NewTargetFromTriple(binding.LLVMGetDefaultTargetTriple())
+}
+
+func NewTargetFromTriple(triple string) (Target, error) {
+	targetInfo, err := getTargetInfoFromTriple(triple)
+	if err != nil {
+		return Target{}, err
+	}
+	machine := newMachine(targetInfo, triple, "generic", "", CodeOptLevelNone, RelocModeDefault, CodeModelDefault)
+	defer machine.Free()
+	return Target{
+		triple:     triple,
+		targetInfo: targetInfo,
+		dataLayout: machine.createDataLayout(),
 	}, nil
 }
 
-func (m *Module) SetTarget(t *Target) {
-	binding.LLVMSetModuleDataLayout(m.binding(), t.dataLayout.binding())
-	binding.LLVMSetTarget(m.binding(), t.Triple())
-	m.target = t
+func (t Target) Free() {
+	t.dataLayout.Free()
 }
 
-func (m Module) GetTarget() (*Target, bool) {
-	if m.target == nil {
-		return nil, false
-	}
-	return m.target, true
-}
-
-func (t Target) getTargetRef() binding.LLVMTargetRef {
-	return binding.LLVMGetTargetMachineTarget(t.machine)
+func (t Target) Triple() string {
+	return t.triple
 }
 
 func (t Target) String() string {
 	return t.Triple()
 }
 
-func (t Target) Name() string {
-	return binding.LLVMGetTargetName(t.getTargetRef())
+func (m Module) SetTarget(t Target) {
+	binding.LLVMSetTarget(m.binding(), t.Triple())
+	binding.LLVMSetModuleDataLayout(m.binding(), t.dataLayout.binding())
 }
 
-func (t Target) Description() string {
-	return binding.LLVMGetTargetDescription(t.getTargetRef())
+func (m Module) GetTarget() (Target, error) {
+	triple := binding.LLVMGetTarget(m.binding())
+	targetInfo, err := getTargetInfoFromTriple(triple)
+	if err != nil {
+		return Target{}, err
+	}
+	dataLayout := m.getDataLayout()
+	if dataLayout.binding().IsNil() {
+		machine := newMachine(targetInfo, triple, "generic", "", CodeOptLevelNone, RelocModeDefault, CodeModelDefault)
+		defer machine.Free()
+		dataLayout = machine.createDataLayout()
+	}
+	return Target{
+		triple:     triple,
+		targetInfo: targetInfo,
+		dataLayout: dataLayout,
+	}, nil
 }
-
-func (t Target) HasJIT() bool {
-	return binding.LLVMTargetHasJIT(t.getTargetRef())
-}
-
-func (t Target) HasTargetMachine() bool {
-	return binding.LLVMTargetHasTargetMachine(t.getTargetRef())
-}
-
-func (t Target) HasAsmBackend() bool {
-	return binding.LLVMTargetHasAsmBackend(t.getTargetRef())
-}
-
-func (t Target) Free() {
-	t.dataLayout.Free()
-	binding.LLVMDisposeTargetMachine(t.machine)
-}
-
-func (t Target) Triple() string {
-	return binding.LLVMGetTargetMachineTriple(t.machine)
-}
-
-func (t Target) CPU() string {
-	return binding.LLVMGetTargetMachineCPU(t.machine)
-}
-
-func (t Target) Feature() string {
-	return binding.LLVMGetTargetMachineFeatureString(t.machine)
-}
-
-type CodeOptLevel binding.LLVMCodeGenOptLevel
-
-const (
-	CodeOptLevelNone       = CodeOptLevel(binding.LLVMCodeGenLevelNone)
-	CodeOptLevelLess       = CodeOptLevel(binding.LLVMCodeGenLevelLess)
-	CodeOptLevelDefault    = CodeOptLevel(binding.LLVMCodeGenLevelDefault)
-	CodeOptLevelAggressive = CodeOptLevel(binding.LLVMCodeGenLevelAggressive)
-)
-
-type RelocMode binding.LLVMRelocMode
-
-const (
-	RelocModeDefault      = RelocMode(binding.LLVMRelocDefault)
-	RelocModeStatic       = RelocMode(binding.LLVMRelocStatic)
-	RelocModePIC          = RelocMode(binding.LLVMRelocPIC)
-	RelocModeDynamicNoPic = RelocMode(binding.LLVMRelocDynamicNoPic)
-	RelocModeROPI         = RelocMode(binding.LLVMRelocROPI)
-	RelocModeRWPI         = RelocMode(binding.LLVMRelocRWPI)
-	RelocModeROPI_RWPI    = RelocMode(binding.LLVMRelocROPI_RWPI)
-)
-
-type CodeModel binding.LLVMRelocMode
-
-const (
-	CodeModelDefault    = CodeModel(binding.LLVMCodeModelDefault)
-	CodeModelJITDefault = CodeModel(binding.LLVMCodeModelJITDefault)
-	CodeModelTiny       = CodeModel(binding.LLVMCodeModelTiny)
-	CodeModelSmall      = CodeModel(binding.LLVMCodeModelSmall)
-	CodeModelKernel     = CodeModel(binding.LLVMCodeModelKernel)
-	CodeModelMedium     = CodeModel(binding.LLVMCodeModelMedium)
-	CodeModelLarge      = CodeModel(binding.LLVMCodeModelLarge)
-)
 
 func (t Target) WriteASMToFile(m Module, file string, opt CodeOptLevel, reloc RelocMode, code CodeModel) error {
-	machine := binding.LLVMCreateTargetMachine(t.getTargetRef(), t.Triple(), t.CPU(), t.Feature(), binding.LLVMCodeGenOptLevel(opt), binding.LLVMRelocMode(reloc), binding.LLVMCodeModel(code))
-	defer binding.LLVMDisposeTargetMachine(machine)
-	return binding.LLVMTargetMachineEmitToFile(machine, m.binding(), file, binding.LLVMAssemblyFile)
+	machine := newMachine(t.targetInfo, t.triple, "generic", "", opt, reloc, code)
+	defer machine.Free()
+	return binding.LLVMTargetMachineEmitToFile(machine.binding(), m.binding(), file, binding.LLVMAssemblyFile)
 }
 
 func (t Target) WriteOBJToFile(m Module, file string, opt CodeOptLevel, reloc RelocMode, code CodeModel) error {
-	machine := binding.LLVMCreateTargetMachine(t.getTargetRef(), t.Triple(), t.CPU(), t.Feature(), binding.LLVMCodeGenOptLevel(opt), binding.LLVMRelocMode(reloc), binding.LLVMCodeModel(code))
-	defer binding.LLVMDisposeTargetMachine(machine)
-	return binding.LLVMTargetMachineEmitToFile(machine, m.binding(), file, binding.LLVMObjectFile)
+	machine := newMachine(t.targetInfo, t.triple, "generic", "", opt, reloc, code)
+	defer machine.Free()
+	return binding.LLVMTargetMachineEmitToFile(machine.binding(), m.binding(), file, binding.LLVMObjectFile)
 }
 
 func (t Target) IsLinux() bool {

@@ -2,6 +2,8 @@ package llvm
 
 import "github.com/kkkunny/go-llvm/internal/binding"
 
+var GlobalContext = Context(binding.LLVMGetGlobalContext())
+
 type Context binding.LLVMContextRef
 
 func NewContext() Context {

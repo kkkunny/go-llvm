@@ -79,7 +79,7 @@ func (ctx Context) BooleanType() IntegerType {
 	return ctx.IntegerType(1)
 }
 
-func (ctx Context) IntPtrType(t *Target) IntegerType {
+func (ctx Context) IntPtrType(t Target) IntegerType {
 	return IntegerType(binding.LLVMIntPtrTypeInContext(ctx.binding(), t.dataLayout.binding()))
 }
 

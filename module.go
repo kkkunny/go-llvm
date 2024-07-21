@@ -2,18 +2,14 @@ package llvm
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
-type Module struct {
-	binding.LLVMModuleRef
-	target *Target
-}
+type Module binding.LLVMModuleRef
 
 func newModule(ref binding.LLVMModuleRef) Module {
-	return Module{LLVMModuleRef: ref}
+	return Module(ref)
 }
 
 func (ctx Context) NewModule(name string) Module {
@@ -21,7 +17,7 @@ func (ctx Context) NewModule(name string) Module {
 }
 
 func (m Module) binding() binding.LLVMModuleRef {
-	return m.LLVMModuleRef
+	return binding.LLVMModuleRef(m)
 }
 
 func (m Module) Free() {
@@ -33,10 +29,7 @@ func (m Module) String() string {
 }
 
 func (m Module) Clone() Module {
-	return Module{
-		LLVMModuleRef: binding.LLVMCloneModule(m.binding()),
-		target:        m.target,
-	}
+	return Module(binding.LLVMCloneModule(m.binding()))
 }
 
 func (m Module) Context() Context {
@@ -49,11 +42,6 @@ func (m Module) GetSource() string {
 
 func (m Module) SetSource(source string) {
 	binding.LLVMSetSourceFileName(m.binding(), source)
-}
-
-// RunPasses https://llvm.org/docs/Passes.html
-func (m Module) RunPasses(target *Target, option PassOption, pass ...string) error {
-	return binding.LLVMRunPasses(m.binding(), strings.Join(pass, ","), target.machine, option.binding())
 }
 
 func (m Module) Verify() error {
