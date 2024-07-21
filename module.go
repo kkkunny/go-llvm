@@ -51,6 +51,7 @@ func (m Module) SetSource(source string) {
 	binding.LLVMSetSourceFileName(m.binding(), source)
 }
 
+// RunPasses https://llvm.org/docs/Passes.html
 func (m Module) RunPasses(target *Target, option PassOption, pass ...string) error {
 	return binding.LLVMRunPasses(m.binding(), strings.Join(pass, ","), target.machine, option.binding())
 }

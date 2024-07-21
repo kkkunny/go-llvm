@@ -81,14 +81,6 @@ func (f Function) GetParam(i uint) Param {
 	return Param(binding.LLVMGetParam(f.binding(), uint32(i)))
 }
 
-func (f Function) FirstParam() Param {
-	return Param(binding.LLVMGetFirstParam(f.binding()))
-}
-
-func (f Function) LastParam() Param {
-	return Param(binding.LLVMGetLastParam(f.binding()))
-}
-
 func (f Function) Verify() bool {
 	return !binding.LLVMVerifyFunction(f.binding(), binding.LLVMReturnStatusAction)
 }

@@ -733,6 +733,16 @@ func LLVMConstRealOfString(realTy LLVMTypeRef, text string) LLVMValueRef {
 	})
 }
 
+// LLVMConstIntGetZExtValue Obtain the zero extended value for an integer constant value.
+func LLVMConstIntGetZExtValue(constantVal LLVMValueRef) uint64 {
+	return uint64(C.LLVMConstIntGetZExtValue(constantVal.c))
+}
+
+// LLVMConstIntGetSExtValue Obtain the sign extended value for an integer constant value.
+func LLVMConstIntGetSExtValue(constantVal LLVMValueRef) int64 {
+	return int64(C.LLVMConstIntGetSExtValue(constantVal.c))
+}
+
 // LLVMConstRealGetDouble Obtain the double value for an floating point constant value.
 func LLVMConstRealGetDouble(constantVal LLVMValueRef) (float64, bool) {
 	var li C.LLVMBool

@@ -95,6 +95,14 @@ func (c ConstInteger) Type() Type {
 
 func (ConstInteger) constant() {}
 
+func (c ConstInteger) SignedValue() int64 {
+	return binding.LLVMConstIntGetSExtValue(c.binding())
+}
+
+func (c ConstInteger) UnsignedValue() uint64 {
+	return binding.LLVMConstIntGetZExtValue(c.binding())
+}
+
 type ConstFloat binding.LLVMValueRef
 
 func (ctx Context) ConstFloatFromString(t FloatType, s string) ConstFloat {
