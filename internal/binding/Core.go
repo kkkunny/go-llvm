@@ -823,10 +823,6 @@ func LLVMConstNSWNeg(constantVal LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstNSWNeg(constantVal.c)}
 }
 
-func LLVMConstNUWNeg(constantVal LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstNUWNeg(constantVal.c)}
-}
-
 func LLVMConstNot(constantVal LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstNot(constantVal.c)}
 }
@@ -869,18 +865,6 @@ func LLVMConstNUWMul(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
 
 func LLVMConstXor(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstXor(lHSConstant.c, rHSConstant.c)}
-}
-
-func LLVMConstICmp(predicate LLVMIntPredicate, lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstICmp(C.LLVMIntPredicate(predicate), lHSConstant.c, rHSConstant.c)}
-}
-
-func LLVMConstFCmp(predicate LLVMRealPredicate, lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstFCmp(C.LLVMRealPredicate(predicate), lHSConstant.c, rHSConstant.c)}
-}
-
-func LLVMConstShl(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstShl(lHSConstant.c, rHSConstant.c)}
 }
 
 func LLVMConstGEP(ty LLVMTypeRef, constantVal LLVMValueRef, constantIndices []LLVMValueRef) LLVMValueRef {
@@ -1534,12 +1518,6 @@ func LLVMBuildNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMValue
 func LLVMBuildNSWNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMValueRef {
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMBuildNSWNeg(builder.c, v.c, name)}
-	})
-}
-
-func LLVMBuildNUWNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMValueRef {
-	return string2CString(name, func(name *C.char) LLVMValueRef {
-		return LLVMValueRef{c: C.LLVMBuildNUWNeg(builder.c, v.c, name)}
 	})
 }
 
