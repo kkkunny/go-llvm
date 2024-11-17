@@ -25,6 +25,6 @@ config: check clean
 	@echo "package main" >> $(CONFIG_FILE)
 	@echo "" >> $(CONFIG_FILE)
 	@echo "// #cgo CFLAGS: $(shell $(CONFIG) --cflags)" >> $(CONFIG_FILE)
-	@echo "// #cgo CXXFLAGS: $(shell $(CONFIG) --cxxflags)" >> $(CONFIG_FILE)
+	@echo "// #cgo CXXFLAGS: $(subst -funwind-tables ,,$(shell $(CONFIG) --cxxflags))" >> $(CONFIG_FILE)
 	@echo "// #cgo LDFLAGS: -L$(shell $(CONFIG) --libdir) $(shell $(CONFIG) --libs)" >> $(CONFIG_FILE)
 	@echo "import \"C\"" >> $(CONFIG_FILE)

@@ -52,6 +52,10 @@ func (m Module) Verify() error {
 	return nil
 }
 
+func (m Module) Link(dst Module) error {
+	return binding.LLVMLinkModules(m.binding(), dst.binding())
+}
+
 func (m Module) AddConstructor(prior uint16, f Function) {
 	name := "llvm.global_ctors"
 	ctx := m.Context()

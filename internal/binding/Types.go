@@ -25,13 +25,15 @@ type (
 	LLVMBuilderRef     struct{ c C.LLVMBuilderRef }
 	LLVMPassManagerRef struct{ c C.LLVMPassManagerRef }
 
-	LLVMAttributeRef struct{ c C.LLVMAttributeRef }
+	LLVMAttributeRef      struct{ c C.LLVMAttributeRef }
+	LLVMDiagnosticInfoRef struct{ c C.LLVMDiagnosticInfoRef }
 )
 
-func (ref LLVMContextRef) IsNil() bool    { return ref.c == nil }
-func (ref LLVMModuleRef) IsNil() bool     { return ref.c == nil }
-func (ref LLVMTypeRef) IsNil() bool       { return ref.c == nil }
-func (ref LLVMValueRef) IsNil() bool      { return ref.c == nil }
-func (ref LLVMBasicBlockRef) IsNil() bool { return ref.c == nil }
-func (ref LLVMBuilderRef) IsNil() bool    { return ref.c == nil }
-func (ref LLVMAttributeRef) IsNil() bool  { return ref.c == nil }
+func (ref LLVMContextRef) IsNil() bool        { return ref.c == nil }
+func (ref LLVMModuleRef) IsNil() bool         { return ref.c == nil }
+func (ref LLVMTypeRef) IsNil() bool           { return ref.c == nil }
+func (ref LLVMValueRef) IsNil() bool          { return ref.c == nil }
+func (ref LLVMBasicBlockRef) IsNil() bool     { return ref.c == nil }
+func (ref LLVMBuilderRef) IsNil() bool        { return ref.c == nil }
+func (ref LLVMAttributeRef) IsNil() bool      { return ref.c == nil }
+func (ref LLVMDiagnosticInfoRef) IsNil() bool { return ref.c == nil }

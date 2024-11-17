@@ -48,3 +48,17 @@ func llvmError2Error(f func(outError **C.char) C.LLVMBool) error {
 	}
 	return nil
 }
+
+type FuncPtr[T any] struct {
+	ptr unsafe.Pointer
+}
+
+// NewFuncPtr
+// 必须是函数指针，不能是lambda和方法
+func NewFuncPtr[T any](f unsafe.Pointer) FuncPtr[T] {
+	return FuncPtr[T]{ptr: f}
+}
+
+func (f FuncPtr[T]) Func() T {
+	return *(*T)(unsafe.Pointer(&f.ptr))
+}

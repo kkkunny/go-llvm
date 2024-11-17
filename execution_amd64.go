@@ -1,7 +1,7 @@
 package llvm
 
 /*
-void go_func_call_channel(int funcIdx, void **ret_ptr_ptr, void **param_ptr_array_ptr);
+void goFuncCallChannel(int funcIdx, void **ret_ptr_ptr, void **param_ptr_array_ptr);
 */
 import "C"
 import (
@@ -17,8 +17,8 @@ import (
 var funcMapLock sync.RWMutex
 var funcMap = make(map[int32]func(retPtrPtr *unsafe.Pointer, paramPtrArrayPtr *unsafe.Pointer))
 
-//export go_func_call_channel
-func go_func_call_channel(funcIdx C.int, retPtrPtr *unsafe.Pointer, paramPtrArrayPtr *unsafe.Pointer) {
+//export goFuncCallChannel
+func goFuncCallChannel(funcIdx C.int, retPtrPtr *unsafe.Pointer, paramPtrArrayPtr *unsafe.Pointer) {
 	funcMapLock.RLock()
 	defer funcMapLock.RUnlock()
 	funcMap[int32(funcIdx)](retPtrPtr, paramPtrArrayPtr)
@@ -84,10 +84,10 @@ func (engine ExecutionEngine) MapFunctionToGo(name string, to any) error {
 	builder := ctx.NewBuilder()
 
 	// channel
-	cf, ok := engine.GetFunction("go_func_call_channel")
+	cf, ok := engine.GetFunction("goFuncCallChannel")
 	if !ok {
-		cf = engine.module.NewFunction("go_func_call_channel", ctx.FunctionType(false, ctx.VoidType(), ctx.IntegerType(32), ctx.PointerType(ctx.PointerType(ctx.VoidType())), ctx.PointerType(ctx.PointerType(ctx.VoidType()))))
-		binding.LLVMAddGlobalMapping(engine.binding(), cf.binding(), C.go_func_call_channel)
+		cf = engine.module.NewFunction("goFuncCallChannel", ctx.FunctionType(false, ctx.VoidType(), ctx.IntegerType(32), ctx.PointerType(ctx.PointerType(ctx.VoidType())), ctx.PointerType(ctx.PointerType(ctx.VoidType()))))
+		binding.LLVMAddGlobalMapping(engine.binding(), cf.binding(), C.goFuncCallChannel)
 	}
 
 	builder.MoveToAfter(f.NewBlock("entry"))

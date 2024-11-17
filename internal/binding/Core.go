@@ -5,6 +5,9 @@ package binding
 #include "Core.h"
 */
 import "C"
+import (
+	"unsafe"
+)
 
 type LLVMOpcode int32
 
@@ -286,6 +289,15 @@ const (
 	LLVMLocalExecTLSModel
 )
 
+type LLVMDiagnosticSeverity int32
+
+const (
+	LLVMDSError LLVMDiagnosticSeverity = iota
+	LLVMDSWarning
+	LLVMDSRemark
+	LLVMDSNote
+)
+
 type LLVMAttributeIndex int32
 
 const (
@@ -296,6 +308,8 @@ const (
 func LLVMDisposeMessage(message *C.char) {
 	C.LLVMDisposeMessage(message)
 }
+
+type LLVMDiagnosticHandler func(LLVMDiagnosticInfoRef, unsafe.Pointer)
 
 // LLVMContextCreate Create a new context.
 // Every call to this function should be paired with a call to LLVMContextDispose() or the context will leak memory.
@@ -308,10 +322,37 @@ func LLVMGetGlobalContext() LLVMContextRef {
 	return LLVMContextRef{c: C.LLVMGetGlobalContext()}
 }
 
+// LLVMContextSetDiagnosticHandler Set the diagnostic handler for this context.
+func LLVMContextSetDiagnosticHandler(c LLVMContextRef, handler FuncPtr[LLVMDiagnosticHandler], diagnosticContext unsafe.Pointer) {
+	C.LLVMContextSetDiagnosticHandler(c.c, (C.LLVMDiagnosticHandler)(handler.ptr), diagnosticContext)
+}
+
+// LLVMContextGetDiagnosticHandler Get the diagnostic handler of this context.
+func LLVMContextGetDiagnosticHandler(c LLVMContextRef) FuncPtr[LLVMDiagnosticHandler] {
+	return NewFuncPtr[LLVMDiagnosticHandler](unsafe.Pointer(C.LLVMContextGetDiagnosticHandler(c.c)))
+}
+
+// LLVMContextGetDiagnosticContext Get the diagnostic context of this context.
+func LLVMContextGetDiagnosticContext(c LLVMContextRef) unsafe.Pointer {
+	return C.LLVMContextGetDiagnosticContext(c.c)
+}
+
 // LLVMContextDispose Destroy a context instance.
 // This should be called for every call to LLVMContextCreate() or memory will be leaked.
 func LLVMContextDispose(c LLVMContextRef) {
 	C.LLVMContextDispose(c.c)
+}
+
+// LLVMGetDiagInfoDescription Return a string representation of the DiagnosticInfo.
+func LLVMGetDiagInfoDescription(di LLVMDiagnosticInfoRef) string {
+	cstring := C.LLVMGetDiagInfoDescription(di.c)
+	defer LLVMDisposeMessage(cstring)
+	return C.GoString(cstring)
+}
+
+// LLVMGetDiagInfoSeverity Return an enum LLVMDiagnosticSeverity.
+func LLVMGetDiagInfoSeverity(di LLVMDiagnosticInfoRef) LLVMDiagnosticSeverity {
+	return LLVMDiagnosticSeverity(C.LLVMGetDiagInfoSeverity(di.c))
 }
 
 // LLVMGetEnumAttributeKindForName Return an unique id given the name of a enum attribute, or 0 if no attribute by that name exists.
