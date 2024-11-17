@@ -1066,6 +1066,14 @@ func LLVMSetThreadLocal(globalVar LLVMValueRef, isThreadLocal bool) {
 	C.LLVMSetThreadLocal(globalVar.c, bool2LLVMBool(isThreadLocal))
 }
 
+func LLVMIsDSOLocal(globalVar LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsDSOLocal(globalVar.c))
+}
+
+func LLVMSetDSOLocal(globalVar LLVMValueRef, local bool) {
+	C.LLVMSetDSOLocal(globalVar.c, bool2LLVMBool(local))
+}
+
 func LLVMIsGlobalConstant(globalVar LLVMValueRef) bool {
 	return llvmBool2bool(C.LLVMIsGlobalConstant(globalVar.c))
 }

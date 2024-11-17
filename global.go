@@ -142,6 +142,14 @@ func (f Function) AddAttribute(attr FuncAttribute, attrValue ...uint) {
 	binding.LLVMAddAttributeAtIndex(f.binding(), binding.LLVMAttributeFunctionIndex, bindAttr)
 }
 
+func (f Function) IsDSOLocal() bool {
+	return binding.LLVMIsDSOLocal(f.binding())
+}
+
+func (f Function) SetDSOLocal(local bool) {
+	binding.LLVMSetDSOLocal(f.binding(), local)
+}
+
 type GlobalValue binding.LLVMValueRef
 
 func (m Module) NewGlobal(name string, t Type, v Constant) GlobalValue {
@@ -316,4 +324,12 @@ func (g GlobalValue) IsExternallyInitialized() bool {
 
 func (g GlobalValue) SetExternallyInitialized(isConstant bool) {
 	binding.LLVMSetExternallyInitialized(g.binding(), isConstant)
+}
+
+func (g GlobalValue) IsDSOLocal() bool {
+	return binding.LLVMIsDSOLocal(g.binding())
+}
+
+func (g GlobalValue) SetDSOLocal(local bool) {
+	binding.LLVMSetDSOLocal(g.binding(), local)
 }

@@ -11,3 +11,11 @@ LLVMValueRef LLVMConstAggregateZero(LLVMTypeRef ty) {
 LLVMTypeRef LLVMGetFunctionType(LLVMValueRef f) {
     return wrap(unwrap<Function>(f)->getFunctionType());
 }
+
+void LLVMSetDSOLocal(LLVMValueRef v, LLVMBool Local) {
+    unwrap<Function>(v)->setDSOLocal(Local);
+}
+
+LLVMBool LLVMIsDSOLocal(LLVMValueRef v) {
+    return unwrap<Function>(v)->isDSOLocal();
+}

@@ -15,6 +15,8 @@ extern "C" {
 
 LLVMValueRef LLVMConstAggregateZero(LLVMTypeRef ty);
 LLVMTypeRef LLVMGetFunctionType(LLVMValueRef f);
+void LLVMSetDSOLocal(LLVMValueRef v, LLVMBool Local);
+LLVMBool LLVMIsDSOLocal(LLVMValueRef v);
 
 #ifdef __cplusplus
 }
