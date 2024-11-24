@@ -6,6 +6,17 @@ import (
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
+type OptLevel binding.LLVMOptimizationLevel
+
+var (
+	OptLevelO0 = OptLevel(binding.LLVMOptimizationLevelO0)
+	OptLevelO1 = OptLevel(binding.LLVMOptimizationLevelO1)
+	OptLevelO2 = OptLevel(binding.LLVMOptimizationLevelO2)
+	OptLevelO3 = OptLevel(binding.LLVMOptimizationLevelO3)
+	OptLevelOz = OptLevel(binding.LLVMOptimizationLevelOz)
+	OptLevelOs = OptLevel(binding.LLVMOptimizationLevelOs)
+)
+
 type PassOption binding.LLVMPassBuilderOptionsRef
 
 func NewPassOption() PassOption {
@@ -73,4 +84,8 @@ func (m Module) RunPasses(option PassOption, pass ...string) error {
 	machine := newMachine(target.targetInfo, target.triple, "generic", "", CodeOptLevelNone, RelocModeDefault, CodeModelDefault)
 	defer machine.Free()
 	return binding.LLVMRunPasses(m.binding(), strings.Join(pass, ","), machine.binding(), option.binding())
+}
+
+func (m Module) AutoOpt(level OptLevel) {
+	binding.LLVMOptModule(m.binding(), binding.LLVMOptimizationLevel(level))
 }
