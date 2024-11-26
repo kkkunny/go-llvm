@@ -111,7 +111,7 @@ func (engine ExecutionEngine) MapFunctionToGo(name string, to any) error {
 			paramPtrPtr := builder.CreateInBoundsGEP("", at, paramPtrArrayPtrParam, ctx.ConstInteger(ctx.IntegerType(64), 0), ctx.ConstInteger(ctx.IntegerType(64), int64(i)))
 			paramPtr := builder.CreateAlloca("", pt)
 			builder.CreateStore(f.GetParam(uint(i)), paramPtr)
-			paramPtr = Alloca(builder.CreateBitCast("", paramPtr, ctx.PointerType(ctx.VoidType())))
+			paramPtr = newValueInstWithAlign[_Alloca](builder.CreateBitCast("", paramPtr, ctx.PointerType(ctx.VoidType())).binding())
 			builder.CreateStore(paramPtr, paramPtrPtr)
 		}
 	} else {

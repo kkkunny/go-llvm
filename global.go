@@ -49,12 +49,20 @@ func (c Function) SetName(name string) {
 	binding.LLVMSetValueName(c.binding(), name)
 }
 
-func (f Function) FirstBlock() Block {
-	return Block(binding.LLVMGetFirstBasicBlock(f.binding()))
+func (f Function) FirstBlock() (Block, bool) {
+	ref := binding.LLVMGetFirstBasicBlock(f.binding())
+	if ref.IsNil() {
+		return Block{}, false
+	}
+	return Block(ref), true
 }
 
-func (f Function) LastBlock() Block {
-	return Block(binding.LLVMGetLastBasicBlock(f.binding()))
+func (f Function) LastBlock() (Block, bool) {
+	ref := binding.LLVMGetLastBasicBlock(f.binding())
+	if ref.IsNil() {
+		return Block{}, false
+	}
+	return Block(ref), true
 }
 
 func (f Function) Blocks() []Block {
@@ -63,8 +71,23 @@ func (f Function) Blocks() []Block {
 	})
 }
 
-func (f Function) EntryBlock() Block {
-	return Block(binding.LLVMGetEntryBasicBlock(f.binding()))
+func (f Function) ForeachBlock(cb func(block Block)) {
+	for inst, ok := f.FirstBlock(); ok; inst, ok = inst.Next() {
+		cb(inst)
+	}
+}
+
+func (f Function) EntryBlock() (Block, bool) {
+	ref := binding.LLVMGetEntryBasicBlock(f.binding())
+	if ref.IsNil() {
+		return Block{}, false
+	}
+	return Block(ref), true
+}
+
+func (f Function) OnlyDecl() bool {
+	_, ok := f.EntryBlock()
+	return !ok
 }
 
 func (f Function) CountParams() uint {

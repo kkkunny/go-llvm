@@ -1199,6 +1199,16 @@ func LLVMGetLastBasicBlock(fn LLVMValueRef) LLVMBasicBlockRef {
 	return LLVMBasicBlockRef{c: C.LLVMGetLastBasicBlock(fn.c)}
 }
 
+// LLVMGetNextBasicBlock Advance a basic block iterator.
+func LLVMGetNextBasicBlock(bb LLVMBasicBlockRef) LLVMBasicBlockRef {
+	return LLVMBasicBlockRef{c: C.LLVMGetNextBasicBlock(bb.c)}
+}
+
+// LLVMGetPreviousBasicBlock Go backwards in a basic block iterator.
+func LLVMGetPreviousBasicBlock(bb LLVMBasicBlockRef) LLVMBasicBlockRef {
+	return LLVMBasicBlockRef{c: C.LLVMGetPreviousBasicBlock(bb.c)}
+}
+
 // LLVMGetEntryBasicBlock Obtain the basic block that corresponds to the entry point of a function.
 func LLVMGetEntryBasicBlock(fn LLVMValueRef) LLVMBasicBlockRef {
 	return LLVMBasicBlockRef{c: C.LLVMGetEntryBasicBlock(fn.c)}
@@ -1209,6 +1219,18 @@ func LLVMAppendBasicBlockInContext(c LLVMContextRef, fn LLVMValueRef, name strin
 	return string2CString(name, func(name *C.char) LLVMBasicBlockRef {
 		return LLVMBasicBlockRef{c: C.LLVMAppendBasicBlockInContext(c.c, fn.c, name)}
 	})
+}
+
+// LLVMDeleteBasicBlock Remove a basic block from a function and delete it.
+// This deletes the basic block from its containing function and deletes the basic block itself.
+func LLVMDeleteBasicBlock(bb LLVMBasicBlockRef) {
+	C.LLVMDeleteBasicBlock(bb.c)
+}
+
+// LLVMRemoveBasicBlockFromParent Remove a basic block from a function.
+// This deletes the basic block from its containing function but keep the basic block alive.
+func LLVMRemoveBasicBlockFromParent(bb LLVMBasicBlockRef) {
+	C.LLVMRemoveBasicBlockFromParent(bb.c)
 }
 
 // LLVMGetFirstInstruction Obtain the first instruction in a basic block.
@@ -1239,6 +1261,18 @@ func LLVMGetNextInstruction(inst LLVMValueRef) LLVMValueRef {
 // If the instruction is the first instruction in a basic block, NULL will be returned.
 func LLVMGetPreviousInstruction(inst LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMGetPreviousInstruction(inst.c)}
+}
+
+// LLVMInstructionRemoveFromParent Remove an instruction.
+// The instruction specified is removed from its containing building block but is kept alive.
+func LLVMInstructionRemoveFromParent(inst LLVMValueRef) {
+	C.LLVMInstructionRemoveFromParent(inst.c)
+}
+
+// LLVMDeleteInstruction Delete an instruction.
+// The instruction specified is deleted. It must have previously been removed from its containing building block.
+func LLVMDeleteInstruction(inst LLVMValueRef) {
+	C.LLVMDeleteInstruction(inst.c)
 }
 
 // LLVMGetInstructionOpcode Obtain the code opcode for an individual instruction.

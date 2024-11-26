@@ -31,3 +31,58 @@ func (b Block) GetTerminator() Terminator {
 func (b Block) IsTerminating() bool {
 	return b.GetTerminator() != nil
 }
+
+func (b Block) RemoveFromBelong() {
+	binding.LLVMRemoveBasicBlockFromParent(b.binding())
+}
+
+func (b Block) FirstInst() (Instruction, bool) {
+	i := binding.LLVMGetFirstInstruction(b.binding())
+	if i.IsNil() {
+		return nil, false
+	}
+	return lookupInstruction(i), true
+}
+
+func (b Block) LastInst() (Instruction, bool) {
+	i := binding.LLVMGetLastInstruction(b.binding())
+	if i.IsNil() {
+		return nil, false
+	}
+	return lookupInstruction(i), true
+}
+
+func (b Block) ForeachInst(cb func(inst Instruction)) {
+	for inst, ok := b.FirstInst(); ok; inst, ok = inst.Next() {
+		cb(inst)
+	}
+}
+
+func (b Block) Instructions() []Instruction {
+	var insts []Instruction
+	b.ForeachInst(func(inst Instruction) {
+		insts = append(insts, inst)
+	})
+	return insts
+}
+
+func (b Block) Next() (Block, bool) {
+	ref := binding.LLVMGetNextBasicBlock(b.binding())
+	if ref.IsNil() {
+		return Block{}, false
+	}
+	return Block(ref), true
+}
+
+func (b Block) Prev() (Block, bool) {
+	ref := binding.LLVMGetPreviousBasicBlock(b.binding())
+	if ref.IsNil() {
+		return Block{}, false
+	}
+	return Block(ref), true
+}
+
+func (b Block) Empty() bool {
+	_, ok := b.FirstInst()
+	return !ok
+}
