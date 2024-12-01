@@ -52,6 +52,10 @@ func (i genericInst[T]) RemoveFromBlock() {
 }
 
 func lookupInstruction(ref binding.LLVMValueRef) Instruction {
+	if ref.IsNil() {
+		return nil
+	}
+
 	switch binding.LLVMGetInstructionOpcode(ref) {
 	case binding.LLVMRet, binding.LLVMBr, binding.LLVMUnreachable, binding.LLVMSwitch:
 		return lookupTerminator(ref)
@@ -148,6 +152,10 @@ func newTerminatorInst[T any](ref binding.LLVMValueRef) terminatorInst[T] {
 func (i terminatorInst[T]) terminator() {}
 
 func lookupTerminator(ref binding.LLVMValueRef) Terminator {
+	if ref.IsNil() {
+		return nil
+	}
+
 	switch binding.LLVMGetInstructionOpcode(ref) {
 	case binding.LLVMRet:
 		return newTerminatorInst[_Return](ref)
@@ -367,13 +375,13 @@ func (b Builder) doBeforeCreateInst() context.Context {
 
 func (b Builder) doAfterCreateInst(_ context.Context, _ Instruction) {}
 
-func (b Builder) CreateRet(v *Value) (inst Return) {
+func (b Builder) CreateRet(v Value) (inst Return) {
 	defer func(ctx context.Context) { b.doAfterCreateInst(ctx, inst) }(b.doBeforeCreateInst())
 
 	if v == nil {
 		return newTerminatorInst[_Return](binding.LLVMBuildRetVoid(b.binding()))
 	} else {
-		return newTerminatorInst[_Return](binding.LLVMBuildRet(b.binding(), (*v).binding()))
+		return newTerminatorInst[_Return](binding.LLVMBuildRet(b.binding(), v.binding()))
 	}
 }
 

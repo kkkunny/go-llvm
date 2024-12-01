@@ -15,6 +15,10 @@ type Constant interface {
 }
 
 func lookupConstant(ref binding.LLVMValueRef) Constant {
+	if ref.IsNil() {
+		return nil
+	}
+
 	switch constKind := binding.LLVMGetValueKind(ref); constKind {
 	case binding.LLVMGlobalVariableValueKind:
 		return GlobalValue(ref)

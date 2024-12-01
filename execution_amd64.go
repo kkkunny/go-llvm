@@ -124,8 +124,7 @@ func (engine ExecutionEngine) MapFunctionToGo(name string, to any) error {
 	// ret
 	if ftRetNum != 0 {
 		retPtr := builder.CreateLoad("", ctx.PointerType(ft.ReturnType()), retPtrPtr)
-		var ret Value = builder.CreateLoad("", ft.ReturnType(), retPtr)
-		builder.CreateRet(&ret)
+		builder.CreateRet(builder.CreateLoad("", ft.ReturnType(), retPtr))
 	} else {
 		builder.CreateRet(nil)
 	}

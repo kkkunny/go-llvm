@@ -13,6 +13,10 @@ type Value interface {
 }
 
 func lookupValue(ref binding.LLVMValueRef) Value {
+	if ref.IsNil() {
+		return nil
+	}
+
 	if binding.LLVMIsConstant(ref) {
 		return lookupConstant(ref)
 	}

@@ -22,6 +22,10 @@ type AggregateType interface {
 }
 
 func lookupType(ref binding.LLVMTypeRef) Type {
+	if ref.IsNil() {
+		return nil
+	}
+
 	switch binding.LLVMGetTypeKind(ref) {
 	case binding.LLVMVoidTypeKind:
 		return VoidType(ref)
