@@ -21,8 +21,8 @@ curl -O https://raw.githubusercontent.com/kkkunny/go-llvm/master/Makefile
 ```
 
 ```shell
-make config EXPECT_VERSION=VERION OF LLVM
-# eg.make config EXPECT_VERSION=20
+make config
+# or specify a version: make config LLVM_CONFIG_BIN=20
 ```
 
 ```go
