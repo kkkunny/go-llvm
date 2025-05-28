@@ -1,7 +1,7 @@
 package llvm
 
 /*
-void goFuncCallChannel(int funcIdx, void **ret_ptr_ptr, void **param_ptr_array_ptr);
+#include "execution.h"
 */
 import "C"
 import (
@@ -87,7 +87,7 @@ func (engine ExecutionEngine) MapFunctionToGo(name string, to any) error {
 	cf, ok := engine.GetFunction("goFuncCallChannel")
 	if !ok {
 		cf = engine.module.NewFunction("goFuncCallChannel", ctx.FunctionType(false, ctx.VoidType(), ctx.IntegerType(32), ctx.PointerType(ctx.PointerType(ctx.VoidType())), ctx.PointerType(ctx.PointerType(ctx.VoidType()))))
-		binding.LLVMAddGlobalMapping(engine.binding(), cf.binding(), C.goFuncCallChannel)
+		binding.LLVMAddGlobalMapping(engine.binding(), cf.binding(), C.callGoFunc)
 	}
 
 	builder.MoveToAfter(f.NewBlock("entry"))
