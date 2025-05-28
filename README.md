@@ -4,10 +4,7 @@ This library provides bindings to a system-installed LLVM.
 
 Currently supported:
 
-* LLVM 15
-* LLVM 16
-* LLVM 17
-* LLVM 18
+* LLVM 20
 
 ## Usage
 
@@ -25,7 +22,7 @@ curl -O https://raw.githubusercontent.com/kkkunny/go-llvm/master/Makefile
 
 ```shell
 make config EXPECT_VERSION=VERION OF LLVM
-# eg.make config EXPECT_VERSION=15
+# eg.make config EXPECT_VERSION=20
 ```
 
 ```go

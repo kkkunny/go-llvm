@@ -114,10 +114,8 @@ const (
 	LLVMVectorTypeKind
 	// LLVMMetadataTypeKind Metadata
 	LLVMMetadataTypeKind
-	// LLVMX86_MMXTypeKind X86 MMX
-	LLVMX86_MMXTypeKind
 	// LLVMTokenTypeKind Tokens
-	LLVMTokenTypeKind
+	LLVMTokenTypeKind LLVMTypeKind = iota + 1
 	// LLVMScalableVectorTypeKind Scalable SIMD vector type
 	LLVMScalableVectorTypeKind
 	// LLVMBFloatTypeKind 16 bit brain floating point type
@@ -462,6 +460,15 @@ func LLVMAddFunction(m LLVMModuleRef, name string, functionTy LLVMTypeRef) LLVMV
 func LLVMGetNamedFunction(m LLVMModuleRef, name string) LLVMValueRef {
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMGetNamedFunction(m.c, name)}
+	})
+}
+
+// LLVMGetNamedFunctionWithLength Obtain a Function value from a Module by its name.
+// The returned value corresponds to a llvm::Function value.
+// @see llvm::Module::getFunction()
+func LLVMGetNamedFunctionWithLength(m LLVMModuleRef, name string, length uint) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMGetNamedFunctionWithLength(m.c, name, C.size_t(length))}
 	})
 }
 
@@ -1043,6 +1050,12 @@ func LLVMAddGlobalInAddressSpace(m LLVMModuleRef, ty LLVMTypeRef, name string, a
 func LLVMGetNamedGlobal(m LLVMModuleRef, name string) LLVMValueRef {
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMGetNamedGlobal(m.c, name)}
+	})
+}
+
+func LLVMGetNamedGlobalWithLength(m LLVMModuleRef, name string, length uint) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMGetNamedGlobalWithLength(m.c, name, C.size_t(length))}
 	})
 }
 
@@ -1931,4 +1944,18 @@ func LLVMFinalizeFunctionPassManager(fpm LLVMPassManagerRef) bool {
 // For function pipelines, does not free the module provider.
 func LLVMDisposePassManager(pm LLVMPassManagerRef) {
 	C.LLVMDisposePassManager(pm.c)
+}
+
+func LLVMSetNUW(arithInst LLVMValueRef, hasNUW bool) {
+	C.LLVMSetNUW(arithInst.c, bool2LLVMBool(hasNUW))
+}
+
+func LLVMBuildNUWNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMValueRef {
+	ref := LLVMBuildNeg(builder, v, name)
+	LLVMSetNUW(ref, true)
+	return ref
+}
+
+func LLVMConstNUWNeg(constantVal LLVMValueRef) LLVMValueRef {
+	return LLVMConstNull(LLVMGlobalGetValueType(constantVal))
 }

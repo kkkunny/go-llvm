@@ -27,6 +27,18 @@ func LLVMRunPasses(m LLVMModuleRef, passes string, tm LLVMTargetMachineRef, opti
 	return nil
 }
 
+// LLVMRunPassesOnFunction Construct and run a set of passes over a function.
+// This function behaves the same as LLVMRunPasses, but operates on a single function instead of an entire module.
+func LLVMRunPassesOnFunction(f LLVMValueRef, passes string, tm LLVMTargetMachineRef, options LLVMPassBuilderOptionsRef) error {
+	err := string2CString(passes, func(passes *C.char) LLVMErrorRef {
+		return LLVMErrorRef{c: C.LLVMRunPassesOnFunction(f.c, passes, tm.c, options.c)}
+	})
+	if err.c != nil {
+		return errors.New(LLVMGetErrorMessage(err))
+	}
+	return nil
+}
+
 // LLVMCreatePassBuilderOptions Create a new set of options for a PassBuilder
 // Ownership of the returned instance is given to the client, and they are responsible for it.
 // The client should call LLVMDisposePassBuilderOptions to free the pass builder options.
@@ -42,6 +54,16 @@ func LLVMPassBuilderOptionsSetVerifyEach(options LLVMPassBuilderOptionsRef, veri
 // LLVMPassBuilderOptionsSetDebugLogging Toggle debug logging when running the PassBuilder
 func LLVMPassBuilderOptionsSetDebugLogging(options LLVMPassBuilderOptionsRef, debugLogging bool) {
 	C.LLVMPassBuilderOptionsSetDebugLogging(options.c, bool2LLVMBool(debugLogging))
+}
+
+// LLVMPassBuilderOptionsSetAAPipeline Specify a custom alias analysis pipeline for the PassBuilder to be used
+// instead of the default one. The string argument is not copied; the caller
+// is responsible for ensuring it outlives the PassBuilderOptions instance.
+func LLVMPassBuilderOptionsSetAAPipeline(options LLVMPassBuilderOptionsRef, aaPipeline string) {
+	string2CString(aaPipeline, func(aaPipeline *C.char) bool {
+		C.LLVMPassBuilderOptionsSetAAPipeline(options.c, aaPipeline)
+		return false
+	})
 }
 
 func LLVMPassBuilderOptionsSetLoopInterleaving(options LLVMPassBuilderOptionsRef, loopInterleaving bool) {
@@ -78,6 +100,10 @@ func LLVMPassBuilderOptionsSetCallGraphProfile(options LLVMPassBuilderOptionsRef
 
 func LLVMPassBuilderOptionsSetMergeFunctions(options LLVMPassBuilderOptionsRef, mergeFunctions bool) {
 	C.LLVMPassBuilderOptionsSetMergeFunctions(options.c, bool2LLVMBool(mergeFunctions))
+}
+
+func LLVMPassBuilderOptionsSetInlinerThreshold(options LLVMPassBuilderOptionsRef, threshold int32) {
+	C.LLVMPassBuilderOptionsSetInlinerThreshold(options.c, C.int(threshold))
 }
 
 // LLVMDisposePassBuilderOptions Dispose of a heap-allocated PassBuilderOptions instance

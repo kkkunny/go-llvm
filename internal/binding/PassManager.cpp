@@ -4,8 +4,6 @@
 
 using namespace llvm;
 
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(Module, LLVMModuleRef)
-
 OptimizationLevel ParseOptimizationLevel(const char *level){
     std::string s(level);
     if (s == "O0"){
@@ -39,6 +37,6 @@ void LLVMOptModule(LLVMModuleRef IR, const char *level){
     PB.registerLoopAnalyses(LAM);
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-    auto MPM = PB.buildPerModuleDefaultPipeline(ParseOptimizationLevel(level), false);
+    auto MPM = PB.buildPerModuleDefaultPipeline(ParseOptimizationLevel(level));
     MPM.run(*unwrap(IR), MAM);
 }
