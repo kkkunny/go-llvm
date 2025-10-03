@@ -16,6 +16,10 @@ func (b Builder) Free() {
 	binding.LLVMDisposeBuilder(b.binding())
 }
 
+func (b Builder) MoveToBefore(inst Instruction) {
+	binding.LLVMPositionBuilderBefore(b.binding(), inst.binding())
+}
+
 func (b Builder) MoveToAfter(block Block) {
 	binding.LLVMPositionBuilderAtEnd(b.binding(), block.binding())
 }
