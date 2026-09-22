@@ -1,6 +1,5 @@
 package llvm
 
-import "C"
 import (
 	"unsafe"
 
@@ -20,6 +19,6 @@ var (
 	CPUName = binding.LLVMGetHostCPUName()
 	// CPUFeatures cpu特性
 	CPUFeatures = binding.LLVMGetHostCPUFeatures()
-	// PointerSize 指针大小（字节）
+	// PointerSize 宿主 Go 进程的指针大小（字节）；目标指针大小请用 DataLayout（P1）
 	PointerSize = unsafe.Sizeof(uintptr(0))
 )
