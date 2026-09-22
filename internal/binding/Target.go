@@ -238,16 +238,6 @@ func LLVMPointerSizeForAS(td LLVMTargetDataRef, as uint32) uint32 {
 	return uint32(C.LLVMPointerSizeForAS(td.c, C.unsigned(as)))
 }
 
-// LLVMIntPtrType Returns the integer type that is the same size as a pointer on a target.
-func LLVMIntPtrType(td LLVMTargetDataRef) LLVMTypeRef {
-	return LLVMTypeRef{c: C.LLVMIntPtrType(td.c)}
-}
-
-// LLVMIntPtrTypeForAS Returns the integer type that is the same size as a pointer on a target.
-func LLVMIntPtrTypeForAS(td LLVMTargetDataRef, as uint32) LLVMTypeRef {
-	return LLVMTypeRef{c: C.LLVMIntPtrTypeForAS(td.c, C.unsigned(as))}
-}
-
 // LLVMIntPtrTypeInContext Returns the integer type that is the same size as a pointer on a target.
 func LLVMIntPtrTypeInContext(c LLVMContextRef, td LLVMTargetDataRef) LLVMTypeRef {
 	return LLVMTypeRef{c: C.LLVMIntPtrTypeInContext(c.c, td.c)}

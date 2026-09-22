@@ -315,11 +315,6 @@ func LLVMContextCreate() LLVMContextRef {
 	return LLVMContextRef{c: C.LLVMContextCreate()}
 }
 
-// LLVMGetGlobalContext Obtain the global context instance.
-func LLVMGetGlobalContext() LLVMContextRef {
-	return LLVMContextRef{c: C.LLVMGetGlobalContext()}
-}
-
 // LLVMContextSetDiagnosticHandler Set the diagnostic handler for this context.
 func LLVMContextSetDiagnosticHandler(c LLVMContextRef, handler FuncPtr[LLVMDiagnosticHandler], diagnosticContext unsafe.Pointer) {
 	C.LLVMContextSetDiagnosticHandler(c.c, (C.LLVMDiagnosticHandler)(handler.ptr), diagnosticContext)
