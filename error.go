@@ -13,6 +13,7 @@ const (
 	ErrNotFound                    // 查找失败
 	ErrInvalidArg                  // 参数非法
 	ErrVerify                      // IR 验证失败
+	ErrParse                       // IR/bitcode 解析失败（ir.ParseIR/ParseBitcode）
 	ErrUnsupported                 // 映射遇到不支持的类型
 	ErrCodeGen                     // 目标代码生成失败（target 包）
 	ErrJIT                         // JIT 构造/符号解析失败（jit 包）

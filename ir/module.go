@@ -15,18 +15,23 @@ type Module struct {
 	disowned bool
 }
 
-// NewModule 创建模块并登记到 Context 生命周期
-func NewModule(ctx *llvm.Context, name string) *Module {
-	if !ctx.Alive() {
-		errPanic(llvm.ErrUseAfterFree, "ir.NewModule", "context is closed")
-	}
+// newModule 由底层句柄铸造模块并登记到 Context 生命周期
+func newModule(ctx *llvm.Context, ref binding.LLVMModuleRef) *Module {
 	m := &Module{
-		ref:  binding.LLVMModuleCreateWithNameInContext(name, ctx.Ref()),
+		ref:  ref,
 		ctx:  ctx,
 		life: llvm.NewLifetime(),
 	}
 	m.unown = ctx.Own(m)
 	return m
+}
+
+// NewModule 创建模块并登记到 Context 生命周期
+func NewModule(ctx *llvm.Context, name string) *Module {
+	if !ctx.Alive() {
+		errPanic(llvm.ErrUseAfterFree, "ir.NewModule", "context is closed")
+	}
+	return newModule(ctx, binding.LLVMModuleCreateWithNameInContext(name, ctx.Ref()))
 }
 
 // Close 释放模块；其下值随之失效，二次调用返回 ErrClosed
@@ -93,13 +98,33 @@ func (m *Module) Verify() error {
 
 // Clone 深拷贝模块
 func (m *Module) Clone() *Module {
-	clone := &Module{
-		ref:  binding.LLVMCloneModule(m.ref),
-		ctx:  m.ctx,
-		life: llvm.NewLifetime(),
+	return newModule(m.ctx, binding.LLVMCloneModule(m.ref))
+}
+
+// DataLayout 模块数据布局（owned 副本，用毕 Close）
+func (m *Module) DataLayout() *llvm.DataLayout {
+	return llvm.NewDataLayout(binding.LLVMGetDataLayoutStr(m.ref))
+}
+
+// WriteToFile 将模块 IR 文本写入文件；失败返回 ErrIO
+func (m *Module) WriteToFile(path string) error {
+	if err := binding.LLVMPrintModuleToFile(m.ref, path); err != nil {
+		return llvm.WrapError(llvm.ErrIO, "ir.Module.WriteToFile", err)
 	}
-	clone.unown = m.ctx.Own(clone)
-	return clone
+	return nil
+}
+
+// WriteBitcode 将模块 bitcode 写入文件；失败返回 ErrIO
+func (m *Module) WriteBitcode(path string) error {
+	if err := binding.LLVMWriteBitcodeToFile(m.ref, path); err != nil {
+		return llvm.WrapError(llvm.ErrIO, "ir.Module.WriteBitcode", err)
+	}
+	return nil
+}
+
+// Bitcode 将模块序列化为 bitcode 内存缓冲
+func (m *Module) Bitcode() *llvm.MemoryBuffer {
+	return llvm.MemoryBufferOf(binding.LLVMWriteBitcodeToMemoryBuffer(m.ref))
 }
 
 // NewFunction 按函数类型声明/定义函数
