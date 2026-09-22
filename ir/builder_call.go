@@ -10,9 +10,26 @@ func (b *Builder) Call[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyV
 	const op = "ir.Builder.Call"
 	fv := fn.AsValue()
 	b.pre(op, fv.Dyn())
-	b.pre(op, args...)
-
 	sig := llvm.AsFnType(llvm.TypeOfRef(b.ctx, binding.LLVMGetFunctionType(fv.Ref())))
+	ref := b.call(op, fv.Dyn(), sig, args, name)
+	return Call[U]{Value: wrapValue[U](b.ctx, b.inserted.life, ref)}
+}
+
+// CallIndirect 通过函数指针调用（不透明指针 + 签名）；返回种类由调用方断言并在调用前预检
+func (b *Builder) CallIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], sig llvm.FnType, args []llvm.AnyValue, name string) Call[U] {
+	const op = "ir.Builder.CallIndirect"
+	pv := fnPtr.AsValue()
+	b.pre(op, pv.Dyn())
+	if sig.Context() != b.ctx {
+		errPanic(llvm.ErrCrossContext, op, "signature belongs to another context")
+	}
+	ref := b.call(op, pv.Dyn(), sig, args, name)
+	return Call[U]{Value: wrapValue[U](b.ctx, b.inserted.life, ref)}
+}
+
+// call 调用公共路径：实参个数/类型预检后发指令
+func (b *Builder) call(op string, callee llvm.AnyValue, sig llvm.FnType, args []llvm.AnyValue, name string) binding.LLVMValueRef {
+	b.pre(op, args...)
 	params := sig.Params()
 	if !sig.IsVarArg() && uint(len(args)) != uint(len(params)) {
 		errPanic(llvm.ErrTypeMismatch, op, "expect %d arguments, got %d", len(params), len(args))
@@ -26,8 +43,7 @@ func (b *Builder) Call[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyV
 		}
 	}
 
-	ref := binding.LLVMBuildCall(b.ref, sig.Ref(), fv.Ref(), anyValuesToRefs(args), name)
-	return Call[U]{Value: wrapValue[U](b.ctx, b.inserted.life, ref)}
+	return binding.LLVMBuildCall(b.ref, sig.Ref(), callee.Ref(), anyValuesToRefs(args), name)
 }
 
 // PHI 插入 PHI 节点

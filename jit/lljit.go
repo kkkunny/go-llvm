@@ -1,6 +1,8 @@
 package jit
 
 import (
+	"reflect"
+	"sync"
 	"unsafe"
 
 	"github.com/kkkunny/go-llvm"
@@ -11,8 +13,11 @@ import (
 // LLJIT ORC 延迟编译 JIT 实例；独立所有权根（不经 Context.Own），用毕 Close。
 // 移交给它的模块与其 Context 由 LLJIT 负责释放。
 type LLJIT struct {
-	ref    binding.LLVMOrcLLJITRef
-	closed bool
+	ref         binding.LLVMOrcLLJITRef
+	closed      bool
+	adapters    map[reflect.Type]*adapterEntry
+	channelOnce sync.Once
+	channelErr  error
 }
 
 // NewLLJIT 创建面向宿主的目标 JIT；失败返回 ErrJIT

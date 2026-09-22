@@ -167,7 +167,11 @@ func constOfGo(ctx *Context, v reflect.Value) (AnyValue, error) {
 // FnSignatureOf 将 Go 函数类型映射为 LLVM 函数类型。
 // 返回签名、Go 函数类型（供 JIT 桥使用）或 ErrUnsupported。
 func FnSignatureOf[F any](ctx *Context) (FnType, reflect.Type, error) {
-	ft := reflect.TypeOf((*F)(nil)).Elem()
+	return FnSignatureOfGo(ctx, reflect.TypeOf((*F)(nil)).Elem())
+}
+
+// FnSignatureOfGo FnSignatureOf 的 reflect.Type 版本
+func FnSignatureOfGo(ctx *Context, ft reflect.Type) (FnType, reflect.Type, error) {
 	if ft.Kind() != reflect.Func {
 		return FnType{}, nil, &Error{Reason: ErrUnsupported, Op: "llvm.FnSignatureOf", Msg: "not a function type: " + ft.String()}
 	}
