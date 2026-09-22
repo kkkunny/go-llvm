@@ -23,7 +23,7 @@ sub-packages; all cgo lives in `internal/binding`.
 |---|---|---|
 | `llvm` | `Kind`/`Type[T]`/`Value[T]`, constants, `Context`, errors, lifetime, Go type mapping, `DataLayout`, `MemoryBuffer` | import sub-packages |
 | `llvm/ir` | `Module`/`Function`/`Block`/`Global`/`Builder`, instruction roles, `Verify`/print/parse/bitcode | touch JIT/execution |
-| `llvm/target` (P1) | targets, target machines, codegen (`EmitToFile(m *ir.Module)`) | execute |
+| `llvm/target` | targets, target machines, codegen (`EmitToFile(m *ir.Module)`) | execute |
 | `llvm/jit` (P1) | ORC LLJIT, symbol mapping, Go interop bridge | AOT codegen |
 | `llvm/pass` (P2) | optimization pipelines | define passes |
 | `internal/binding` | 1:1 cgo wrappers over LLVM-C + C++ shims | expose high-level API |
@@ -42,7 +42,7 @@ and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codege
 - **`TypeRef[T]` / `ValueRef[T]`**: kind-safe reference interfaces implemented by both `Type[T]`/`Value[T]` and all role wrappers. Use them as parameter types in generic methods/functions so calls like `ctx.ConstNull(ctx.Int(32))` infer `T` from either form.
 - **`AnyType` / `AnyValue`**: non-generic views for heterogeneous collections (call args, mixed instructions). They deliberately exclude `Type()`/`DynType()`-style methods that would differ per instantiation; use `Dyn()`/`DynType()` for erasure and `As[U]()`/`MustAs[U]()` to recover a kind. Dynamic sources (parsed IR, instruction iteration) produce `Value[DynT]`.
 - **Unknown kinds/opcodes degrade** to `Value[DynT]` instead of panicking.
-- **Errors**: recoverable runtime failures return `error`; programmer errors `panic(*llvm.Error)` with `Reason`/`Op`/`Msg`, recoverable via `llvm.Catch`. Data-driven unsupported cases (`TypeOf[string]`, variadic Go funcs) return `ErrUnsupported`. `internal/binding` returns plain `error` (it must not import the root package); sub-packages wrap it with `llvm.WrapError(reason, op, err)` and use `ErrCodeGen`/`ErrJIT`/`ErrIO` for target/JIT/IO failures.
+- **Errors**: recoverable runtime failures return `error`; programmer errors `panic(*llvm.Error)` with `Reason`/`Op`/`Msg`, recoverable via `llvm.Catch`. Data-driven unsupported cases (`TypeOf[string]`, variadic Go funcs) return `ErrUnsupported`. `internal/binding` returns plain `error` (it must not import the root package); sub-packages wrap it with `llvm.WrapError(reason, op, err)` and use `ErrCodeGen`/`ErrJIT`/`ErrIO`/`ErrParse` for target/JIT/IO/parse failures.
 - **Pre-checks before cgo**: every `ir.Builder` method calls `pre`/`preSameType`/`preBlock`/`preAlign` first (positioned builder, same context, live handles, matching operand types, power-of-two alignment) so LLVM never sees invalid IR and never aborts. Positioning methods (`MoveToEnd`/`MoveBefore`) use `preAlive`+`preBlockOwn` instead, since they must work before the first `pre`.
 - **Lifetime**: `Context` is the ownership root (`Own` returns an unregister func, `Close` cascades in reverse). `Module`/`Builder` implement `io.Closer`; `Value`/`Type`/`Block`/`Func` never expose `Free` — they carry a `Lifetime` token and are checked on every operation. Second `Close` returns `ErrClosed`. `Module.Disown()` detaches a module from `Context` (returns a `release` to call when the new owner frees it) — used by JIT ownership transfer; `Context`-independent resources (`TargetMachine`, `MemoryBuffer`, `LLJIT`) are their own roots and are not registered via `Own`.
 - **Comments**: `internal/binding` in English, root and sub-packages in Chinese; match the file you edit.

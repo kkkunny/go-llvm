@@ -23,7 +23,7 @@ Notes:
 |---|---|
 | `llvm` | Core vocabulary: `Kind`, `Type[T]`, `Value[T]`, constants, `Context`, errors, lifetime, Go type mapping, `DataLayout`, `MemoryBuffer` |
 | `llvm/ir` | IR construction: `Module`, `Function`, `Block`, `Builder`, instructions, `Verify`/print/parse/bitcode |
-| `llvm/target` | Target machines and code generation (P1) |
+| `llvm/target` | Target machines and code generation (`EmitToFile`/`Emit` for OBJ/ASM) |
 | `llvm/jit` | ORC LLJIT execution engine (P1) |
 | `llvm/pass` | Optimization pipelines (P2) |
 
@@ -90,6 +90,21 @@ func main() {
   live handles, matching operand types) before reaching cgo.
 * `Context`/`Module`/`Builder` implement `io.Closer`. Values are owned by their context/module;
   use-after-free and double-close are detected.
+
+### Code generation
+
+```go
+target.InitNative()
+native, _ := target.NativeTarget()
+tm, _ := target.NewTargetMachine(native, target.DefaultTriple(), target.HostCPUName(), target.HostCPUFeatures(),
+	target.OptDefault, target.RelocPIC, target.CodeModelDefault)
+defer tm.Close()
+
+tm.SetTo(module)                                   // 写入 triple + data layout
+_ = tm.EmitToFile(module, "main.o", target.ObjectFile)
+asm, _ := tm.Emit(module, target.AsmFile)          // 或产出到内存缓冲
+defer asm.Close()
+```
 
 ### Non-standard LLVM prefixes
 
