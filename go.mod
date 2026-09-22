@@ -1,6 +1,6 @@
 module github.com/kkkunny/go-llvm
 
-go 1.22
+go 1.27
 
 require github.com/samber/lo v1.47.0
 
