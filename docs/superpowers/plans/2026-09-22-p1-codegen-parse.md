@@ -925,16 +925,16 @@ func (m *TargetMachine) Emit(mod *ir.Module, ft FileType) (*llvm.MemoryBuffer, e
 
 binding 层无测试（1:1 cgo，由上层任务测试覆盖）。
 
-- [ ] **步骤 1：Types.go 增加 LLVMMemoryBufferRef**——按「核心定义」逐字添加类型与 `IsNil`
-- [ ] **步骤 2：Core.go 增加 MemoryBuffer 族与 LLVMPrintModuleToFile**——按「核心定义」逐字添加
-- [ ] **步骤 3：创建 BitReader.go / BitWriter.go / IRReader.go**——按「核心定义」逐字添加
-- [ ] **步骤 4：TargetMachine.go 增加 LLVMTargetMachineEmitToMemoryBuffer**——按「核心定义」逐字添加
-- [ ] **步骤 5：编译确认**
+- [x] **步骤 1：Types.go 增加 LLVMMemoryBufferRef**——按「核心定义」逐字添加类型与 `IsNil`
+- [x] **步骤 2：Core.go 增加 MemoryBuffer 族与 LLVMPrintModuleToFile**——按「核心定义」逐字添加
+- [x] **步骤 3：创建 BitReader.go / BitWriter.go / IRReader.go**——按「核心定义」逐字添加
+- [x] **步骤 4：TargetMachine.go 增加 LLVMTargetMachineEmitToMemoryBuffer**——按「核心定义」逐字添加
+- [x] **步骤 5：编译确认**
 
 运行：`go build ./... && go vet ./...`
 预期：无输出（成功）
 
-- [ ] **步骤 6：Commit**
+- [x] **步骤 6：Commit**
 
 ```bash
 git add internal/binding/
@@ -946,7 +946,7 @@ git commit -m "feat: binding补齐内存缓冲/解析/bitcode/emit绑定"
 **文件：**
 - 创建：`memorybuffer.go`、`memorybuffer_test.go`
 
-- [ ] **步骤 1：编写失败测试**
+- [x] **步骤 1：编写失败测试**
 
 ```go
 package llvm
@@ -1006,19 +1006,19 @@ func TestMemoryBufferAfterClose(t *testing.T) {
 }
 ```
 
-- [ ] **步骤 2：运行测试验证失败**
+- [x] **步骤 2：运行测试验证失败**
 
 运行：`go test . -run 'TestMemoryBuffer|TestReadFile' -v`
 预期：FAIL，`undefined: NewMemoryBuffer` / `undefined: ReadFile`
 
-- [ ] **步骤 3：实现 memorybuffer.go**——按「核心定义」逐字实现
+- [x] **步骤 3：实现 memorybuffer.go**——按「核心定义」逐字实现
 
-- [ ] **步骤 4：运行测试验证通过**
+- [x] **步骤 4：运行测试验证通过**
 
 运行：`go test . -run 'TestMemoryBuffer|TestReadFile' -v && go vet ./...`
 预期：PASS
 
-- [ ] **步骤 5：Commit**
+- [x] **步骤 5：Commit**
 
 ```bash
 git add memorybuffer.go memorybuffer_test.go
@@ -1030,7 +1030,7 @@ git commit -m "feat: MemoryBuffer所有权封装"
 **文件：**
 - 创建：`datalayout.go`、`datalayout_test.go`
 
-- [ ] **步骤 1：编写失败测试**
+- [x] **步骤 1：编写失败测试**
 
 ```go
 package llvm
@@ -1119,19 +1119,19 @@ func TestDataLayoutClose(t *testing.T) {
 }
 ```
 
-- [ ] **步骤 2：运行测试验证失败**
+- [x] **步骤 2：运行测试验证失败**
 
 运行：`go test . -run TestDataLayout -v`
 预期：FAIL，`undefined: NewDataLayout`
 
-- [ ] **步骤 3：实现 datalayout.go**——按「核心定义」逐字实现
+- [x] **步骤 3：实现 datalayout.go**——按「核心定义」逐字实现
 
-- [ ] **步骤 4：运行测试验证通过**
+- [x] **步骤 4：运行测试验证通过**
 
 运行：`go test . -run TestDataLayout -v && go vet ./...`
 预期：PASS
 
-- [ ] **步骤 5：Commit**
+- [x] **步骤 5：Commit**
 
 ```bash
 git add datalayout.go datalayout_test.go
@@ -1144,7 +1144,7 @@ git commit -m "feat: DataLayout全套查询与ByteOrder"
 - 修改：`error.go`、`ir/module.go`
 - 创建：`ir/parse.go`、`ir/parse_test.go`
 
-- [ ] **步骤 1：编写失败测试**
+- [x] **步骤 1：编写失败测试**
 
 ```go
 package ir
@@ -1306,21 +1306,21 @@ func TestModuleDataLayout(t *testing.T) {
 }
 ```
 
-- [ ] **步骤 2：运行测试验证失败**
+- [x] **步骤 2：运行测试验证失败**
 
 运行：`go test ./ir -run 'TestParseIR|TestBitcode|TestModuleWriteToFile|TestModuleDataLayout' -v`
 预期：FAIL，`undefined: ParseIR` / `undefined: ParseBitcode`
 
-- [ ] **步骤 3：error.go 增加 ErrParse**——按「核心定义」插入
-- [ ] **步骤 4：ir/module.go 重构 newModule 并新增方法**——按「核心定义」逐字实现（`NewModule`/`Clone` 改为委托 `newModule`，新增 `DataLayout`/`WriteToFile`/`WriteBitcode`/`Bitcode`）
-- [ ] **步骤 5：创建 ir/parse.go**——按「核心定义」逐字实现
+- [x] **步骤 3：error.go 增加 ErrParse**——按「核心定义」插入
+- [x] **步骤 4：ir/module.go 重构 newModule 并新增方法**——按「核心定义」逐字实现（`NewModule`/`Clone` 改为委托 `newModule`，新增 `DataLayout`/`WriteToFile`/`WriteBitcode`/`Bitcode`）
+- [x] **步骤 5：创建 ir/parse.go**——按「核心定义」逐字实现
 
-- [ ] **步骤 6：运行测试验证通过**
+- [x] **步骤 6：运行测试验证通过**
 
 运行：`go test ./ir -v && go vet ./...`
 预期：全部 PASS（含既有测试）
 
-- [ ] **步骤 7：Commit**
+- [x] **步骤 7：Commit**
 
 ```bash
 git add error.go ir/module.go ir/parse.go ir/parse_test.go
@@ -1332,7 +1332,7 @@ git commit -m "feat: IR文本与bitcode解析/序列化"
 **文件：**
 - 创建：`target/target.go`、`target/target_test.go`
 
-- [ ] **步骤 1：编写失败测试**
+- [x] **步骤 1：编写失败测试**
 
 ```go
 package target
@@ -1392,19 +1392,19 @@ func TestInitUnknownArch(t *testing.T) {
 }
 ```
 
-- [ ] **步骤 2：运行测试验证失败**
+- [x] **步骤 2：运行测试验证失败**
 
 运行：`go test ./target -v`
 预期：FAIL，`undefined: InitNative`（包不存在）
 
-- [ ] **步骤 3：实现 target/target.go**——按「核心定义」逐字实现
+- [x] **步骤 3：实现 target/target.go**——按「核心定义」逐字实现
 
-- [ ] **步骤 4：运行测试验证通过**
+- [x] **步骤 4：运行测试验证通过**
 
 运行：`go test ./target -v && go vet ./...`
 预期：PASS
 
-- [ ] **步骤 5：Commit**
+- [x] **步骤 5：Commit**
 
 ```bash
 git add target/target.go target/target_test.go
@@ -1416,7 +1416,7 @@ git commit -m "feat: 目标注册/初始化与宿主查询"
 **文件：**
 - 创建：`target/machine.go`、`target/machine_test.go`
 
-- [ ] **步骤 1：编写失败测试**
+- [x] **步骤 1：编写失败测试**
 
 ```go
 package target
@@ -1543,19 +1543,19 @@ func TestTargetMachineChecks(t *testing.T) {
 }
 ```
 
-- [ ] **步骤 2：运行测试验证失败**
+- [x] **步骤 2：运行测试验证失败**
 
 运行：`go test ./target -run TestTargetMachine -v`
 预期：FAIL，`undefined: NewTargetMachine`
 
-- [ ] **步骤 3：实现 target/machine.go**——按「核心定义」逐字实现
+- [x] **步骤 3：实现 target/machine.go**——按「核心定义」逐字实现
 
-- [ ] **步骤 4：运行测试验证通过**
+- [x] **步骤 4：运行测试验证通过**
 
 运行：`go test ./target -v && go vet ./...`
 预期：PASS
 
-- [ ] **步骤 5：Commit**
+- [x] **步骤 5：Commit**
 
 ```bash
 git add target/machine.go target/machine_test.go
@@ -1567,7 +1567,7 @@ git commit -m "feat: TargetMachine与OBJ/ASM代码生成"
 **文件：**
 - 修改：`README.md`、`AGENTS.md`
 
-- [ ] **步骤 1：README 更新**——包表去掉 `llvm/target` 的 `(P1)` 标记（改为 `Target machines and code generation`），并在 Usage 末尾追加代码生成示例：
+- [x] **步骤 1：README 更新**——包表去掉 `llvm/target` 的 `(P1)` 标记（改为 `Target machines and code generation`），并在 Usage 末尾追加代码生成示例：
 
 ````markdown
 ### Code generation
@@ -1586,18 +1586,18 @@ defer asm.Close()
 ```
 ````
 
-- [ ] **步骤 2：AGENTS.md 更新**——布局表 `llvm/target (P1)` 改为 `llvm/target`；错误约定句补 `ErrParse`：
+- [x] **步骤 2：AGENTS.md 更新**——布局表 `llvm/target (P1)` 改为 `llvm/target`；错误约定句补 `ErrParse`：
 
 ```markdown
 - **Errors**: recoverable runtime failures return `error`; programmer errors `panic(*llvm.Error)` with `Reason`/`Op`/`Msg`, recoverable via `llvm.Catch`. Data-driven unsupported cases (`TypeOf[string]`, variadic Go funcs) return `ErrUnsupported`. `internal/binding` returns plain `error` (it must not import the root package); sub-packages wrap it with `llvm.WrapError(reason, op, err)` and use `ErrCodeGen`/`ErrJIT`/`ErrIO`/`ErrParse` for target/JIT/IO/parse failures.
 ```
 
-- [ ] **步骤 3：全量验收**
+- [x] **步骤 3：全量验收**
 
 运行：`go build ./... && go vet ./... && go test ./...`
 预期：全绿（`ok github.com/kkkunny/go-llvm`、`ok .../ir`、`ok .../target`）
 
-- [ ] **步骤 4：Commit**
+- [x] **步骤 4：Commit**
 
 ```bash
 git add README.md AGENTS.md
