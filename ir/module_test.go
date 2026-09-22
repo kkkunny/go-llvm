@@ -169,6 +169,49 @@ func TestModuleCloseLifecycle(t *testing.T) {
 	}
 }
 
+func TestModuleDisown(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "disown")
+	i32 := ctx.Int(32)
+	g := m.NewGlobal("g", i32)
+	v := g.Value()
+
+	release := m.Disown()
+	if !v.Alive() {
+		t.Fatal("disowned module values should stay alive until release")
+	}
+	// 注销后 Context.Close 不应触碰该模块
+	release()
+	if v.Alive() {
+		t.Fatal("value should be dead after release")
+	}
+	if err := m.Close(); err == nil || err.(*llvm.Error).Reason != llvm.ErrClosed {
+		t.Fatalf("Close after Disown should return ErrClosed, got %v", err)
+	}
+}
+
+func TestBelongAfterModuleClose(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "belong")
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	blk := fn.NewBlock("entry")
+
+	belong := blk.Belong()
+	param := belong.Param(0)
+	if got := param.Type().String(); got != "i32" {
+		t.Fatalf("param type = %q", got)
+	}
+	if got := belong.NewBlock("entry2"); got.Name() != "entry2" {
+		t.Fatalf("NewBlock name = %q", got.Name())
+	}
+	if blocks := belong.Blocks(); len(blocks) != 2 {
+		t.Fatalf("Blocks() = %d", len(blocks))
+	}
+}
+
 func TestModuleCloseWithContext(t *testing.T) {
 	ctx := llvm.NewContext()
 	m := NewModule(ctx, "ctx-close")

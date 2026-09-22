@@ -12,7 +12,14 @@ type Context struct {
 	ref     binding.LLVMContextRef
 	life    *Lifetime
 	mu      sync.Mutex
-	closers []io.Closer
+	nextID  uint64
+	closers []owned
+}
+
+// owned 登记项；id 用于注销时精确定位，避免依赖接口值的可比性
+type owned struct {
+	id uint64
+	c  io.Closer
 }
 
 // NewContext 创建上下文
@@ -20,11 +27,24 @@ func NewContext() *Context {
 	return &Context{ref: binding.LLVMContextCreate(), life: NewLifetime()}
 }
 
-// Own 登记子资源（供 llvm/* 子包使用）；Context.Close 时按逆序级联 Close
-func (ctx *Context) Own(c io.Closer) {
+// Own 登记子资源（供 llvm/* 子包使用）；Context.Close 时按逆序级联 Close。
+// 返回注销函数：资源自行关闭或移交所有权后应调用以解除登记（幂等）。
+func (ctx *Context) Own(c io.Closer) func() {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
-	ctx.closers = append(ctx.closers, c)
+	id := ctx.nextID
+	ctx.nextID++
+	ctx.closers = append(ctx.closers, owned{id: id, c: c})
+	return func() {
+		ctx.mu.Lock()
+		defer ctx.mu.Unlock()
+		for i := range ctx.closers {
+			if ctx.closers[i].id == id {
+				ctx.closers = append(ctx.closers[:i], ctx.closers[i+1:]...)
+				return
+			}
+		}
+	}
 }
 
 // Close 级联关闭子资源后释放 Context；二次调用返回 ErrClosed
@@ -38,7 +58,7 @@ func (ctx *Context) Close() error {
 	ctx.closers = nil
 	ctx.mu.Unlock()
 	for i := len(closers) - 1; i >= 0; i-- {
-		_ = closers[i].Close()
+		_ = closers[i].c.Close()
 	}
 	binding.LLVMContextDispose(ctx.ref)
 	return nil
@@ -52,3 +72,10 @@ func (ctx *Context) Lifetime() *Lifetime { return ctx.life }
 
 // Alive 上下文是否存活
 func (ctx *Context) Alive() bool { return ctx.life.Alive() }
+
+// checkAlive 校验上下文存活；类型/常量/值构造入口统一调用
+func (ctx *Context) checkAlive(op string) {
+	if !ctx.life.Alive() {
+		errPanic(ErrUseAfterFree, op, "context is closed")
+	}
+}

@@ -7,10 +7,12 @@ import (
 
 // Module LLVM 模块；Close 后其下所有值失效
 type Module struct {
-	ref    binding.LLVMModuleRef
-	ctx    *llvm.Context
-	life   *llvm.Lifetime
-	closed bool
+	ref      binding.LLVMModuleRef
+	ctx      *llvm.Context
+	life     *llvm.Lifetime
+	unown    func()
+	closed   bool
+	disowned bool
 }
 
 // NewModule 创建模块并登记到 Context 生命周期
@@ -20,7 +22,7 @@ func NewModule(ctx *llvm.Context, name string) *Module {
 		ctx:  ctx,
 		life: llvm.NewLifetime(),
 	}
-	ctx.Own(m)
+	m.unown = ctx.Own(m)
 	return m
 }
 
@@ -29,10 +31,25 @@ func (m *Module) Close() error {
 	if m.closed {
 		return &llvm.Error{Reason: llvm.ErrClosed, Op: "ir.Module.Close", Msg: "module already closed"}
 	}
+	if m.disowned {
+		return &llvm.Error{Reason: llvm.ErrClosed, Op: "ir.Module.Close", Msg: "module ownership has been transferred"}
+	}
 	m.closed = true
+	m.unown()
 	m.life.Kill()
 	binding.LLVMDisposeModule(m.ref)
 	return nil
+}
+
+// Disown 解除与 Context 的级联所有权，把模块移交给外部接管方（如 JIT）。
+// 返回 release：接管方释放底层模块时调用它使 Go 侧句柄失效；此后 Close 返回 ErrClosed。
+func (m *Module) Disown() func() {
+	if m.disowned || m.closed {
+		return func() {}
+	}
+	m.disowned = true
+	m.unown()
+	return m.life.Kill
 }
 
 // Context 返回所属上下文
@@ -78,14 +95,14 @@ func (m *Module) Clone() *Module {
 		ctx:  m.ctx,
 		life: llvm.NewLifetime(),
 	}
-	m.ctx.Own(clone)
+	clone.unown = m.ctx.Own(clone)
 	return clone
 }
 
 // NewFunction 按函数类型声明/定义函数
 func (m *Module) NewFunction(name string, t llvm.FnType) Function {
 	ref := binding.LLVMAddFunction(m.ref, name, t.Ref())
-	return Function{v: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref), mod: m}
+	return Function{v: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}
 }
 
 // GetFunction 按名称查找函数
@@ -94,13 +111,13 @@ func (m *Module) GetFunction(name string) (Function, bool) {
 	if ref.IsNil() {
 		return Function{}, false
 	}
-	return Function{v: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref), mod: m}, true
+	return Function{v: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}, true
 }
 
 // NewGlobal 声明全局变量（无初始化器）
 func (m *Module) NewGlobal(name string, t llvm.AnyType) Global {
 	ref := binding.LLVMAddGlobal(m.ref, t.Ref(), name)
-	return Global{v: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref), mod: m}
+	return Global{v: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}
 }
 
 // NewConstant 声明常量全局变量
@@ -117,7 +134,7 @@ func (m *Module) GetGlobal(name string) (Global, bool) {
 	if ref.IsNil() {
 		return Global{}, false
 	}
-	return Global{v: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref), mod: m}, true
+	return Global{v: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}, true
 }
 
 // DelGlobal 删除全局变量

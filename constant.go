@@ -85,6 +85,7 @@ func (t Type[T]) Zero() Value[T] {
 
 // ConstString 构造字符串常量；nullTerminate 为 true 时末尾附加 \00
 func (ctx *Context) ConstString(s string, nullTerminate bool) Value[ArrayT] {
+	ctx.checkAlive("llvm.Context.ConstString")
 	ref := binding.LLVMConstStringInContext(ctx.ref, s, !nullTerminate)
 	return Value[ArrayT]{ref: ref, ctx: ctx, life: ctx.life}
 }

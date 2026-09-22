@@ -9,8 +9,7 @@ import (
 
 // Function 函数角色
 type Function struct {
-	v   llvm.Value[llvm.FnT]
-	mod *Module
+	v llvm.Value[llvm.FnT]
 }
 
 // Value 返回底层泛型值
@@ -36,7 +35,7 @@ func (f Function) CountParams() uint { return uint(binding.LLVMCountParams(f.v.R
 // Param 第 i 个参数（擦除种类）
 func (f Function) Param(i uint) Param {
 	ref := binding.LLVMGetParam(f.v.Ref(), uint32(i))
-	return Param{v: llvm.NewValue[llvm.DynT](f.v.Context(), f.mod.life, ref)}
+	return Param{v: llvm.NewValue[llvm.DynT](f.v.Context(), f.v.Lifetime(), ref)}
 }
 
 // ParamAs 第 i 个参数（泛型方法；种类不符 panic）
@@ -57,7 +56,7 @@ func (f Function) Params() []Param {
 // NewBlock 追加基本块
 func (f Function) NewBlock(name string) Block {
 	ref := binding.LLVMAppendBasicBlockInContext(f.v.Context().Ref(), f.v.Ref(), name)
-	return Block{ref: ref, ctx: f.v.Context(), life: f.mod.life}
+	return Block{ref: ref, ctx: f.v.Context(), life: f.v.Lifetime()}
 }
 
 // Blocks 全部基本块
@@ -65,7 +64,7 @@ func (f Function) Blocks() []Block {
 	refs := binding.LLVMGetBasicBlocks(f.v.Ref())
 	blocks := make([]Block, len(refs))
 	for i, ref := range refs {
-		blocks[i] = Block{ref: ref, ctx: f.v.Context(), life: f.mod.life}
+		blocks[i] = Block{ref: ref, ctx: f.v.Context(), life: f.v.Lifetime()}
 	}
 	return blocks
 }
@@ -76,7 +75,7 @@ func (f Function) EntryBlock() (Block, bool) {
 	if ref.IsNil() {
 		return Block{}, false
 	}
-	return Block{ref: ref, ctx: f.v.Context(), life: f.mod.life}, true
+	return Block{ref: ref, ctx: f.v.Context(), life: f.v.Lifetime()}, true
 }
 
 // OnlyDecl 是否只有声明（无基本块）

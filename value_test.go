@@ -89,4 +89,7 @@ func TestValueNil(t *testing.T) {
 	if v.String() != "<nil>" {
 		t.Fatalf("nil value String() = %q", v.String())
 	}
+	if v.Alive() {
+		t.Fatal("nil value should not be alive")
+	}
 }

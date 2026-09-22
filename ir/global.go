@@ -7,8 +7,7 @@ import (
 
 // Global 全局变量角色
 type Global struct {
-	v   llvm.Value[llvm.PtrT]
-	mod *Module
+	v llvm.Value[llvm.PtrT]
 }
 
 // Value 返回底层泛型值（全局变量自身类型为 ptr）
@@ -35,7 +34,7 @@ func (g Global) Initializer() (llvm.Value[llvm.DynT], bool) {
 	if ref.IsNil() {
 		return llvm.Value[llvm.DynT]{}, false
 	}
-	return llvm.ValueOf(g.v.Context(), g.mod.life, ref), true
+	return llvm.ValueOf(g.v.Context(), g.v.Lifetime(), ref), true
 }
 
 // SetInitializer 设置初始化器

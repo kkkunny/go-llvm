@@ -10,13 +10,14 @@ type Builder struct {
 	ref      binding.LLVMBuilderRef
 	ctx      *llvm.Context
 	inserted *Block
+	unown    func()
 	closed   bool
 }
 
 // NewBuilder 创建构建器并登记到 Context 生命周期
 func NewBuilder(ctx *llvm.Context) *Builder {
 	b := &Builder{ref: binding.LLVMCreateBuilderInContext(ctx.Ref()), ctx: ctx}
-	ctx.Own(b)
+	b.unown = ctx.Own(b)
 	return b
 }
 
@@ -27,6 +28,7 @@ func (b *Builder) Close() error {
 	}
 	b.closed = true
 	b.inserted = nil
+	b.unown()
 	binding.LLVMDisposeBuilder(b.ref)
 	return nil
 }
