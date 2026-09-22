@@ -206,7 +206,7 @@ func (e *LLJIT) MapSymbol(name string, p unsafe.Pointer) error
 - P1-3 ORC LLJIT 绑定与封装：`internal/binding` ORC 全套 + `llvm/jit` 基础
 - P1-4 Go 互调桥：`bridge.c` 固定签名通道 + 按签名 IR 适配器生成
 - P1-5 JIT 高层 API：`Func[F]` / `MapFunc[F]` / `MapSymbol` / `RunMain`
-- P1-6 移除 legacy 执行引擎（MCJIT/Interpreter/GenericValue，含 `internal/binding/ExecutionEngine.go`）+ 端到端测试；随后移除仅供其使用的 `samber/lo` 依赖（go.mod 归零）
+- P1-6 移除 legacy 执行引擎（MCJIT/Interpreter/GenericValue，含 `internal/binding/ExecutionEngine.go`）+ 端到端测试；随后移除仅供其使用的 `bytedance/gg` 依赖（go.mod 归零）
 
 ### P2 — 中频补全
 验收：各指令/属性有 golden 测试；旧 API 能力无回退。

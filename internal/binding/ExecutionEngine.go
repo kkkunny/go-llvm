@@ -8,7 +8,7 @@ import "C"
 import (
 	"unsafe"
 
-	"github.com/samber/lo"
+	"github.com/bytedance/gg/gslice"
 )
 
 type (
@@ -139,7 +139,7 @@ func LLVMRunStaticDestructors(ee LLVMExecutionEngineRef) {
 }
 
 func LLVMRunFunctionAsMain(ee LLVMExecutionEngineRef, f LLVMValueRef, argv []string, envp []string) int32 {
-	cargv := lo.Map(argv, func(item string, _ int) *C.char {
+	cargv := gslice.Map(argv, func(item string) *C.char {
 		return C.CString(item)
 	})
 	for _, v := range cargv {
@@ -148,7 +148,7 @@ func LLVMRunFunctionAsMain(ee LLVMExecutionEngineRef, f LLVMValueRef, argv []str
 	cargv = append(cargv, nil)
 	argvp := &cargv[0]
 
-	cenvp := lo.Map(envp, func(item string, _ int) *C.char {
+	cenvp := gslice.Map(envp, func(item string) *C.char {
 		return C.CString(item)
 	})
 	for _, v := range cenvp {
