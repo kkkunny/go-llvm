@@ -899,18 +899,6 @@ func LLVMConstNUWSub(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstNUWSub(lHSConstant.c, rHSConstant.c)}
 }
 
-func LLVMConstMul(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstMul(lHSConstant.c, rHSConstant.c)}
-}
-
-func LLVMConstNSWMul(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstNSWMul(lHSConstant.c, rHSConstant.c)}
-}
-
-func LLVMConstNUWMul(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstNUWMul(lHSConstant.c, rHSConstant.c)}
-}
-
 func LLVMConstXor(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstXor(lHSConstant.c, rHSConstant.c)}
 }
