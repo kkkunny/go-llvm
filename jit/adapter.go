@@ -100,10 +100,8 @@ func checkBridgeFunc(ft reflect.Type) ([]bridgeSlotKind, bridgeSlotKind, error) 
 
 // adapterCache 按 Go 函数签名缓存的适配器/包装体
 type adapterEntry struct {
-	// Go→native：adapter 地址与目标签名
+	// Go→native 适配器地址；参数/返回值槽类别
 	adapter unsafe.Pointer
-	// native→Go：包装体地址
-	wrapper unsafe.Pointer
 	params  []bridgeSlotKind
 	ret     bridgeSlotKind
 }
