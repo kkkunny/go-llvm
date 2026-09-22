@@ -656,6 +656,34 @@ func LLVMGetArrayLength(arrayTy LLVMTypeRef) uint32 {
 	return uint32(C.LLVMGetArrayLength(arrayTy.c))
 }
 
+// LLVMArrayType2 Create a fixed size array type that refers to a specific type.
+// The created type will exist in the context that its element type exists in.
+// @see llvm::ArrayType::get()
+func LLVMArrayType2(elementType LLVMTypeRef, elementCount uint64) LLVMTypeRef {
+	return LLVMTypeRef{c: C.LLVMArrayType2(elementType.c, C.uint64_t(elementCount))}
+}
+
+// LLVMGetArrayLength2 Obtain the length of an array type.
+// This only works on types that represent arrays.
+// @see llvm::ArrayType::getNumElements()
+func LLVMGetArrayLength2(arrayTy LLVMTypeRef) uint64 {
+	return uint64(C.LLVMGetArrayLength2(arrayTy.c))
+}
+
+// LLVMVectorType Create a vector type that contains a defined type and has a specific number of elements.
+// The created type will exist in the context thats its element type exists in.
+// @see llvm::VectorType::get()
+func LLVMVectorType(elementType LLVMTypeRef, elementCount uint32) LLVMTypeRef {
+	return LLVMTypeRef{c: C.LLVMVectorType(elementType.c, C.unsigned(elementCount))}
+}
+
+// LLVMGetVectorSize Obtain the number of elements in a vector type.
+// This only works on types that represent vectors.
+// @see llvm::VectorType::getNumElements()
+func LLVMGetVectorSize(vectorTy LLVMTypeRef) uint32 {
+	return uint32(C.LLVMGetVectorSize(vectorTy.c))
+}
+
 // LLVMPointerType Create a pointer type that points to a defined type.
 // The created type will exist in the context that its pointee type exists in.
 // @see llvm::PointerType::get()

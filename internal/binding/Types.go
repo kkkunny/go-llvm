@@ -37,3 +37,21 @@ func (ref LLVMBasicBlockRef) IsNil() bool     { return ref.c == nil }
 func (ref LLVMBuilderRef) IsNil() bool        { return ref.c == nil }
 func (ref LLVMAttributeRef) IsNil() bool      { return ref.c == nil }
 func (ref LLVMDiagnosticInfoRef) IsNil() bool { return ref.c == nil }
+
+// Equal 句柄等值比较
+func (ref LLVMContextRef) Equal(other LLVMContextRef) bool { return ref.c == other.c }
+
+// Equal 句柄等值比较
+func (ref LLVMModuleRef) Equal(other LLVMModuleRef) bool { return ref.c == other.c }
+
+// Equal 句柄等值比较
+func (ref LLVMTypeRef) Equal(other LLVMTypeRef) bool { return ref.c == other.c }
+
+// Equal 句柄等值比较
+func (ref LLVMValueRef) Equal(other LLVMValueRef) bool { return ref.c == other.c }
+
+// Equal 句柄等值比较
+func (ref LLVMBasicBlockRef) Equal(other LLVMBasicBlockRef) bool { return ref.c == other.c }
+
+// Equal 句柄等值比较
+func (ref LLVMBuilderRef) Equal(other LLVMBuilderRef) bool { return ref.c == other.c }
