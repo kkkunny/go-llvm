@@ -14,6 +14,9 @@ const (
 	ErrInvalidArg                  // 参数非法
 	ErrVerify                      // IR 验证失败
 	ErrUnsupported                 // 映射遇到不支持的类型
+	ErrCodeGen                     // 目标代码生成失败（target 包）
+	ErrJIT                         // JIT 构造/符号解析失败（jit 包）
+	ErrIO                          // 文件/内存缓冲读写失败（ir/target/jit）
 	ErrInternal                    // 兜底
 )
 
@@ -57,4 +60,16 @@ func Must[T any](v T, err error) T {
 		panic(err)
 	}
 	return v
+}
+
+// WrapError 把底层错误（如 internal/binding 返回的 error）包装为 *Error。
+// err 为 nil 返回 nil；已是 *Error 则原样返回。上层包（ir/target/jit/pass）统一用它归类错误。
+func WrapError(reason ErrKind, op string, err error) *Error {
+	if err == nil {
+		return nil
+	}
+	if e, ok := err.(*Error); ok {
+		return e
+	}
+	return &Error{Reason: reason, Op: op, Msg: err.Error()}
 }

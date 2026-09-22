@@ -1,6 +1,7 @@
 package llvm
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -63,5 +64,21 @@ func TestErrorMessage(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "operand kinds differ") {
 		t.Fatal("message lost")
+	}
+}
+
+func TestWrapError(t *testing.T) {
+	if got := WrapError(ErrJIT, "llvm.Test", nil); got != nil {
+		t.Fatalf("want nil, got %v", got)
+	}
+
+	original := &Error{Reason: ErrCodeGen, Op: "llvm.Test", Msg: "boom"}
+	if got := WrapError(ErrJIT, "llvm.Other", original); got != original {
+		t.Fatalf("existing *Error should pass through, got %v", got)
+	}
+
+	got := WrapError(ErrJIT, "llvm.Test", errors.New("lookup failed"))
+	if got.Reason != ErrJIT || got.Op != "llvm.Test" || got.Msg != "lookup failed" {
+		t.Fatalf("unexpected wrapped error: %+v", got)
 	}
 }
