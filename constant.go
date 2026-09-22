@@ -147,6 +147,15 @@ func (ctx *Context) ConstGEP(elem AnyType, base ValueRef[PtrT], inBounds bool, i
 	return Value[PtrT]{ref: ref, ctx: ctx, life: ctx.life}
 }
 
+// ConstIntToPtr 构造 inttoptr 常量表达式
+func (ctx *Context) ConstIntToPtr(v ValueRef[IntT], to PtrType) Value[PtrT] {
+	vv := v.AsValue()
+	ctx.checkValues("llvm.Context.ConstIntToPtr", vv.Dyn())
+	ctx.checkType("llvm.Context.ConstIntToPtr", to)
+	ref := binding.LLVMConstIntToPtr(vv.Ref(), to.Ref())
+	return Value[PtrT]{ref: ref, ctx: ctx, life: ctx.life}
+}
+
 // ===== 内部辅助 =====
 
 // checkValues 校验值归属同一 Context 且存活
