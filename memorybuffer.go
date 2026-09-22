@@ -57,6 +57,15 @@ func (b *MemoryBuffer) Len() int {
 	return int(binding.LLVMGetBufferSize(b.ref))
 }
 
+// Disown 移交底层缓冲给外部接管方（如 JIT）：此后 Go 侧句柄失效，Close 返回 ErrClosed；
+// 底层缓冲由接管方释放。
+func (b *MemoryBuffer) Disown() {
+	if b.closed {
+		return
+	}
+	b.closed = true
+}
+
 // Close 释放缓冲；二次调用返回 ErrClosed
 func (b *MemoryBuffer) Close() error {
 	if b.closed {

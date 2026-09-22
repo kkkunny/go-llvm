@@ -9,11 +9,12 @@ import (
 
 // Context LLVM 上下文，也是资源所有权的根：Close 时级联关闭所有登记的子资源
 type Context struct {
-	ref     binding.LLVMContextRef
-	life    *Lifetime
-	mu      sync.Mutex
-	nextID  uint64
-	closers []owned
+	ref      binding.LLVMContextRef
+	life     *Lifetime
+	mu       sync.Mutex
+	nextID   uint64
+	closers  []owned
+	disowned bool
 }
 
 // owned 登记项；id 用于注销时精确定位，避免依赖接口值的可比性
@@ -49,19 +50,43 @@ func (ctx *Context) Own(c io.Closer) func() {
 
 // Close 级联关闭子资源后释放 Context；二次调用返回 ErrClosed
 func (ctx *Context) Close() error {
+	if ctx.disowned {
+		return &Error{Reason: ErrClosed, Op: "llvm.Context.Close", Msg: "context ownership has been transferred"}
+	}
 	if !ctx.life.Alive() {
 		return &Error{Reason: ErrClosed, Op: "llvm.Context.Close", Msg: "context already closed"}
 	}
-	ctx.life.Kill()
 	ctx.mu.Lock()
+	closers := ctx.closers
+	ctx.closers = nil
+	ctx.mu.Unlock()
+	// 先级联关闭子资源（此时 Context 仍存活），再失效令牌并释放底层上下文
+	for i := len(closers) - 1; i >= 0; i-- {
+		_ = closers[i].c.Close()
+	}
+	ctx.life.Kill()
+	binding.LLVMContextDispose(ctx.ref)
+	return nil
+}
+
+// Disown 解除与外部接管方（如 JIT ThreadSafeModule）的所有权：级联关闭未移交的子资源
+// （Builder 等），但不释放底层上下文（由接管方释放）；其下所有 Go 侧句柄立即失效。
+// 返回 release 供接管方在释放底层资源时调用（幂等）。
+func (ctx *Context) Disown() func() {
+	ctx.mu.Lock()
+	if ctx.disowned || !ctx.life.Alive() {
+		ctx.mu.Unlock()
+		return func() {}
+	}
+	ctx.disowned = true
 	closers := ctx.closers
 	ctx.closers = nil
 	ctx.mu.Unlock()
 	for i := len(closers) - 1; i >= 0; i-- {
 		_ = closers[i].c.Close()
 	}
-	binding.LLVMContextDispose(ctx.ref)
-	return nil
+	ctx.life.Kill()
+	return func() {}
 }
 
 // Ref 返回底层句柄（供 llvm/* 子包桥接使用）

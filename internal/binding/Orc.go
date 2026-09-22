@@ -6,6 +6,7 @@ package binding
 #include <stdlib.h>
 */
 import "C"
+import "unsafe"
 
 type (
 	// LLVMOrcLLJITRef A reference to an orc::LLJIT instance.
@@ -159,15 +160,15 @@ func LLVMOrcLLJITAddObjectFile(j LLVMOrcLLJITRef, jd LLVMOrcJITDylibRef, buf LLV
 }
 
 // LLVMOrcLLJITLookup Look up the given symbol in the main JITDylib of the given LLJIT instance.
-func LLVMOrcLLJITLookup(j LLVMOrcLLJITRef, name string) (uintptr, error) {
-	var addr C.LLVMOrcExecutorAddress
+func LLVMOrcLLJITLookup(j LLVMOrcLLJITRef, name string) (unsafe.Pointer, error) {
+	var addr unsafe.Pointer
 	err := string2CString(name, func(name *C.char) error {
-		return orcError2Error(C.LLVMOrcLLJITLookup(j.c, &addr, name))
+		return orcError2Error(C.LLVMOrcLLJITLookup(j.c, (*C.LLVMOrcExecutorAddress)(unsafe.Pointer(&addr)), name))
 	})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return uintptr(addr), nil
+	return addr, nil
 }
 
 // LLVMOrcJITTargetMachineBuilderDetectHost Create a JITTargetMachineBuilder by detecting the host.
@@ -258,6 +259,11 @@ func LLVMOrcAbsoluteSymbols(syms []LLVMOrcCSymbolMapPair) LLVMOrcMaterialization
 // On success the JITDylib takes ownership of MU.
 func LLVMOrcJITDylibDefine(jd LLVMOrcJITDylibRef, mu LLVMOrcMaterializationUnitRef) error {
 	return orcError2Error(C.LLVMOrcJITDylibDefine(jd.c, mu.c))
+}
+
+// LLVMOrcDisposeMaterializationUnit Dispose of a MaterializationUnit.
+func LLVMOrcDisposeMaterializationUnit(mu LLVMOrcMaterializationUnitRef) {
+	C.LLVMOrcDisposeMaterializationUnit(mu.c)
 }
 
 // LLVMOrcJITDylibCreateResourceTracker Return a reference to a newly created resource tracker.
