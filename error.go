@@ -31,6 +31,11 @@ func errPanic(reason ErrKind, op, format string, args ...any) {
 	panic(&Error{Reason: reason, Op: op, Msg: fmt.Sprintf(format, args...)})
 }
 
+// Panicf 构造并 panic *Error（供 llvm/* 子包统一错误类型）
+func Panicf(reason ErrKind, op, format string, args ...any) {
+	errPanic(reason, op, format, args...)
+}
+
 // Catch 执行 fn 并将其 panic 的 *Error 收敛为 error 返回；非 *Error panic 原样重抛；无 panic 返回 nil
 func Catch(fn func()) (err *Error) {
 	defer func() {

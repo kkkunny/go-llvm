@@ -1464,6 +1464,37 @@ func LLVMAddCase(v LLVMValueRef, onVal LLVMValueRef, dest LLVMBasicBlockRef) {
 	C.LLVMAddCase(v.c, onVal.c, dest.c)
 }
 
+// LLVMGetNumSuccessors Obtain the number of successors of a terminator instruction.
+func LLVMGetNumSuccessors(term LLVMValueRef) uint32 {
+	return uint32(C.LLVMGetNumSuccessors(term.c))
+}
+
+// LLVMGetOperand Obtain an operand at a specific index in a LLVM value.
+func LLVMGetOperand(val LLVMValueRef, index uint32) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetOperand(val.c, C.unsigned(index))}
+}
+
+// LLVMGetNumOperands Return the number of operands for this value.
+func LLVMGetNumOperands(val LLVMValueRef) int {
+	return int(C.LLVMGetNumOperands(val.c))
+}
+
+// LLVMGetSuccessor Obtain the specified successor of a terminator instruction.
+func LLVMGetSuccessor(term LLVMValueRef, i uint32) LLVMBasicBlockRef {
+	return LLVMBasicBlockRef{c: C.LLVMGetSuccessor(term.c, C.unsigned(i))}
+}
+
+// LLVMGetSwitchDefaultDest Obtain the default destination basic block of a switch instruction.
+func LLVMGetSwitchDefaultDest(switchInstr LLVMValueRef) LLVMBasicBlockRef {
+	return LLVMBasicBlockRef{c: C.LLVMGetSwitchDefaultDest(switchInstr.c)}
+}
+
+// LLVMGetSwitchCaseValue Obtain the case value for a successor of a switch instruction.
+// i corresponds to the successor index; the first successor is the default destination, so i must be greater than zero.
+func LLVMGetSwitchCaseValue(switchInstr LLVMValueRef, i uint32) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetSwitchCaseValue(switchInstr.c, C.unsigned(i))}
+}
+
 func LLVMBuildUnreachable(builder LLVMBuilderRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMBuildUnreachable(builder.c)}
 }
