@@ -439,6 +439,15 @@ func LLVMPrintModuleToString(m LLVMModuleRef) string {
 	return C.GoString(cstring)
 }
 
+// LLVMPrintModuleToFile Print a module to a file.
+func LLVMPrintModuleToFile(m LLVMModuleRef, filename string) error {
+	return string2CString(filename, func(filename *C.char) error {
+		return llvmError2Error(func(errstr **C.char) C.LLVMBool {
+			return C.LLVMPrintModuleToFile(m.c, filename, errstr)
+		})
+	})
+}
+
 // LLVMGetModuleContext Obtain the context to which this module is associated.
 // @see Module::getContext()
 func LLVMGetModuleContext(m LLVMModuleRef) LLVMContextRef {
@@ -2036,4 +2045,48 @@ func LLVMBuildNUWNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMVa
 
 func LLVMConstNUWNeg(constantVal LLVMValueRef) LLVMValueRef {
 	return LLVMConstNull(LLVMGlobalGetValueType(constantVal))
+}
+
+// LLVMCreateMemoryBufferWithContentsOfFile Read a file into a memory buffer.
+func LLVMCreateMemoryBufferWithContentsOfFile(path string) (LLVMMemoryBufferRef, error) {
+	var buf LLVMMemoryBufferRef
+	err := string2CString(path, func(cpath *C.char) error {
+		return llvmError2Error(func(errstr **C.char) C.LLVMBool {
+			return C.LLVMCreateMemoryBufferWithContentsOfFile(cpath, &buf.c, errstr)
+		})
+	})
+	if err != nil {
+		return LLVMMemoryBufferRef{}, err
+	}
+	return buf, nil
+}
+
+// LLVMCreateMemoryBufferWithMemoryRangeCopy Create a memory buffer from a memory range, copying the data.
+func LLVMCreateMemoryBufferWithMemoryRangeCopy(data []byte, name string) LLVMMemoryBufferRef {
+	return string2CString(name, func(name *C.char) LLVMMemoryBufferRef {
+		var ptr *C.char
+		if len(data) > 0 {
+			ptr = (*C.char)(unsafe.Pointer(&data[0]))
+		}
+		return LLVMMemoryBufferRef{c: C.LLVMCreateMemoryBufferWithMemoryRangeCopy(ptr, C.size_t(len(data)), name)}
+	})
+}
+
+// LLVMGetBufferStart Get the start of the buffer.
+func LLVMGetBufferStart(buf LLVMMemoryBufferRef) []byte {
+	ptr := C.LLVMGetBufferStart(buf.c)
+	if ptr == nil {
+		return nil
+	}
+	return unsafe.Slice((*byte)(unsafe.Pointer(ptr)), int(C.LLVMGetBufferSize(buf.c)))
+}
+
+// LLVMGetBufferSize Get the size of the buffer.
+func LLVMGetBufferSize(buf LLVMMemoryBufferRef) uint64 {
+	return uint64(C.LLVMGetBufferSize(buf.c))
+}
+
+// LLVMDisposeMemoryBuffer Dispose of a memory buffer.
+func LLVMDisposeMemoryBuffer(buf LLVMMemoryBufferRef) {
+	C.LLVMDisposeMemoryBuffer(buf.c)
 }
