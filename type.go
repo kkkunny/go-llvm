@@ -28,6 +28,12 @@ type AnyType interface {
 	Equal(other AnyType) bool
 }
 
+// TypeRef 种类安全的类型引用：Type[T] 与全部类型角色（IntType/FnType/...）均实现。
+// 用于泛型方法/函数参数，使 ctx.ConstNull(ctx.Int(32)) 这类调用可直接推断 T。
+type TypeRef[T Kind] interface {
+	AsType() Type[T]
+}
+
 // Type 种类级泛型类型句柄；类别专属操作见各类型角色（如 IntType.Bits）
 type Type[T Kind] struct {
 	ref binding.LLVMTypeRef
@@ -39,6 +45,9 @@ func (t Type[T]) Ref() binding.LLVMTypeRef { return t.ref }
 
 // DynType 擦除类型参数
 func (t Type[T]) DynType() Type[DynT] { return Type[DynT]{ref: t.ref, ctx: t.ctx} }
+
+// AsType 返回自身（实现 TypeRef[T]；类型角色经内嵌继承）
+func (t Type[T]) AsType() Type[T] { return t }
 
 // Context 返回所属上下文
 func (t Type[T]) Context() *Context { return t.ctx }

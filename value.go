@@ -17,6 +17,12 @@ type AnyValue interface {
 	IsConstant() bool
 }
 
+// ValueRef 种类安全的值引用：Value[T] 与全部值角色（IntConst/Phi[T]/...）均实现。
+// 用于泛型方法/函数参数，使泛型调用可直接推断 T。
+type ValueRef[T Kind] interface {
+	AsValue() Value[T]
+}
+
 // Value 种类级泛型值句柄；类别专属操作见角色包装（如 IntConst.SignedValue）
 type Value[T Kind] struct {
 	ref  binding.LLVMValueRef
@@ -31,6 +37,9 @@ func (v Value[T]) Ref() binding.LLVMValueRef { return v.ref }
 func (v Value[T]) Dyn() Value[DynT] {
 	return Value[DynT]{ref: v.ref, ctx: v.ctx, life: v.life}
 }
+
+// AsValue 返回自身（实现 ValueRef[T]；值角色经内嵌继承）
+func (v Value[T]) AsValue() Value[T] { return v }
 
 // Alive 值是否可用（所属 Context 与生命周期令牌均存活）
 func (v Value[T]) Alive() bool {
