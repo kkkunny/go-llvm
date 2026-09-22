@@ -16,41 +16,41 @@ func (ref LLVMTargetRef) IsNil() bool        { return ref.c == nil }
 type LLVMCodeGenOptLevel int32
 
 const (
-	LLVMCodeGenLevelNone LLVMCodeGenOptLevel = iota
-	LLVMCodeGenLevelLess
-	LLVMCodeGenLevelDefault
-	LLVMCodeGenLevelAggressive
+	LLVMCodeGenLevelNone       LLVMCodeGenOptLevel = C.LLVMCodeGenLevelNone
+	LLVMCodeGenLevelLess       LLVMCodeGenOptLevel = C.LLVMCodeGenLevelLess
+	LLVMCodeGenLevelDefault    LLVMCodeGenOptLevel = C.LLVMCodeGenLevelDefault
+	LLVMCodeGenLevelAggressive LLVMCodeGenOptLevel = C.LLVMCodeGenLevelAggressive
 )
 
 type LLVMRelocMode int32
 
 const (
-	LLVMRelocDefault LLVMRelocMode = iota
-	LLVMRelocStatic
-	LLVMRelocPIC
-	LLVMRelocDynamicNoPic
-	LLVMRelocROPI
-	LLVMRelocRWPI
-	LLVMRelocROPI_RWPI
+	LLVMRelocDefault      LLVMRelocMode = C.LLVMRelocDefault
+	LLVMRelocStatic       LLVMRelocMode = C.LLVMRelocStatic
+	LLVMRelocPIC          LLVMRelocMode = C.LLVMRelocPIC
+	LLVMRelocDynamicNoPic LLVMRelocMode = C.LLVMRelocDynamicNoPic
+	LLVMRelocROPI         LLVMRelocMode = C.LLVMRelocROPI
+	LLVMRelocRWPI         LLVMRelocMode = C.LLVMRelocRWPI
+	LLVMRelocROPI_RWPI    LLVMRelocMode = C.LLVMRelocROPI_RWPI
 )
 
 type LLVMCodeModel int32
 
 const (
-	LLVMCodeModelDefault LLVMCodeModel = iota
-	LLVMCodeModelJITDefault
-	LLVMCodeModelTiny
-	LLVMCodeModelSmall
-	LLVMCodeModelKernel
-	LLVMCodeModelMedium
-	LLVMCodeModelLarge
+	LLVMCodeModelDefault    LLVMCodeModel = C.LLVMCodeModelDefault
+	LLVMCodeModelJITDefault LLVMCodeModel = C.LLVMCodeModelJITDefault
+	LLVMCodeModelTiny       LLVMCodeModel = C.LLVMCodeModelTiny
+	LLVMCodeModelSmall      LLVMCodeModel = C.LLVMCodeModelSmall
+	LLVMCodeModelKernel     LLVMCodeModel = C.LLVMCodeModelKernel
+	LLVMCodeModelMedium     LLVMCodeModel = C.LLVMCodeModelMedium
+	LLVMCodeModelLarge      LLVMCodeModel = C.LLVMCodeModelLarge
 )
 
 type LLVMCodeGenFileType int32
 
 const (
-	LLVMAssemblyFile LLVMCodeGenFileType = iota
-	LLVMObjectFile
+	LLVMAssemblyFile LLVMCodeGenFileType = C.LLVMAssemblyFile
+	LLVMObjectFile   LLVMCodeGenFileType = C.LLVMObjectFile
 )
 
 // LLVMGetTargetFromName Finds the target corresponding to the given name and stores it in \p T.

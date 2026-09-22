@@ -12,288 +12,292 @@ import (
 type LLVMOpcode int32
 
 const (
-	LLVMRet LLVMOpcode = 1 + iota
-	LLVMBr
-	LLVMSwitch
-	LLVMIndirectBr
-	LLVMInvoke
-	LLVMUnreachable LLVMOpcode = 2 + iota
-	LLVMAdd
-	LLVMFAdd
-	LLVMSub
-	LLVMFSub
-	LLVMMul
-	LLVMFMul
-	LLVMUDiv
-	LLVMSDiv
-	LLVMFDiv
-	LLVMURem
-	LLVMSRem
-	LLVMFRem
-	LLVMShl
-	LLVMLShr
-	LLVMAShr
-	LLVMAnd
-	LLVMOr
-	LLVMXor
-	LLVMAlloca
-	LLVMLoad
-	LLVMStore
-	LLVMGetElementPtr
-	LLVMTrunc
-	LLVMZExt
-	LLVMSExt
-	LLVMFPToUI
-	LLVMFPToSI
-	LLVMUIToFP
-	LLVMSIToFP
-	LLVMFPTrunc
-	LLVMFPExt
-	LLVMPtrToInt
-	LLVMIntToPtr
-	LLVMBitCast
-	LLVMICmp
-	LLVMFCmp
-	LLVMPHI
-	LLVMCall
-	LLVMSelect
-	LLVMUserOp1
-	LLVMUserOp2
-	LLVMVAArg
-	LLVMExtractElement
-	LLVMInsertElement
-	LLVMShuffleVector
-	LLVMExtractValue
-	LLVMInsertValue
-	LLVMFence
-	LLVMAtomicCmpXchg
-	LLVMAtomicRMW
-	LLVMResume
-	LLVMLandingPad
-	LLVMAddrSpaceCast
-	LLVMCleanupRet
-	LLVMCatchRet
-	LLVMCatchPad
-	LLVMCleanupPad
-	LLVMCatchSwitch
-	LLVMFNeg
-	LLVMCallBr
-	LLVMFreeze
+	LLVMRet            LLVMOpcode = C.LLVMRet
+	LLVMBr             LLVMOpcode = C.LLVMBr
+	LLVMSwitch         LLVMOpcode = C.LLVMSwitch
+	LLVMIndirectBr     LLVMOpcode = C.LLVMIndirectBr
+	LLVMInvoke         LLVMOpcode = C.LLVMInvoke
+	LLVMUnreachable    LLVMOpcode = C.LLVMUnreachable
+	LLVMAdd            LLVMOpcode = C.LLVMAdd
+	LLVMFAdd           LLVMOpcode = C.LLVMFAdd
+	LLVMSub            LLVMOpcode = C.LLVMSub
+	LLVMFSub           LLVMOpcode = C.LLVMFSub
+	LLVMMul            LLVMOpcode = C.LLVMMul
+	LLVMFMul           LLVMOpcode = C.LLVMFMul
+	LLVMUDiv           LLVMOpcode = C.LLVMUDiv
+	LLVMSDiv           LLVMOpcode = C.LLVMSDiv
+	LLVMFDiv           LLVMOpcode = C.LLVMFDiv
+	LLVMURem           LLVMOpcode = C.LLVMURem
+	LLVMSRem           LLVMOpcode = C.LLVMSRem
+	LLVMFRem           LLVMOpcode = C.LLVMFRem
+	LLVMShl            LLVMOpcode = C.LLVMShl
+	LLVMLShr           LLVMOpcode = C.LLVMLShr
+	LLVMAShr           LLVMOpcode = C.LLVMAShr
+	LLVMAnd            LLVMOpcode = C.LLVMAnd
+	LLVMOr             LLVMOpcode = C.LLVMOr
+	LLVMXor            LLVMOpcode = C.LLVMXor
+	LLVMAlloca         LLVMOpcode = C.LLVMAlloca
+	LLVMLoad           LLVMOpcode = C.LLVMLoad
+	LLVMStore          LLVMOpcode = C.LLVMStore
+	LLVMGetElementPtr  LLVMOpcode = C.LLVMGetElementPtr
+	LLVMTrunc          LLVMOpcode = C.LLVMTrunc
+	LLVMZExt           LLVMOpcode = C.LLVMZExt
+	LLVMSExt           LLVMOpcode = C.LLVMSExt
+	LLVMFPToUI         LLVMOpcode = C.LLVMFPToUI
+	LLVMFPToSI         LLVMOpcode = C.LLVMFPToSI
+	LLVMUIToFP         LLVMOpcode = C.LLVMUIToFP
+	LLVMSIToFP         LLVMOpcode = C.LLVMSIToFP
+	LLVMFPTrunc        LLVMOpcode = C.LLVMFPTrunc
+	LLVMFPExt          LLVMOpcode = C.LLVMFPExt
+	LLVMPtrToInt       LLVMOpcode = C.LLVMPtrToInt
+	LLVMIntToPtr       LLVMOpcode = C.LLVMIntToPtr
+	LLVMBitCast        LLVMOpcode = C.LLVMBitCast
+	LLVMICmp           LLVMOpcode = C.LLVMICmp
+	LLVMFCmp           LLVMOpcode = C.LLVMFCmp
+	LLVMPHI            LLVMOpcode = C.LLVMPHI
+	LLVMCall           LLVMOpcode = C.LLVMCall
+	LLVMSelect         LLVMOpcode = C.LLVMSelect
+	LLVMUserOp1        LLVMOpcode = C.LLVMUserOp1
+	LLVMUserOp2        LLVMOpcode = C.LLVMUserOp2
+	LLVMVAArg          LLVMOpcode = C.LLVMVAArg
+	LLVMExtractElement LLVMOpcode = C.LLVMExtractElement
+	LLVMInsertElement  LLVMOpcode = C.LLVMInsertElement
+	LLVMShuffleVector  LLVMOpcode = C.LLVMShuffleVector
+	LLVMExtractValue   LLVMOpcode = C.LLVMExtractValue
+	LLVMInsertValue    LLVMOpcode = C.LLVMInsertValue
+	LLVMFence          LLVMOpcode = C.LLVMFence
+	LLVMAtomicCmpXchg  LLVMOpcode = C.LLVMAtomicCmpXchg
+	LLVMAtomicRMW      LLVMOpcode = C.LLVMAtomicRMW
+	LLVMResume         LLVMOpcode = C.LLVMResume
+	LLVMLandingPad     LLVMOpcode = C.LLVMLandingPad
+	LLVMAddrSpaceCast  LLVMOpcode = C.LLVMAddrSpaceCast
+	LLVMCleanupRet     LLVMOpcode = C.LLVMCleanupRet
+	LLVMCatchRet       LLVMOpcode = C.LLVMCatchRet
+	LLVMCatchPad       LLVMOpcode = C.LLVMCatchPad
+	LLVMCleanupPad     LLVMOpcode = C.LLVMCleanupPad
+	LLVMCatchSwitch    LLVMOpcode = C.LLVMCatchSwitch
+	LLVMFNeg           LLVMOpcode = C.LLVMFNeg
+	LLVMCallBr         LLVMOpcode = C.LLVMCallBr
+	LLVMFreeze         LLVMOpcode = C.LLVMFreeze
+	LLVMPtrToAddr      LLVMOpcode = C.LLVMPtrToAddr
 )
 
 type LLVMTypeKind int32
 
 const (
 	// LLVMVoidTypeKind type with no size
-	LLVMVoidTypeKind LLVMTypeKind = iota
+	LLVMVoidTypeKind LLVMTypeKind = C.LLVMVoidTypeKind
 	// LLVMHalfTypeKind 16 bit floating point type
-	LLVMHalfTypeKind
+	LLVMHalfTypeKind LLVMTypeKind = C.LLVMHalfTypeKind
 	// LLVMFloatTypeKind 32 bit floating point type
-	LLVMFloatTypeKind
+	LLVMFloatTypeKind LLVMTypeKind = C.LLVMFloatTypeKind
 	// LLVMDoubleTypeKind 64 bit floating point type
-	LLVMDoubleTypeKind
+	LLVMDoubleTypeKind LLVMTypeKind = C.LLVMDoubleTypeKind
 	// LLVMX86_FP80TypeKind 80 bit floating point type (X87)
-	LLVMX86_FP80TypeKind
+	LLVMX86_FP80TypeKind LLVMTypeKind = C.LLVMX86_FP80TypeKind
 	// LLVMFP128TypeKind 128 bit floating point type (112-bit mantissa)
-	LLVMFP128TypeKind
+	LLVMFP128TypeKind LLVMTypeKind = C.LLVMFP128TypeKind
 	// LLVMPPC_FP128TypeKind 128 bit floating point type (two 64-bits)
-	LLVMPPC_FP128TypeKind
+	LLVMPPC_FP128TypeKind LLVMTypeKind = C.LLVMPPC_FP128TypeKind
 	// LLVMLabelTypeKind Labels
-	LLVMLabelTypeKind
+	LLVMLabelTypeKind LLVMTypeKind = C.LLVMLabelTypeKind
 	// LLVMIntegerTypeKind Arbitrary bit width integers
-	LLVMIntegerTypeKind
+	LLVMIntegerTypeKind LLVMTypeKind = C.LLVMIntegerTypeKind
 	// LLVMFunctionTypeKind Functions
-	LLVMFunctionTypeKind
+	LLVMFunctionTypeKind LLVMTypeKind = C.LLVMFunctionTypeKind
 	// LLVMStructTypeKind Structures
-	LLVMStructTypeKind
+	LLVMStructTypeKind LLVMTypeKind = C.LLVMStructTypeKind
 	// LLVMArrayTypeKind Arrays
-	LLVMArrayTypeKind
+	LLVMArrayTypeKind LLVMTypeKind = C.LLVMArrayTypeKind
 	// LLVMPointerTypeKind Pointers
-	LLVMPointerTypeKind
+	LLVMPointerTypeKind LLVMTypeKind = C.LLVMPointerTypeKind
 	// LLVMVectorTypeKind Fixed width SIMD vector type
-	LLVMVectorTypeKind
+	LLVMVectorTypeKind LLVMTypeKind = C.LLVMVectorTypeKind
 	// LLVMMetadataTypeKind Metadata
-	LLVMMetadataTypeKind
+	LLVMMetadataTypeKind LLVMTypeKind = C.LLVMMetadataTypeKind
 	// LLVMTokenTypeKind Tokens
-	LLVMTokenTypeKind LLVMTypeKind = iota + 1
+	LLVMTokenTypeKind LLVMTypeKind = C.LLVMTokenTypeKind
 	// LLVMScalableVectorTypeKind Scalable SIMD vector type
-	LLVMScalableVectorTypeKind
+	LLVMScalableVectorTypeKind LLVMTypeKind = C.LLVMScalableVectorTypeKind
 	// LLVMBFloatTypeKind 16 bit brain floating point type
-	LLVMBFloatTypeKind
+	LLVMBFloatTypeKind LLVMTypeKind = C.LLVMBFloatTypeKind
 	// LLVMX86_AMXTypeKind X86 AMX
-	LLVMX86_AMXTypeKind
+	LLVMX86_AMXTypeKind   LLVMTypeKind = C.LLVMX86_AMXTypeKind
+	LLVMTargetExtTypeKind LLVMTypeKind = C.LLVMTargetExtTypeKind
 )
 
 type LLVMLinkage int32
 
 const (
 	// LLVMExternalLinkage Externally visible function
-	LLVMExternalLinkage LLVMLinkage = iota
-	LLVMAvailableExternallyLinkage
+	LLVMExternalLinkage            LLVMLinkage = C.LLVMExternalLinkage
+	LLVMAvailableExternallyLinkage LLVMLinkage = C.LLVMAvailableExternallyLinkage
 	// LLVMLinkOnceAnyLinkage Keep one copy of function when linking (inline)
-	LLVMLinkOnceAnyLinkage
+	LLVMLinkOnceAnyLinkage LLVMLinkage = C.LLVMLinkOnceAnyLinkage
 	// LLVMLinkOnceODRLinkage Same, but only replaced by something equivalent.
-	LLVMLinkOnceODRLinkage
+	LLVMLinkOnceODRLinkage LLVMLinkage = C.LLVMLinkOnceODRLinkage
 	// LLVMLinkOnceODRAutoHideLinkage Obsolete
-	LLVMLinkOnceODRAutoHideLinkage
+	LLVMLinkOnceODRAutoHideLinkage LLVMLinkage = C.LLVMLinkOnceODRAutoHideLinkage
 	// LLVMWeakAnyLinkage Keep one copy of function when linking (weak)
-	LLVMWeakAnyLinkage
+	LLVMWeakAnyLinkage LLVMLinkage = C.LLVMWeakAnyLinkage
 	// LLVMWeakODRLinkage Same, but only replaced by something equivalent.
-	LLVMWeakODRLinkage
+	LLVMWeakODRLinkage LLVMLinkage = C.LLVMWeakODRLinkage
 	// LLVMAppendingLinkage Special purpose, only applies to global arrays
-	LLVMAppendingLinkage
+	LLVMAppendingLinkage LLVMLinkage = C.LLVMAppendingLinkage
 	// LLVMInternalLinkage Rename collisions when linking (static functions)
-	LLVMInternalLinkage
+	LLVMInternalLinkage LLVMLinkage = C.LLVMInternalLinkage
 	// LLVMPrivateLinkage Like Internal, but omit from symbol table
-	LLVMPrivateLinkage
+	LLVMPrivateLinkage LLVMLinkage = C.LLVMPrivateLinkage
 	// LLVMDLLImportLinkage Obsolete
-	LLVMDLLImportLinkage
+	LLVMDLLImportLinkage LLVMLinkage = C.LLVMDLLImportLinkage
 	// LLVMDLLExportLinkage Obsolete
-	LLVMDLLExportLinkage
+	LLVMDLLExportLinkage LLVMLinkage = C.LLVMDLLExportLinkage
 	// LLVMExternalWeakLinkage ExternalWeak linkage description
-	LLVMExternalWeakLinkage
+	LLVMExternalWeakLinkage LLVMLinkage = C.LLVMExternalWeakLinkage
 	// LLVMGhostLinkage Obsolete
-	LLVMGhostLinkage
+	LLVMGhostLinkage LLVMLinkage = C.LLVMGhostLinkage
 	// LLVMCommonLinkage Tentative definitions
-	LLVMCommonLinkage
+	LLVMCommonLinkage LLVMLinkage = C.LLVMCommonLinkage
 	// LLVMLinkerPrivateLinkage Like Private, but linker removes.
-	LLVMLinkerPrivateLinkage
+	LLVMLinkerPrivateLinkage LLVMLinkage = C.LLVMLinkerPrivateLinkage
 	// LLVMLinkerPrivateWeakLinkage Like LinkerPrivate, but is weak.
-	LLVMLinkerPrivateWeakLinkage
+	LLVMLinkerPrivateWeakLinkage LLVMLinkage = C.LLVMLinkerPrivateWeakLinkage
 )
 
 type LLVMVisibility int32
 
 const (
 	// LLVMDefaultVisibility The GV is visible
-	LLVMDefaultVisibility LLVMVisibility = iota
+	LLVMDefaultVisibility LLVMVisibility = C.LLVMDefaultVisibility
 	// LLVMHiddenVisibility The GV is hidden
-	LLVMHiddenVisibility
+	LLVMHiddenVisibility LLVMVisibility = C.LLVMHiddenVisibility
 	// LLVMProtectedVisibility The GV is protected
-	LLVMProtectedVisibility
+	LLVMProtectedVisibility LLVMVisibility = C.LLVMProtectedVisibility
 )
 
 type LLVMUnnamedAddr int32
 
 const (
 	// LLVMNoUnnamedAddr Address of the GV is significant.
-	LLVMNoUnnamedAddr LLVMUnnamedAddr = iota
+	LLVMNoUnnamedAddr LLVMUnnamedAddr = C.LLVMNoUnnamedAddr
 	// LLVMLocalUnnamedAddr Address of the GV is locally insignificant.
-	LLVMLocalUnnamedAddr
+	LLVMLocalUnnamedAddr LLVMUnnamedAddr = C.LLVMLocalUnnamedAddr
 	// LLVMGlobalUnnamedAddr Address of the GV is globally insignificant.
-	LLVMGlobalUnnamedAddr
+	LLVMGlobalUnnamedAddr LLVMUnnamedAddr = C.LLVMGlobalUnnamedAddr
 )
 
 type LLVMValueKind int32
 
 const (
-	LLVMArgumentValueKind LLVMValueKind = iota
-	LLVMBasicBlockValueKind
-	LLVMMemoryUseValueKind
-	LLVMMemoryDefValueKind
-	LLVMMemoryPhiValueKind
-	LLVMFunctionValueKind
-	LLVMGlobalAliasValueKind
-	LLVMGlobalIFuncValueKind
-	LLVMGlobalVariableValueKind
-	LLVMBlockAddressValueKind
-	LLVMConstantExprValueKind
-	LLVMConstantArrayValueKind
-	LLVMConstantStructValueKind
-	LLVMConstantVectorValueKind
-	LLVMUndefValueValueKind
-	LLVMConstantAggregateZeroValueKind
-	LLVMConstantDataArrayValueKind
-	LLVMConstantDataVectorValueKind
-	LLVMConstantIntValueKind
-	LLVMConstantFPValueKind
-	LLVMConstantPointerNullValueKind
-	LLVMConstantTokenNoneValueKind
-	LLVMMetadataAsValueValueKind
-	LLVMInlineAsmValueKind
-	LLVMInstructionValueKind
-	LLVMPoisonValueValueKind
+	LLVMArgumentValueKind              LLVMValueKind = C.LLVMArgumentValueKind
+	LLVMBasicBlockValueKind            LLVMValueKind = C.LLVMBasicBlockValueKind
+	LLVMMemoryUseValueKind             LLVMValueKind = C.LLVMMemoryUseValueKind
+	LLVMMemoryDefValueKind             LLVMValueKind = C.LLVMMemoryDefValueKind
+	LLVMMemoryPhiValueKind             LLVMValueKind = C.LLVMMemoryPhiValueKind
+	LLVMFunctionValueKind              LLVMValueKind = C.LLVMFunctionValueKind
+	LLVMGlobalAliasValueKind           LLVMValueKind = C.LLVMGlobalAliasValueKind
+	LLVMGlobalIFuncValueKind           LLVMValueKind = C.LLVMGlobalIFuncValueKind
+	LLVMGlobalVariableValueKind        LLVMValueKind = C.LLVMGlobalVariableValueKind
+	LLVMBlockAddressValueKind          LLVMValueKind = C.LLVMBlockAddressValueKind
+	LLVMConstantExprValueKind          LLVMValueKind = C.LLVMConstantExprValueKind
+	LLVMConstantArrayValueKind         LLVMValueKind = C.LLVMConstantArrayValueKind
+	LLVMConstantStructValueKind        LLVMValueKind = C.LLVMConstantStructValueKind
+	LLVMConstantVectorValueKind        LLVMValueKind = C.LLVMConstantVectorValueKind
+	LLVMUndefValueValueKind            LLVMValueKind = C.LLVMUndefValueValueKind
+	LLVMConstantAggregateZeroValueKind LLVMValueKind = C.LLVMConstantAggregateZeroValueKind
+	LLVMConstantDataArrayValueKind     LLVMValueKind = C.LLVMConstantDataArrayValueKind
+	LLVMConstantDataVectorValueKind    LLVMValueKind = C.LLVMConstantDataVectorValueKind
+	LLVMConstantIntValueKind           LLVMValueKind = C.LLVMConstantIntValueKind
+	LLVMConstantFPValueKind            LLVMValueKind = C.LLVMConstantFPValueKind
+	LLVMConstantPointerNullValueKind   LLVMValueKind = C.LLVMConstantPointerNullValueKind
+	LLVMConstantTokenNoneValueKind     LLVMValueKind = C.LLVMConstantTokenNoneValueKind
+	LLVMMetadataAsValueValueKind       LLVMValueKind = C.LLVMMetadataAsValueValueKind
+	LLVMInlineAsmValueKind             LLVMValueKind = C.LLVMInlineAsmValueKind
+	LLVMInstructionValueKind           LLVMValueKind = C.LLVMInstructionValueKind
+	LLVMPoisonValueValueKind           LLVMValueKind = C.LLVMPoisonValueValueKind
+	LLVMConstantTargetNoneValueKind    LLVMValueKind = C.LLVMConstantTargetNoneValueKind
+	LLVMConstantPtrAuthValueKind       LLVMValueKind = C.LLVMConstantPtrAuthValueKind
 )
 
 type LLVMIntPredicate int32
 
 const (
 	// LLVMIntEQ equal
-	LLVMIntEQ LLVMTypeKind = 32 + iota
+	LLVMIntEQ LLVMIntPredicate = C.LLVMIntEQ
 	// LLVMIntNE not equal
-	LLVMIntNE
+	LLVMIntNE LLVMIntPredicate = C.LLVMIntNE
 	// LLVMIntUGT unsigned greater than
-	LLVMIntUGT
+	LLVMIntUGT LLVMIntPredicate = C.LLVMIntUGT
 	// LLVMIntUGE unsigned greater or equal
-	LLVMIntUGE
+	LLVMIntUGE LLVMIntPredicate = C.LLVMIntUGE
 	// LLVMIntULT unsigned less than
-	LLVMIntULT
+	LLVMIntULT LLVMIntPredicate = C.LLVMIntULT
 	// LLVMIntULE unsigned less or equal
-	LLVMIntULE
+	LLVMIntULE LLVMIntPredicate = C.LLVMIntULE
 	// LLVMIntSGT signed greater than
-	LLVMIntSGT
+	LLVMIntSGT LLVMIntPredicate = C.LLVMIntSGT
 	// LLVMIntSGE signed greater or equal
-	LLVMIntSGE
+	LLVMIntSGE LLVMIntPredicate = C.LLVMIntSGE
 	// LLVMIntSLT signed less than
-	LLVMIntSLT
+	LLVMIntSLT LLVMIntPredicate = C.LLVMIntSLT
 	// LLVMIntSLE signed less or equal
-	LLVMIntSLE
+	LLVMIntSLE LLVMIntPredicate = C.LLVMIntSLE
 )
 
 type LLVMRealPredicate int32
 
 const (
 	// LLVMRealPredicateFalse Always false (always folded)
-	LLVMRealPredicateFalse LLVMTypeKind = iota
+	LLVMRealPredicateFalse LLVMRealPredicate = C.LLVMRealPredicateFalse
 	// LLVMRealOEQ True if ordered and equal
-	LLVMRealOEQ
+	LLVMRealOEQ LLVMRealPredicate = C.LLVMRealOEQ
 	// LLVMRealOGT True if ordered and greater than
-	LLVMRealOGT
+	LLVMRealOGT LLVMRealPredicate = C.LLVMRealOGT
 	// LLVMRealOGE True if ordered and greater than or equal
-	LLVMRealOGE
+	LLVMRealOGE LLVMRealPredicate = C.LLVMRealOGE
 	// LLVMRealOLT True if ordered and less than
-	LLVMRealOLT
+	LLVMRealOLT LLVMRealPredicate = C.LLVMRealOLT
 	// LLVMRealOLE True if ordered and less than or equal
-	LLVMRealOLE
+	LLVMRealOLE LLVMRealPredicate = C.LLVMRealOLE
 	// LLVMRealONE True if ordered and operands are unequal
-	LLVMRealONE
+	LLVMRealONE LLVMRealPredicate = C.LLVMRealONE
 	// LLVMRealORD True if ordered (no nans)
-	LLVMRealORD
+	LLVMRealORD LLVMRealPredicate = C.LLVMRealORD
 	// LLVMRealUNO True if unordered: isnan(X) | isnan(Y)
-	LLVMRealUNO
+	LLVMRealUNO LLVMRealPredicate = C.LLVMRealUNO
 	// LLVMRealUEQ True if unordered or equal
-	LLVMRealUEQ
+	LLVMRealUEQ LLVMRealPredicate = C.LLVMRealUEQ
 	// LLVMRealUGT True if unordered or greater than
-	LLVMRealUGT
+	LLVMRealUGT LLVMRealPredicate = C.LLVMRealUGT
 	// LLVMRealUGE True if unordered, greater than, or equal
-	LLVMRealUGE
+	LLVMRealUGE LLVMRealPredicate = C.LLVMRealUGE
 	// LLVMRealULT True if unordered or less than
-	LLVMRealULT
+	LLVMRealULT LLVMRealPredicate = C.LLVMRealULT
 	// LLVMRealULE True if unordered, less than, or equal
-	LLVMRealULE
+	LLVMRealULE LLVMRealPredicate = C.LLVMRealULE
 	// LLVMRealUNE True if unordered or not equal
-	LLVMRealUNE
+	LLVMRealUNE LLVMRealPredicate = C.LLVMRealUNE
 	// LLVMRealPredicateTrue Always true (always folded)
-	LLVMRealPredicateTrue
+	LLVMRealPredicateTrue LLVMRealPredicate = C.LLVMRealPredicateTrue
 )
 
 type LLVMThreadLocalMode int32
 
 const (
-	LLVMNotThreadLocal LLVMThreadLocalMode = iota
-	LLVMGeneralDynamicTLSModel
-	LLVMLocalDynamicTLSModel
-	LLVMInitialExecTLSModel
-	LLVMLocalExecTLSModel
+	LLVMNotThreadLocal         LLVMThreadLocalMode = C.LLVMNotThreadLocal
+	LLVMGeneralDynamicTLSModel LLVMThreadLocalMode = C.LLVMGeneralDynamicTLSModel
+	LLVMLocalDynamicTLSModel   LLVMThreadLocalMode = C.LLVMLocalDynamicTLSModel
+	LLVMInitialExecTLSModel    LLVMThreadLocalMode = C.LLVMInitialExecTLSModel
+	LLVMLocalExecTLSModel      LLVMThreadLocalMode = C.LLVMLocalExecTLSModel
 )
 
 type LLVMDiagnosticSeverity int32
 
 const (
-	LLVMDSError LLVMDiagnosticSeverity = iota
-	LLVMDSWarning
-	LLVMDSRemark
-	LLVMDSNote
+	LLVMDSError   LLVMDiagnosticSeverity = C.LLVMDSError
+	LLVMDSWarning LLVMDiagnosticSeverity = C.LLVMDSWarning
+	LLVMDSRemark  LLVMDiagnosticSeverity = C.LLVMDSRemark
+	LLVMDSNote    LLVMDiagnosticSeverity = C.LLVMDSNote
 )
 
 type LLVMAttributeIndex int32

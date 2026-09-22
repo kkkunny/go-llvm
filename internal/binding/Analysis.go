@@ -9,11 +9,11 @@ type LLVMVerifierFailureAction int32
 
 const (
 	// LLVMAbortProcessAction verifier will print to stderr and abort()
-	LLVMAbortProcessAction LLVMVerifierFailureAction = iota
+	LLVMAbortProcessAction LLVMVerifierFailureAction = C.LLVMAbortProcessAction
 	// LLVMPrintMessageAction verifier will print to stderr and return true
-	LLVMPrintMessageAction
+	LLVMPrintMessageAction LLVMVerifierFailureAction = C.LLVMPrintMessageAction
 	// LLVMReturnStatusAction verifier will just return true
-	LLVMReturnStatusAction
+	LLVMReturnStatusAction LLVMVerifierFailureAction = C.LLVMReturnStatusAction
 )
 
 // LLVMVerifyModule Verifies that a module is valid, taking the specified action if not.

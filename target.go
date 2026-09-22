@@ -57,7 +57,7 @@ const (
 	RelocModeROPI_RWPI    = RelocMode(binding.LLVMRelocROPI_RWPI)
 )
 
-type CodeModel binding.LLVMRelocMode
+type CodeModel binding.LLVMCodeModel
 
 const (
 	CodeModelDefault    = CodeModel(binding.LLVMCodeModelDefault)
