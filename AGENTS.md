@@ -14,7 +14,8 @@ sub-packages; all cgo lives in `internal/binding`.
 
 - The Makefile is now only an escape hatch for non-standard prefixes (README, "Non-standard LLVM prefixes"): `make config` emits `llvm_config.go` with `package main` for the **consumer's** main package. **Never run `make config` in this repo root** — it creates a `package main` file inside the library and breaks the build. Select the toolchain with `make config MAJOR_VERSION=NN`.
 - Same escape hatch via env: `CGO_CFLAGS` / `CGO_CXXFLAGS` / `CGO_LDFLAGS` from `llvm-config-NN`.
-- Go callbacks into C use `//export` plus a tiny `.c`/`.h` trampoline (see `ErrorHandling.h`), never `reflect`-built function pointers.
+- Go callbacks into C use `//export` plus a tiny `.c`/`.h` trampoline (see `ErrorHandling.h`), never `reflect`-built function pointers. The JIT interop bridge (`internal/binding/bridge.c`) follows the same rule: `llvmBridgeGoChannel` → `goLLVMBridgeDispatch` for native→Go, `llvmBridgeCall` for Go→native through per-signature IR adapters.
+- ORC ownership: `LLVMOrcCreateNewThreadSafeModule` takes the module, and the ThreadSafeContext takes the LLVMContext. `jit.LLJIT.AddIRModule` therefore calls `Module.Disown()` + `Context.Disown()` (both invalidate Go handles immediately) and never disposes them itself; `LLJIT.Close()` frees them. `AddObjectFile` likewise consumes the `MemoryBuffer` (`Disown`).
 - C++ shims are compiled with `-fexceptions` (see `cgo.go`) and must catch exceptions at the `extern "C"` boundary, returning an error message instead of letting them cross into cgo.
 
 ## Layout / architecture
@@ -24,7 +25,7 @@ sub-packages; all cgo lives in `internal/binding`.
 | `llvm` | `Kind`/`Type[T]`/`Value[T]`, constants, `Context`, errors, lifetime, Go type mapping, `DataLayout`, `MemoryBuffer` | import sub-packages |
 | `llvm/ir` | `Module`/`Function`/`Block`/`Global`/`Builder`, instruction roles, `Verify`/print/parse/bitcode | touch JIT/execution |
 | `llvm/target` | targets, target machines, codegen (`EmitToFile(m *ir.Module)`) | execute |
-| `llvm/jit` (P1) | ORC LLJIT, symbol mapping, Go interop bridge | AOT codegen |
+| `llvm/jit` | ORC LLJIT, symbol mapping, Go interop bridge | AOT codegen |
 | `llvm/pass` (P2) | optimization pipelines | define passes |
 | `internal/binding` | 1:1 cgo wrappers over LLVM-C + C++ shims | expose high-level API |
 

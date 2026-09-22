@@ -24,7 +24,7 @@ Notes:
 | `llvm` | Core vocabulary: `Kind`, `Type[T]`, `Value[T]`, constants, `Context`, errors, lifetime, Go type mapping, `DataLayout`, `MemoryBuffer` |
 | `llvm/ir` | IR construction: `Module`, `Function`, `Block`, `Builder`, instructions, `Verify`/print/parse/bitcode |
 | `llvm/target` | Target machines and code generation (`EmitToFile`/`Emit` for OBJ/ASM) |
-| `llvm/jit` | ORC LLJIT execution engine (P1) |
+| `llvm/jit` | ORC LLJIT execution engine, `Func[F]`/`MapFunc[F]`/`MapSymbol`/`RunMain` |
 | `llvm/pass` | Optimization pipelines (P2) |
 
 All cgo lives in `internal/binding`.
@@ -104,6 +104,22 @@ tm.SetTo(module)                                   // 写入 triple + data layou
 _ = tm.EmitToFile(module, "main.o", target.ObjectFile)
 asm, _ := tm.Emit(module, target.AsmFile)          // 或产出到内存缓冲
 defer asm.Close()
+```
+
+### JIT execution
+
+```go
+target.InitNative()
+j, _ := jit.NewLLJIT()
+defer j.Close()
+
+_ = j.AddIRModule(module)                          // 模块与 Context 所有权移交 JIT
+fib, _ := j.Func[func(int32) int32]("fib")         // 真实 Go 函数值
+fmt.Println(fib(10))
+
+_ = j.MapFunc("host_cb", func(x int32) int32 { return x * 2 })  // 宿主函数注册为 JIT 符号
+p, _ := j.Lookup("some_symbol")                    // unsafe.Pointer 低层入口
+code, _ := j.RunMain([]string{"prog"})             // 按 main(argc, argv, envp) 调用
 ```
 
 ### Non-standard LLVM prefixes
