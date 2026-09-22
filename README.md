@@ -21,8 +21,8 @@ Notes:
 
 | Package | Responsibility |
 |---|---|
-| `llvm` | Core vocabulary: `Kind`, `Type[T]`, `Value[T]`, constants, `Context`, errors, lifetime, Go type mapping |
-| `llvm/ir` | IR construction: `Module`, `Function`, `Block`, `Builder`, instructions, `Verify`/print |
+| `llvm` | Core vocabulary: `Kind`, `Type[T]`, `Value[T]`, constants, `Context`, errors, lifetime, Go type mapping, `DataLayout`, `MemoryBuffer` |
+| `llvm/ir` | IR construction: `Module`, `Function`, `Block`, `Builder`, instructions, `Verify`/print/parse/bitcode |
 | `llvm/target` | Target machines and code generation (P1) |
 | `llvm/jit` | ORC LLJIT execution engine (P1) |
 | `llvm/pass` | Optimization pipelines (P2) |

@@ -14,32 +14,37 @@ sub-packages; all cgo lives in `internal/binding`.
 
 - The Makefile is now only an escape hatch for non-standard prefixes (README, "Non-standard LLVM prefixes"): `make config` emits `llvm_config.go` with `package main` for the **consumer's** main package. **Never run `make config` in this repo root** — it creates a `package main` file inside the library and breaks the build. Select the toolchain with `make config MAJOR_VERSION=NN`.
 - Same escape hatch via env: `CGO_CFLAGS` / `CGO_CXXFLAGS` / `CGO_LDFLAGS` from `llvm-config-NN`.
-- Go callbacks into C use `//export` plus a tiny `.c`/`.h` trampoline (see `ErrorHandling.c`), never `reflect`-built function pointers.
+- Go callbacks into C use `//export` plus a tiny `.c`/`.h` trampoline (see `ErrorHandling.h`), never `reflect`-built function pointers.
+- C++ shims are compiled with `-fexceptions` (see `cgo.go`) and must catch exceptions at the `extern "C"` boundary, returning an error message instead of letting them cross into cgo.
 
 ## Layout / architecture
 
 | Package | Responsibility | Must not |
 |---|---|---|
-| `llvm` | `Kind`/`Type[T]`/`Value[T]`, constants, `Context`, errors, lifetime, Go type mapping, `DataLayout` | import sub-packages |
-| `llvm/ir` | `Module`/`Function`/`Block`/`Global`/`Builder`, instruction roles, `Verify`/print | touch target/JIT |
-| `llvm/target` (P1) | targets, target machines, codegen | execute |
+| `llvm` | `Kind`/`Type[T]`/`Value[T]`, constants, `Context`, errors, lifetime, Go type mapping, `DataLayout`, `MemoryBuffer` | import sub-packages |
+| `llvm/ir` | `Module`/`Function`/`Block`/`Global`/`Builder`, instruction roles, `Verify`/print/parse/bitcode | touch JIT/execution |
+| `llvm/target` (P1) | targets, target machines, codegen (`EmitToFile(m *ir.Module)`) | execute |
 | `llvm/jit` (P1) | ORC LLJIT, symbol mapping, Go interop bridge | AOT codegen |
 | `llvm/pass` (P2) | optimization pipelines | define passes |
 | `internal/binding` | 1:1 cgo wrappers over LLVM-C + C++ shims | expose high-level API |
 
-Dependency direction is strictly one-way: `llvm` ← `llvm/target` ← `llvm/ir` ← `llvm/pass`/`llvm/jit`.
+Dependency direction is strictly one-way: `llvm` ← `llvm/ir` ← `llvm/target` ← `llvm/jit`,
+and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codegen and
+`SetTarget` conveniences need `*ir.Module`; `llvm/ir` never imports target/JIT.
 
 ### Core conventions
 
 - **All LLVM enum constants** in `internal/binding` are declared `= C.Name` (e.g. `LLVMRet LLVMOpcode = C.LLVMRet`) so they bind to the local headers automatically. Never hand-copy numeric enum tables; new enum members appear by mapping the header name. Public enums in `llvm` (`Linkage`, `IntPred`, ...) forward these values.
 - **Kind-level generics only**: `T` in `Value[T]`/`Type[T]` distinguishes categories (`IntT`, `FloatT`, `PtrT`, ...), never bit widths or element types. Widths, element types and function signatures are pre-checked at runtime.
 - **Category-specific operations live on role wrappers**, because Go cannot add methods to an instantiated generic type (`Value[IntT]`). `Value[T]`/`Type[T]` only carry generic operations (`String`/`Name`/`Type`/`As`/`Dyn`/`Alive`/`Context`/`Ref`/`IsNil`). Roles: `IntType.Bits()`, `StructType.SetBody()`, `Alloca.SetAlign()`, `Phi.AddIncoming()`, `IntConst.SignedValue()`, ...
+- **Roles embed `Value[T]`/`Type[T]` anonymously** (`type Alloca struct{ llvm.Value[llvm.PtrT] }`), so they inherit `ValueRef[T]`/`AnyValue` for free. Do not add a `v` field or a `Value()` accessor; the generic view is `AsValue()`. A role may deliberately shadow a promoted method when the semantics differ (`Global.IsConstant` = global constant flag vs `Value.IsConstant` = constant expression) — document the shadowing in a comment.
+- **Handle wrapping goes through `ir/wrap.go`** (`wrapBlock`/`wrapValue`/`wrapDyn`): a handle's lifetime always comes from its owning `Module` token, never from the call site's local state.
 - **`TypeRef[T]` / `ValueRef[T]`**: kind-safe reference interfaces implemented by both `Type[T]`/`Value[T]` and all role wrappers. Use them as parameter types in generic methods/functions so calls like `ctx.ConstNull(ctx.Int(32))` infer `T` from either form.
 - **`AnyType` / `AnyValue`**: non-generic views for heterogeneous collections (call args, mixed instructions). They deliberately exclude `Type()`/`DynType()`-style methods that would differ per instantiation; use `Dyn()`/`DynType()` for erasure and `As[U]()`/`MustAs[U]()` to recover a kind. Dynamic sources (parsed IR, instruction iteration) produce `Value[DynT]`.
 - **Unknown kinds/opcodes degrade** to `Value[DynT]` instead of panicking.
-- **Errors**: recoverable runtime failures return `error`; programmer errors `panic(*llvm.Error)` with `Reason`/`Op`/`Msg`, recoverable via `llvm.Catch`. Data-driven unsupported cases (`TypeOf[string]`, variadic Go funcs) return `ErrUnsupported`.
-- **Pre-checks before cgo**: every `ir.Builder` method calls `pre`/`preSameType`/`preBlock`/`preAlign` first (positioned builder, same context, live handles, matching operand types, power-of-two alignment) so LLVM never sees invalid IR and never aborts.
-- **Lifetime**: `Context` is the ownership root (`Own` registers sub-resources, `Close` cascades in reverse). `Module`/`Builder` implement `io.Closer`; `Value`/`Type`/`Block`/`Func` never expose `Free` — they carry a `Lifetime` token and are checked on every operation. Second `Close` returns `ErrClosed`.
+- **Errors**: recoverable runtime failures return `error`; programmer errors `panic(*llvm.Error)` with `Reason`/`Op`/`Msg`, recoverable via `llvm.Catch`. Data-driven unsupported cases (`TypeOf[string]`, variadic Go funcs) return `ErrUnsupported`. `internal/binding` returns plain `error` (it must not import the root package); sub-packages wrap it with `llvm.WrapError(reason, op, err)` and use `ErrCodeGen`/`ErrJIT`/`ErrIO` for target/JIT/IO failures.
+- **Pre-checks before cgo**: every `ir.Builder` method calls `pre`/`preSameType`/`preBlock`/`preAlign` first (positioned builder, same context, live handles, matching operand types, power-of-two alignment) so LLVM never sees invalid IR and never aborts. Positioning methods (`MoveToEnd`/`MoveBefore`) use `preAlive`+`preBlockOwn` instead, since they must work before the first `pre`.
+- **Lifetime**: `Context` is the ownership root (`Own` returns an unregister func, `Close` cascades in reverse). `Module`/`Builder` implement `io.Closer`; `Value`/`Type`/`Block`/`Func` never expose `Free` — they carry a `Lifetime` token and are checked on every operation. Second `Close` returns `ErrClosed`. `Module.Disown()` detaches a module from `Context` (returns a `release` to call when the new owner frees it) — used by JIT ownership transfer; `Context`-independent resources (`TargetMachine`, `MemoryBuffer`, `LLJIT`) are their own roots and are not registered via `Own`.
 - **Comments**: `internal/binding` in English, root and sub-packages in Chinese; match the file you edit.
 - Commits use Conventional Commits, commonly with Chinese descriptions.
 

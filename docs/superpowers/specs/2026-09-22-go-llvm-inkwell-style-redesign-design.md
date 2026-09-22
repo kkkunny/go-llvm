@@ -39,7 +39,7 @@
 用户代码
    │
    ├── llvm             核心词汇：Kind / Type[T] / Value[T] / 常量 / Context / DataLayout /
-   │                    Error / 生命周期 / Go 类型映射 / 版本常量
+   │                    MemoryBuffer / Error / 生命周期 / Go 类型映射 / 版本常量
    ├── llvm/ir          Module / Function / Block / Global / Builder / 指令角色 /
    │                    Verify / Print / ParseIR / Bitcode 读写 / Link
    ├── llvm/target      Target / TargetMachine / CodeModel / RelocMode / OptLevel / emit OBJ·ASM
@@ -53,22 +53,26 @@ internal/binding       1:1 cgo（LLVM-C + C++ shim + bridge.c），全部 cgo �
 系统 libLLVM
 ```
 
-依赖方向严格单向：`llvm` ← `llvm/target` ← `llvm/ir` ← `llvm/pass` / `llvm/jit`，`llvm/target` ← `llvm/jit`。root `llvm` 包不 import 任何子包；`llvm/ir` 依赖 `llvm/target` 是为了 `Module.SetTarget` 与 `RunPasses` 的易用性。
+依赖方向严格单向：`llvm` ← `llvm/ir` ← `llvm/target` ← `llvm/jit`，且 `llvm/ir` ← `llvm/pass`。
+root `llvm` 包不 import 任何子包。**`llvm/target` 依赖 `llvm/ir`**：emit OBJ/ASM 与 `SetTarget`
+便捷方法都必须拿到 `*ir.Module`（`LLVMTargetMachineEmitToFile` 的入参是模块）；`llvm/ir`
+保持对 target/JIT 零依赖，`DataLayout`/`MemoryBuffer` 作为多子包共用的资源词汇放 root
+（P0.5 决策，替代早期“ir 依赖 target”的方案）。
 
 ### 3.2 关键约束与解法
 
 1. **公共 API 不得用泛型别名转发**：已验证泛型类型别名（`type Value[T] = core.Value[T]`）在 `go doc`/pkg.go.dev 中不展示方法，损害可发现性。因此共享泛型核心直接定义在 root `llvm` 包，子包直接 import 使用，不做别名转发。
 2. **跨包生命周期令牌**：root 的 `Value[T]` 需要感知所属 Module 是否已关闭，但 Module 定义在 `llvm/ir`（root 不能 import 它）。解法：root 定义不透明生命周期令牌（如 `llvm.Lifetime`，含存活标志），`ir.Module` 持有一份并传给每个 `Value` 构造；`Value` 操作前检查 `ctx` 与 `lifetime` 存活状态。反向依赖被消除。
 3. **cgo 归属**：桥接代码（固定签名 C 通道 + `//export` Go 回调）全部放 `internal/binding`；`internal/binding` 通过注册表回调 root 包（root 在 init 或首次使用时注册 handler），避免 internal → root 的 import。
-- `DataLayout` 放 root：`ir.Module` 与 `target.TargetMachine` 都要用，且需要 `Type[T]` 参与查询；放 root 可避免 `ir` ↔ `target` 循环依赖。`ir.Module` 需要 `SetTarget`/`RunPasses` 这类能力时按 §3.1 的方向依赖 `llvm/target`。
+- `DataLayout` 放 root：`ir.Module` 与 `target.TargetMachine` 都要用，且需要 `Type[T]` 参与查询；放 root 可避免 `ir` ↔ `target` 循环依赖。`MemoryBuffer` 同理放 root（ir 的 ParseIR/bitcode、jit 的 AddObjectFile、P3 的 object 都要用）。`SetTarget` 这类同时见 target 与 ir 的便捷方法放 `llvm/target`（target → ir 方向）。
 
 ### 3.3 各包职责边界
 
 | 包 | 职责 | 明确不做 |
 |---|---|---|
-| `llvm` | 类型系统、值句柄、常量、Context、错误、生命周期、Go 类型映射、DataLayout、版本 | 不涉及 Module/Builder/目标机器 |
+| `llvm` | 类型系统、值句柄、常量、Context、错误、生命周期、Go 类型映射、DataLayout、MemoryBuffer、版本 | 不涉及 Module/Builder/目标机器 |
 | `llvm/ir` | 模块与 IR 构建、验证、打印、解析、bitcode、链接 | 不涉及目标机器与执行 |
-| `llvm/target` | 目标注册与查询、目标机器、代码生成产出 | 不涉及执行 |
+| `llvm/target` | 目标注册与查询、目标机器、代码生成产出（`EmitToFile(m *ir.Module)`） | 不涉及执行 |
 | `llvm/jit` | ORC LLJIT、符号查找与定义、Go 互调桥 | 不涉及 AOT 代码生成细节 |
 | `llvm/pass` | 优化管线执行 | 不定义 pass 本身 |
 
@@ -126,24 +130,26 @@ b.PHI[T Kind](t Type[T], name string) Phi[T] / b.Select[T Kind](...)
 ### 4.3 错误模型
 
 ```go
-type Error struct { Kind ErrKind; Op, Msg string }   // 实现 error
+type Error struct { Reason ErrKind; Op, Msg string }   // 实现 error
 // ErrTypeMismatch / ErrCrossContext / ErrUseAfterFree / ErrClosed / ErrNotFound /
-// ErrInvalidArg / ErrVerify / ErrCodeGen / ErrJIT / ErrUnsupported / ErrInternal
+// ErrInvalidArg / ErrVerify / ErrUnsupported / ErrCodeGen / ErrJIT / ErrIO / ErrInternal
 func Catch(fn func()) *Error      // recover(*Error) → error
 func Must[T any](v T, err error) T
+func WrapError(reason ErrKind, op string, err error) *Error  // binding 裸 error → *Error
 ```
 
 - 运行时可失败操作 → `error`；程序员错误 → `panic(*Error)`（可 recover 转 error）。
 - C++ 异常：shim 以 `-fexceptions` 编译，入口 `try/catch (...)` → 错误码/消息 → Go error。
 - LLVM `Error`/`Expected`（ORC 等）经 `LLVMErrorRef` → Go error。
 - fatal error（`report_fatal_error`）：语义上退出进程，跨 cgo 回调不可 recover。防线为：前置校验 + shim 异常捕获消灭绝大多数 abort 路径；handler 记录诊断、执行用户 hook 后退出；文档如实说明。
-- `Module.Verify()` 经 diagnostic handler 收集结构化错误。
+- `Module.Verify()` 经 diagnostic handler 收集结构化错误（P2-6）。
 
 ### 4.4 生命周期
 
 - `*Context`、`*Module`、`*Builder`、`*LLJIT`、`*TargetMachine`、`*MemoryBuffer` 实现 `io.Closer`；二次 `Close` 返回 `ErrClosed`。
 - `Value[T]` / `Type[T]` / `Block` / `Func[F]` 不暴露 Free；持有 `ctx` + `life` 令牌，操作前检查存活 → use-after-free 即时 `panic(*Error)`。
-- `Context` 为所有权根：`Context.Close()` 释放全部；`Module.Close()` 使其下值失效。
+- `Context` 为所有权根：`Own` 返回注销函数（资源自行关闭/移交时解除登记），`Close` 逆序级联释放全部；`Module.Close()` 使其下值失效。
+- **所有权转移**：`Module.Disown()` 从 Context 解除登记并返回 `release`；JIT 接管模块（ThreadSafeModule）时调用，由接管方在释放底层模块时执行 `release`，避免与 `Context.Close` 双重释放。`TargetMachine`/`MemoryBuffer`/`LLJIT` 不隶属任何 `Context`，是各自独立的所有权根，不经 `Own` 登记。
 
 ### 4.5 Go 类型映射（首批）
 
@@ -200,7 +206,7 @@ func (e *LLJIT) MapSymbol(name string, p unsafe.Pointer) error
 - P1-3 ORC LLJIT 绑定与封装：`internal/binding` ORC 全套 + `llvm/jit` 基础
 - P1-4 Go 互调桥：`bridge.c` 固定签名通道 + 按签名 IR 适配器生成
 - P1-5 JIT 高层 API：`Func[F]` / `MapFunc[F]` / `MapSymbol` / `RunMain`
-- P1-6 移除 legacy 执行引擎（MCJIT/Interpreter/GenericValue）+ 端到端测试
+- P1-6 移除 legacy 执行引擎（MCJIT/Interpreter/GenericValue，含 `internal/binding/ExecutionEngine.go`）+ 端到端测试；随后移除仅供其使用的 `samber/lo` 依赖（go.mod 归零）
 
 ### P2 — 中频补全
 验收：各指令/属性有 golden 测试；旧 API 能力无回退。
