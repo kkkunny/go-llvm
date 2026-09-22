@@ -2,7 +2,6 @@ package llvm
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/samber/lo"
 
@@ -57,7 +56,7 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 	}
 
 	switch binding.LLVMGetInstructionOpcode(ref) {
-	case binding.LLVMRet, binding.LLVMBr, binding.LLVMUnreachable, binding.LLVMSwitch:
+	case binding.LLVMRet, binding.LLVMBr, binding.LLVMUnreachable, binding.LLVMSwitch, binding.LLVMIndirectBr:
 		return lookupTerminator(ref)
 	case binding.LLVMAdd, binding.LLVMFAdd:
 		return newValueInst[_Add](ref)
@@ -134,7 +133,10 @@ func lookupInstruction(ref binding.LLVMValueRef) Instruction {
 	case binding.LLVMSelect:
 		return newValueInst[_Select](ref)
 	default:
-		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetInstructionOpcode(ref)))
+		if binding.LLVMIsATerminatorInst(ref).IsNil() {
+			return newValueInst[_Fallback](ref)
+		}
+		return newTerminatorInst[_Fallback](ref)
 	}
 }
 
@@ -165,8 +167,10 @@ func lookupTerminator(ref binding.LLVMValueRef) Terminator {
 		return newTerminatorInst[_Unreachable](ref)
 	case binding.LLVMSwitch:
 		return newTerminatorInst[_Switch](ref)
+	case binding.LLVMIndirectBr:
+		return newTerminatorInst[_IndirectBr](ref)
 	default:
-		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetInstructionOpcode(ref)))
+		return newTerminatorInst[_Fallback](ref)
 	}
 }
 
@@ -321,7 +325,9 @@ type (
 	_CleanupPad     struct{}
 	_CatchSwitch    struct{}
 	_Switch         struct{}
+	_IndirectBr     struct{}
 	_Select         struct{}
+	_Fallback       struct{}
 )
 
 type (
@@ -366,6 +372,7 @@ type (
 	CleanupPad     = valueInst[_CleanupPad]
 	CatchSwitch    = valueInst[_CatchSwitch]
 	Switch         = terminatorInst[_Switch]
+	IndirectBr     = terminatorInst[_IndirectBr]
 	Select         = valueInst[_Select]
 )
 

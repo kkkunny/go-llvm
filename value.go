@@ -28,8 +28,21 @@ func lookupValue(ref binding.LLVMValueRef) Value {
 	case binding.LLVMInstructionValueKind:
 		return lookupInstruction(ref).(Value)
 	default:
-		panic(fmt.Errorf("unknown enum value `%d`", binding.LLVMGetValueKind(ref)))
+		return fallbackValue{ref}
 	}
+}
+
+// fallbackValue 未知 kind 的通用降级值
+type fallbackValue struct{ ref binding.LLVMValueRef }
+
+func (v fallbackValue) String() string {
+	return binding.LLVMPrintValueToString(v.ref)
+}
+func (v fallbackValue) binding() binding.LLVMValueRef {
+	return v.ref
+}
+func (v fallbackValue) Type() Type {
+	return lookupType(binding.LLVMTypeOf(v.ref))
 }
 
 type Param binding.LLVMValueRef

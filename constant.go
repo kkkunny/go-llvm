@@ -48,12 +48,17 @@ func lookupConstant(ref binding.LLVMValueRef) Constant {
 		case binding.LLVMGetElementPtr:
 			return ConstGetElementPtr(ref)
 		default:
-			panic(fmt.Errorf("unknown opcode `%d`", opcode))
+			return fallbackConstant{fallbackValue{ref}}
 		}
 	default:
-		panic(fmt.Errorf("unknown constant `%d`", constKind))
+		return fallbackConstant{fallbackValue{ref}}
 	}
 }
+
+// fallbackConstant 未知种类常量的通用降级值
+type fallbackConstant struct{ fallbackValue }
+
+func (fallbackConstant) constant() {}
 
 func (ctx Context) ConstNull(t Type) Constant {
 	return lookupConstant(binding.LLVMConstNull(t.binding()))
