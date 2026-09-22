@@ -13,6 +13,9 @@ type Switch struct {
 // Value 返回底层泛型值
 func (s Switch) Value() llvm.Value[llvm.IntT] { return s.v }
 
+// AsValue 实现 llvm.ValueRef[IntT]
+func (s Switch) AsValue() llvm.Value[llvm.IntT] { return s.v }
+
 // CondType switch 条件操作数的类型
 func (s Switch) CondType() llvm.Type[llvm.IntT] {
 	return llvm.NewType[llvm.IntT](s.v.Context(), binding.LLVMTypeOf(binding.LLVMGetOperand(s.v.Ref(), 0)))

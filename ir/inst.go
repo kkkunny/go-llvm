@@ -13,6 +13,9 @@ type Call[T llvm.Kind] struct {
 // Value 返回底层泛型值
 func (c Call[T]) Value() llvm.Value[T] { return c.v }
 
+// AsValue 实现 llvm.ValueRef[T]
+func (c Call[T]) AsValue() llvm.Value[T] { return c.v }
+
 // ArgCount 实参个数
 func (c Call[T]) ArgCount() uint32 { return binding.LLVMGetNumArgOperands(c.v.Ref()) }
 
@@ -46,6 +49,9 @@ type Phi[T llvm.Kind] struct {
 
 // Value 返回底层泛型值
 func (p Phi[T]) Value() llvm.Value[T] { return p.v }
+
+// AsValue 实现 llvm.ValueRef[T]
+func (p Phi[T]) AsValue() llvm.Value[T] { return p.v }
 
 // Incoming 一条 PHI 输入
 type Incoming[T llvm.Kind] struct {

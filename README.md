@@ -1,6 +1,7 @@
 # go-llvm
 
-This library provides bindings to a system-installed LLVM.
+Go bindings to a **system-installed LLVM**, with a type-safe, highly-encapsulated API
+inspired by [inkwell](https://github.com/TheDan64/inkwell).
 
 Currently supported:
 
@@ -11,9 +12,22 @@ Currently supported:
 
 Notes:
 
+* Requires **Go 1.27+** (the API uses generic methods).
 * These are non-semver tags, so `go.mod` records them as pseudo-versions.
 * Older LLVM lines (20 and earlier) are no longer provided; they can be pinned to
   historic commits if needed.
+
+## Packages
+
+| Package | Responsibility |
+|---|---|
+| `llvm` | Core vocabulary: `Kind`, `Type[T]`, `Value[T]`, constants, `Context`, errors, lifetime, Go type mapping |
+| `llvm/ir` | IR construction: `Module`, `Function`, `Block`, `Builder`, instructions, `Verify`/print |
+| `llvm/target` | Target machines and code generation (P1) |
+| `llvm/jit` | ORC LLJIT execution engine (P1) |
+| `llvm/pass` | Optimization pipelines (P2) |
+
+All cgo lives in `internal/binding`.
 
 ## Usage
 
@@ -28,32 +42,54 @@ go get github.com/kkkunny/go-llvm
 package main
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/ir"
 )
 
 func main() {
 	ctx := llvm.NewContext()
-	module := ctx.NewModule("main")
-	builder := ctx.NewBuilder()
+	defer ctx.Close()
 
-	mainFn := module.NewFunction("main", ctx.FunctionType(false, ctx.IntegerType(8)))
-	mainFnEntry := mainFn.NewBlock("entry")
-	builder.MoveToAfter(mainFnEntry)
-	var ret llvm.Value = ctx.ConstInteger(ctx.IntegerType(8), 0)
-	builder.CreateRet(&ret)
+	module := ir.NewModule(ctx, "main")
+	defer module.Close()
 
-	_ = llvm.InitializeNativeTarget()
-	_ = llvm.InitializeNativeAsmPrinter()
-
-	jiter, err := llvm.NewJITCompiler(module, llvm.CodeOptLevelNone)
+	// Go 签名直接映射为 LLVM 函数类型
+	mainFn, err := module.NewFunc[func() int32]("main")
 	if err != nil {
 		panic(err)
 	}
-	os.Exit(int(jiter.RunMainFunction(mainFn, nil, nil)))
+
+	builder := ir.NewBuilder(ctx)
+	defer builder.Close()
+	builder.MoveToEnd(mainFn.Function().NewBlock("entry"))
+
+	// 类型安全：Add 只接受 i32 值，ICmp 返回 i1，Select 要求分支同类型
+	i32 := ctx.Int(32)
+	sum := builder.Add(ctx.ConstInt(i32, 1, false).Value, ctx.ConstInt(i32, 2, false).Value, "sum")
+	ok := builder.ICmp(llvm.IntEQ, sum, ctx.ConstInt(i32, 3, false).Value, "ok")
+	result := builder.Select(ok, ctx.ConstInt(i32, 0, false).Value, ctx.ConstInt(i32, 1, false).Value, "result")
+	builder.Ret(result)
+
+	if err := module.Verify(); err != nil {
+		panic(err) // 结构化 *llvm.Error，含完整诊断
+	}
+	fmt.Println(module)
 }
 ```
+
+### Type safety and errors
+
+* Values and types are kind-parameterized: `llvm.Value[llvm.IntT]`, `llvm.Type[llvm.FnT]`, etc.
+  Category-specific operations live on role wrappers (`IntType.Bits()`, `Alloca.SetAlign()`, `Phi.AddIncoming()`).
+* Dynamic sources (parsed IR, instruction iteration) yield `llvm.Value[llvm.DynT]`; recover the kind with
+  the generic method `As[U]()` / `MustAs[U]()`.
+* Recoverable failures return `error`; programmer errors `panic(*llvm.Error)`, which `llvm.Catch`
+  converts back to an error. All builder calls are pre-checked (positioned builder, same context,
+  live handles, matching operand types) before reaching cgo.
+* `Context`/`Module`/`Builder` implement `io.Closer`. Values are owned by their context/module;
+  use-after-free and double-close are detected.
 
 ### Non-standard LLVM prefixes
 
@@ -74,6 +110,15 @@ repository's root):
 ```shell
 curl -O https://raw.githubusercontent.com/kkkunny/go-llvm/master/Makefile
 make config             # or pin the toolchain: make config MAJOR_VERSION=22
+```
+
+## Development
+
+```shell
+go build ./...
+go vet ./...
+go test ./...
+go test ./ir -run TestGolden -update   # 重新生成 golden IR
 ```
 
 ## Updating for a new LLVM release

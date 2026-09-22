@@ -13,6 +13,9 @@ type Alloca struct {
 // Value 返回底层泛型值
 func (a Alloca) Value() llvm.Value[llvm.PtrT] { return a.v }
 
+// AsValue 实现 llvm.ValueRef[PtrT]
+func (a Alloca) AsValue() llvm.Value[llvm.PtrT] { return a.v }
+
 // SetAlign 设置分配对齐
 func (a Alloca) SetAlign(n uint32) {
 	preAlign("ir.Alloca.SetAlign", n)
@@ -30,6 +33,9 @@ type Load[T llvm.Kind] struct {
 // Value 返回底层泛型值
 func (l Load[T]) Value() llvm.Value[T] { return l.v }
 
+// AsValue 实现 llvm.ValueRef[T]
+func (l Load[T]) AsValue() llvm.Value[T] { return l.v }
+
 // SetAlign 设置加载对齐
 func (l Load[T]) SetAlign(n uint32) {
 	preAlign("ir.Load.SetAlign", n)
@@ -46,6 +52,9 @@ type Store struct {
 
 // Value 返回底层泛型值
 func (s Store) Value() llvm.Value[llvm.VoidT] { return s.v }
+
+// AsValue 实现 llvm.ValueRef[VoidT]
+func (s Store) AsValue() llvm.Value[llvm.VoidT] { return s.v }
 
 // SetAlign 设置存储对齐
 func (s Store) SetAlign(n uint32) {

@@ -14,6 +14,9 @@ type Global struct {
 // Value 返回底层泛型值（全局变量自身类型为 ptr）
 func (g Global) Value() llvm.Value[llvm.PtrT] { return g.v }
 
+// AsValue 实现 llvm.ValueRef[PtrT]
+func (g Global) AsValue() llvm.Value[llvm.PtrT] { return g.v }
+
 // Name 全局变量名
 func (g Global) Name() string { return g.v.Name() }
 

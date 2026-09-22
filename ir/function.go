@@ -16,6 +16,9 @@ type Function struct {
 // Value 返回底层泛型值
 func (f Function) Value() llvm.Value[llvm.FnT] { return f.v }
 
+// AsValue 实现 llvm.ValueRef[FnT]
+func (f Function) AsValue() llvm.Value[llvm.FnT] { return f.v }
+
 // Name 函数名
 func (f Function) Name() string { return f.v.Name() }
 
