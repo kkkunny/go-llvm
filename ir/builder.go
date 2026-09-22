@@ -7,10 +7,10 @@ import (
 
 // Builder IR 构建器
 type Builder struct {
-	ref     binding.LLVMBuilderRef
-	ctx     *llvm.Context
+	ref      binding.LLVMBuilderRef
+	ctx      *llvm.Context
 	inserted *Block
-	closed  bool
+	closed   bool
 }
 
 // NewBuilder 创建构建器并登记到 Context 生命周期

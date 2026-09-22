@@ -88,7 +88,9 @@ func (f Function) Verify() bool {
 func (f Function) Linkage() llvm.Linkage { return llvm.Linkage(binding.LLVMGetLinkage(f.v.Ref())) }
 
 // SetLinkage 设置链接类型
-func (f Function) SetLinkage(l llvm.Linkage) { binding.LLVMSetLinkage(f.v.Ref(), binding.LLVMLinkage(l)) }
+func (f Function) SetLinkage(l llvm.Linkage) {
+	binding.LLVMSetLinkage(f.v.Ref(), binding.LLVMLinkage(l))
+}
 
 // Param 函数参数角色
 type Param struct {

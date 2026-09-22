@@ -1474,6 +1474,28 @@ func LLVMGetOperand(val LLVMValueRef, index uint32) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMGetOperand(val.c, C.unsigned(index))}
 }
 
+// LLVMSetOperand Set an operand at a specific index in a LLVM value.
+func LLVMSetOperand(user LLVMValueRef, index uint32, val LLVMValueRef) {
+	C.LLVMSetOperand(user.c, C.unsigned(index), val.c)
+}
+
+// LLVMGetNumArgOperands Obtain the number of arguments to a call instruction.
+func LLVMGetNumArgOperands(instr LLVMValueRef) uint32 {
+	return uint32(C.LLVMGetNumArgOperands(instr.c))
+}
+
+// LLVMGetCalledValue Get the argument to a call instruction.
+func LLVMGetCalledValue(instr LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetCalledValue(instr.c)}
+}
+
+// LLVMBuildInsertValue Insert a value into an aggregate value's element.
+func LLVMBuildInsertValue(builder LLVMBuilderRef, aggVal, eltVal LLVMValueRef, index uint32, name string) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildInsertValue(builder.c, aggVal.c, eltVal.c, C.unsigned(index), name)}
+	})
+}
+
 // LLVMGetNumOperands Return the number of operands for this value.
 func LLVMGetNumOperands(val LLVMValueRef) int {
 	return int(C.LLVMGetNumOperands(val.c))

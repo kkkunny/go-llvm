@@ -7,10 +7,10 @@ import (
 
 // Module LLVM 模块；Close 后其下所有值失效
 type Module struct {
-	ref     binding.LLVMModuleRef
-	ctx     *llvm.Context
-	life    *llvm.Lifetime
-	closed  bool
+	ref    binding.LLVMModuleRef
+	ctx    *llvm.Context
+	life   *llvm.Lifetime
+	closed bool
 }
 
 // NewModule 创建模块并登记到 Context 生命周期
