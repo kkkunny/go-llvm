@@ -10,6 +10,7 @@ type AnyValue interface {
 	Dyn() Value[DynT]
 	Alive() bool
 	Context() *Context
+	Lifetime() *Lifetime
 	String() string
 	Name() string
 	SetName(name string)
@@ -48,6 +49,9 @@ func (v Value[T]) Alive() bool {
 
 // Context 返回所属上下文
 func (v Value[T]) Context() *Context { return v.ctx }
+
+// Lifetime 返回所属生命周期令牌
+func (v Value[T]) Lifetime() *Lifetime { return v.life }
 
 // IsNil 是否为空句柄
 func (v Value[T]) IsNil() bool { return v.ref.IsNil() }

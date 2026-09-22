@@ -1242,6 +1242,16 @@ func LLVMGetEntryBasicBlock(fn LLVMValueRef) LLVMBasicBlockRef {
 	return LLVMBasicBlockRef{c: C.LLVMGetEntryBasicBlock(fn.c)}
 }
 
+// LLVMBasicBlockAsValue Convert a basic block instance to a value type.
+func LLVMBasicBlockAsValue(bb LLVMBasicBlockRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMBasicBlockAsValue(bb.c)}
+}
+
+// LLVMValueAsBasicBlock Convert a value instance to a basic block, if it is one.
+func LLVMValueAsBasicBlock(val LLVMValueRef) LLVMBasicBlockRef {
+	return LLVMBasicBlockRef{c: C.LLVMValueAsBasicBlock(val.c)}
+}
+
 // LLVMAppendBasicBlockInContext Append a basic block to the end of a function.
 func LLVMAppendBasicBlockInContext(c LLVMContextRef, fn LLVMValueRef, name string) LLVMBasicBlockRef {
 	return string2CString(name, func(name *C.char) LLVMBasicBlockRef {
