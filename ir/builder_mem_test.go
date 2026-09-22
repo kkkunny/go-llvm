@@ -29,9 +29,9 @@ func TestBuilderMemoryGolden(t *testing.T) {
 
 	slot := b.Alloca(i32, "slot")
 	slot.SetAlign(8)
-	b.Store(p, slot.Value())
-	loaded := b.Load(slot.Value(), i32, "loaded")
-	b.Ret(loaded.Value())
+	b.Store(p, slot)
+	loaded := b.Load(slot, i32, "loaded")
+	b.Ret(loaded)
 
 	got := m.String()
 	for _, want := range []string{
@@ -182,8 +182,8 @@ func TestBuilderMallocFree(t *testing.T) {
 	n := fn.ParamAs[llvm.IntT](0)
 	p1 := b.Malloc(i32, "one")
 	p2 := b.MallocArray(i32, n, "many")
-	b.Free(p1.Value())
-	b.Free(p2.Value())
+	b.Free(p1)
+	b.Free(p2)
 	b.RetVoid()
 
 	got := m.String()

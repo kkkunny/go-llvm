@@ -25,7 +25,7 @@ func TestBuilderCallGolden(t *testing.T) {
 	add, _ := m.GetFunction("add")
 	x := fn.ParamAs[llvm.IntT](0)
 	y := fn.ParamAs[llvm.IntT](1)
-	res := b.Call[llvm.IntT](add.Value(), []llvm.AnyValue{x.Dyn(), y.Dyn()}, "r")
+	res := b.Call[llvm.IntT](add, []llvm.AnyValue{x.Dyn(), y.Dyn()}, "r")
 	if res.ArgCount() != 2 {
 		t.Fatalf("ArgCount() = %d", res.ArgCount())
 	}
@@ -35,7 +35,7 @@ func TestBuilderCallGolden(t *testing.T) {
 	if callee, ok := res.CalledFunction(); !ok || callee.Name() != "add" {
 		t.Fatalf("CalledFunction() = %v, %v", callee.Name(), ok)
 	}
-	b.Ret(res.Value())
+	b.Ret(res)
 
 	got := m.String()
 	for _, want := range []string{
@@ -64,14 +64,14 @@ func TestBuilderCallChecks(t *testing.T) {
 
 	add, _ := m.GetFunction("add")
 	err := llvm.Catch(func() {
-		b.Call[llvm.IntT](add.Value(), []llvm.AnyValue{ctx.ConstInt(i32, 1, false)}, "tooFew")
+		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i32, 1, false)}, "tooFew")
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("arity mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 
 	err = llvm.Catch(func() {
-		b.Call[llvm.IntT](add.Value(), []llvm.AnyValue{ctx.ConstInt(i64, 1, false), ctx.ConstInt(i32, 2, false)}, "badType")
+		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i64, 1, false), ctx.ConstInt(i32, 2, false)}, "badType")
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("arg type mismatch should panic ErrTypeMismatch, got %v", err)
@@ -92,7 +92,7 @@ func TestBuilderCallVoid(t *testing.T) {
 	b.MoveToEnd(fn.NewBlock("entry"))
 
 	sink, _ := m.GetFunction("sink")
-	b.Call[llvm.VoidT](sink.Value(), []llvm.AnyValue{ctx.ConstInt(i32, 7, false)}, "")
+	b.Call[llvm.VoidT](sink, []llvm.AnyValue{ctx.ConstInt(i32, 7, false)}, "")
 	b.RetVoid()
 
 	if got := m.String(); !strings.Contains(got, "call void @sink(i32 7)") {
@@ -127,7 +127,7 @@ func TestBuilderPHI(t *testing.T) {
 	b.Br(exit)
 
 	b.MoveToEnd(exit)
-	b.Ret(phi.Value())
+	b.Ret(phi)
 
 	if phi.Count() != 2 {
 		t.Fatalf("phi incoming count = %d", phi.Count())

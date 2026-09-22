@@ -142,7 +142,7 @@ func LLVMRunFunctionAsMain(ee LLVMExecutionEngineRef, f LLVMValueRef, argv []str
 	cargv := lo.Map(argv, func(item string, _ int) *C.char {
 		return C.CString(item)
 	})
-	for _, v := range cargv{
+	for _, v := range cargv {
 		defer C.free(unsafe.Pointer(v))
 	}
 	cargv = append(cargv, nil)
@@ -151,7 +151,7 @@ func LLVMRunFunctionAsMain(ee LLVMExecutionEngineRef, f LLVMValueRef, argv []str
 	cenvp := lo.Map(envp, func(item string, _ int) *C.char {
 		return C.CString(item)
 	})
-	for _, v := range cenvp{
+	for _, v := range cenvp {
 		defer C.free(unsafe.Pointer(v))
 	}
 	cenvp = append(cenvp, nil)

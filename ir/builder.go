@@ -38,14 +38,21 @@ func (b *Builder) Context() *llvm.Context { return b.ctx }
 
 // MoveToEnd 将插入点移到基本块末尾
 func (b *Builder) MoveToEnd(blk Block) {
+	const op = "ir.Builder.MoveToEnd"
+	b.preAlive(op)
+	b.preBlockOwn(op, blk)
 	b.inserted = &blk
 	binding.LLVMPositionBuilderAtEnd(b.ref, blk.ref)
 }
 
 // MoveBefore 将插入点移到指令之前
 func (b *Builder) MoveBefore(inst llvm.AnyValue) {
+	const op = "ir.Builder.MoveBefore"
+	b.preAlive(op)
+	b.pre(op, inst)
 	ref := binding.LLVMGetInstructionParent(inst.Ref())
-	b.inserted = &Block{ref: ref, ctx: b.ctx, life: inst.Lifetime()}
+	blk := wrapBlock(b.ctx, inst.Lifetime(), ref)
+	b.inserted = &blk
 	binding.LLVMPositionBuilderBefore(b.ref, inst.Ref())
 }
 
@@ -55,16 +62,24 @@ func (b *Builder) CurrentBlock() (Block, bool) {
 	if ref.IsNil() {
 		return Block{}, false
 	}
-	return Block{ref: ref, ctx: b.ctx, life: b.inserted.life}, true
+	if b.inserted != nil {
+		return wrapBlock(b.ctx, b.inserted.life, ref), true
+	}
+	return Block{}, false
 }
 
 // ===== 统一预检 =====
 
-// pre 所有 Builder 方法入口统一调用；v 可为 nil（无操作数指令）
-func (b *Builder) pre(op string, vs ...llvm.AnyValue) {
+// preAlive 校验 Builder 未关闭（不要求已定位，供定位类方法使用）
+func (b *Builder) preAlive(op string) {
 	if b.closed {
 		errPanic(llvm.ErrClosed, op, "builder already closed")
 	}
+}
+
+// pre 所有 Builder 方法入口统一调用；v 可为 nil（无操作数指令）
+func (b *Builder) pre(op string, vs ...llvm.AnyValue) {
+	b.preAlive(op)
 	if b.inserted == nil || binding.LLVMGetInsertBlock(b.ref).IsNil() {
 		errPanic(llvm.ErrInvalidArg, op, "builder is not positioned at any block")
 	}
@@ -104,9 +119,8 @@ func errPanic(reason llvm.ErrKind, op, format string, args ...any) {
 	llvm.Panicf(reason, op, format, args...)
 }
 
-// preBlock 预检基本块归属
-func (b *Builder) preBlock(op string, blk Block) {
-	b.pre(op)
+// preBlockOwn 预检基本块句柄本身（nil/跨 Context/已释放），不要求 Builder 已定位
+func (b *Builder) preBlockOwn(op string, blk Block) {
 	if blk.ref.IsNil() {
 		errPanic(llvm.ErrInvalidArg, op, "nil block")
 	}
@@ -116,4 +130,10 @@ func (b *Builder) preBlock(op string, blk Block) {
 	if !blk.life.Alive() {
 		errPanic(llvm.ErrUseAfterFree, op, "block is freed")
 	}
+}
+
+// preBlock 预检基本块归属
+func (b *Builder) preBlock(op string, blk Block) {
+	b.pre(op)
+	b.preBlockOwn(op, blk)
 }

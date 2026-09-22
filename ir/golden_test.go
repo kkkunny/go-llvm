@@ -88,15 +88,15 @@ func TestGoldenLoop(t *testing.T) {
 
 	b.MoveToEnd(entry)
 	acc := b.Alloca(i32, "acc")
-	b.Store(ctx.ConstInt(i32, 0, false).Value, acc.Value())
+	b.Store(ctx.ConstInt(i32, 0, false).Value, acc)
 	b.Br(loop)
 
 	b.MoveToEnd(loop)
 	i := b.PHI(i32, "i")
-	cur := b.Load(acc.Value(), i32, "cur")
+	cur := b.Load(acc, i32, "cur")
 	i.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(i32, 0, false).Value, Block: entry})
 	next := b.Add(i, ctx.ConstInt(i32, 1, false).Value, "next")
-	b.Store(next, acc.Value())
+	b.Store(next, acc)
 	done := b.ICmp(llvm.IntSGE, next, fn.Function().ParamAs[llvm.IntT](0), "done")
 	b.CondBr(done, exit, loop)
 	i.AddIncoming(Incoming[llvm.IntT]{Value: next, Block: loop})
@@ -104,8 +104,8 @@ func TestGoldenLoop(t *testing.T) {
 	_ = boolTy
 
 	b.MoveToEnd(exit)
-	result := b.Load(acc.Value(), i32, "result")
-	b.Ret(result.Value())
+	result := b.Load(acc, i32, "result")
+	b.Ret(result)
 
 	if err := m.Verify(); err != nil {
 		t.Fatalf("verify: %v", err)

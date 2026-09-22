@@ -5,65 +5,47 @@ import (
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
-// Alloca alloca 指令角色
+// Alloca alloca 指令角色（内嵌 Value[PtrT]，自动实现 llvm.ValueRef/AnyValue）
 type Alloca struct {
-	v llvm.Value[llvm.PtrT]
+	llvm.Value[llvm.PtrT]
 }
-
-// Value 返回底层泛型值
-func (a Alloca) Value() llvm.Value[llvm.PtrT] { return a.v }
-
-// AsValue 实现 llvm.ValueRef[PtrT]
-func (a Alloca) AsValue() llvm.Value[llvm.PtrT] { return a.v }
 
 // SetAlign 设置分配对齐
 func (a Alloca) SetAlign(n uint32) {
 	preAlign("ir.Alloca.SetAlign", n)
-	binding.LLVMSetAlignment(a.v.Ref(), n)
+	binding.LLVMSetAlignment(a.Ref(), n)
 }
 
 // Align 分配对齐
-func (a Alloca) Align() uint32 { return binding.LLVMGetAlignment(a.v.Ref()) }
+func (a Alloca) Align() uint32 { return binding.LLVMGetAlignment(a.Ref()) }
 
-// Load 加载指令角色
+// Load 加载指令角色（内嵌 Value[T]）
 type Load[T llvm.Kind] struct {
-	v llvm.Value[T]
+	llvm.Value[T]
 }
-
-// Value 返回底层泛型值
-func (l Load[T]) Value() llvm.Value[T] { return l.v }
-
-// AsValue 实现 llvm.ValueRef[T]
-func (l Load[T]) AsValue() llvm.Value[T] { return l.v }
 
 // SetAlign 设置加载对齐
 func (l Load[T]) SetAlign(n uint32) {
 	preAlign("ir.Load.SetAlign", n)
-	binding.LLVMSetAlignment(l.v.Ref(), n)
+	binding.LLVMSetAlignment(l.Ref(), n)
 }
 
 // Align 加载对齐
-func (l Load[T]) Align() uint32 { return binding.LLVMGetAlignment(l.v.Ref()) }
+func (l Load[T]) Align() uint32 { return binding.LLVMGetAlignment(l.Ref()) }
 
-// Store 存储指令角色
+// Store 存储指令角色（内嵌 Value[VoidT]）
 type Store struct {
-	v llvm.Value[llvm.VoidT]
+	llvm.Value[llvm.VoidT]
 }
-
-// Value 返回底层泛型值
-func (s Store) Value() llvm.Value[llvm.VoidT] { return s.v }
-
-// AsValue 实现 llvm.ValueRef[VoidT]
-func (s Store) AsValue() llvm.Value[llvm.VoidT] { return s.v }
 
 // SetAlign 设置存储对齐
 func (s Store) SetAlign(n uint32) {
 	preAlign("ir.Store.SetAlign", n)
-	binding.LLVMSetAlignment(s.v.Ref(), n)
+	binding.LLVMSetAlignment(s.Ref(), n)
 }
 
 // Align 存储对齐
-func (s Store) Align() uint32 { return binding.LLVMGetAlignment(s.v.Ref()) }
+func (s Store) Align() uint32 { return binding.LLVMGetAlignment(s.Ref()) }
 
 // ===== 内存指令 =====
 
@@ -78,7 +60,7 @@ func (b *Builder) Alloca(t llvm.AnyType, name string) Alloca {
 		errPanic(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildAlloca(b.ref, t.Ref(), name)
-	return Alloca{v: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
+	return Alloca{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
 }
 
 // Load 从指针加载 U 类型的值（泛型方法：结果种类由调用方断言并预检）
@@ -90,7 +72,7 @@ func (b *Builder) Load[U llvm.Kind](p llvm.ValueRef[llvm.PtrT], t llvm.TypeRef[U
 		errPanic(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildLoad(b.ref, tt.Ref(), pv.Ref(), name)
-	return Load[U]{v: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
+	return Load[U]{Value: wrapValue[U](b.ctx, b.inserted.life, ref)}
 }
 
 // Store 将值写入指针
@@ -99,7 +81,7 @@ func (b *Builder) Store(v llvm.AnyValue, p llvm.ValueRef[llvm.PtrT]) Store {
 	pv := p.AsValue()
 	b.pre(op, v, pv.Dyn())
 	ref := binding.LLVMBuildStore(b.ref, v.Ref(), pv.Ref())
-	return Store{v: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+	return Store{Value: wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
 
 // GEP 插入 getelementptr
@@ -133,7 +115,7 @@ func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], 
 	} else {
 		ref = binding.LLVMBuildGEP(b.ref, elem.Ref(), pv.Ref(), refs, name)
 	}
-	return llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)
+	return wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)
 }
 
 // MemSet 插入 memset 调用
@@ -143,7 +125,7 @@ func (b *Builder) MemSet(p llvm.ValueRef[llvm.PtrT], val, n llvm.ValueRef[llvm.I
 	b.pre(op, pv.Dyn(), vv.Dyn(), nv.Dyn())
 	preAlign(op, align)
 	ref := binding.LLVMBuildMemSet(b.ref, pv.Ref(), vv.Ref(), nv.Ref(), align)
-	return Call[llvm.VoidT]{v: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.VoidT]{Value: wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
 
 // MemCpy 插入 memcpy 调用
@@ -167,7 +149,7 @@ func (b *Builder) memTransfer(op string, dst llvm.ValueRef[llvm.PtrT], dstAlign 
 	} else {
 		ref = binding.LLVMBuildMemCpy(b.ref, dv.Ref(), dstAlign, sv.Ref(), srcAlign, nv.Ref())
 	}
-	return Call[llvm.VoidT]{v: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.VoidT]{Value: wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
 
 // Malloc 插入 malloc 调用
@@ -178,7 +160,7 @@ func (b *Builder) Malloc(t llvm.AnyType, name string) Call[llvm.PtrT] {
 		errPanic(llvm.ErrInvalidArg, op, "invalid type")
 	}
 	ref := binding.LLVMBuildMalloc(b.ref, t.Ref(), name)
-	return Call[llvm.PtrT]{v: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.PtrT]{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
 }
 
 // MallocArray 插入数组 malloc 调用
@@ -190,7 +172,7 @@ func (b *Builder) MallocArray(elem llvm.AnyType, n llvm.ValueRef[llvm.IntT], nam
 		errPanic(llvm.ErrInvalidArg, op, "invalid type")
 	}
 	ref := binding.LLVMBuildArrayMalloc(b.ref, elem.Ref(), nv.Ref(), name)
-	return Call[llvm.PtrT]{v: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.PtrT]{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
 }
 
 // Free 插入 free 调用
@@ -199,5 +181,5 @@ func (b *Builder) Free(p llvm.ValueRef[llvm.PtrT]) Call[llvm.VoidT] {
 	pv := p.AsValue()
 	b.pre(op, pv.Dyn())
 	ref := binding.LLVMBuildFree(b.ref, pv.Ref())
-	return Call[llvm.VoidT]{v: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.VoidT]{Value: wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }

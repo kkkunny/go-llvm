@@ -102,7 +102,7 @@ func (m *Module) Clone() *Module {
 // NewFunction 按函数类型声明/定义函数
 func (m *Module) NewFunction(name string, t llvm.FnType) Function {
 	ref := binding.LLVMAddFunction(m.ref, name, t.Ref())
-	return Function{v: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}
+	return Function{Value: wrapValue[llvm.FnT](m.ctx, m.life, ref)}
 }
 
 // GetFunction 按名称查找函数
@@ -111,13 +111,13 @@ func (m *Module) GetFunction(name string) (Function, bool) {
 	if ref.IsNil() {
 		return Function{}, false
 	}
-	return Function{v: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}, true
+	return Function{Value: wrapValue[llvm.FnT](m.ctx, m.life, ref)}, true
 }
 
 // NewGlobal 声明全局变量（无初始化器）
 func (m *Module) NewGlobal(name string, t llvm.AnyType) Global {
 	ref := binding.LLVMAddGlobal(m.ref, t.Ref(), name)
-	return Global{v: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}
+	return Global{Value: wrapValue[llvm.PtrT](m.ctx, m.life, ref)}
 }
 
 // NewConstant 声明常量全局变量
@@ -134,10 +134,10 @@ func (m *Module) GetGlobal(name string) (Global, bool) {
 	if ref.IsNil() {
 		return Global{}, false
 	}
-	return Global{v: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}, true
+	return Global{Value: wrapValue[llvm.PtrT](m.ctx, m.life, ref)}, true
 }
 
 // DelGlobal 删除全局变量
 func (m *Module) DelGlobal(g Global) {
-	binding.LLVMDeleteGlobal(g.v.Ref())
+	binding.LLVMDeleteGlobal(g.Ref())
 }

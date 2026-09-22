@@ -50,6 +50,61 @@ func TestBuilderPrecheck(t *testing.T) {
 	}
 }
 
+func TestBuilderMovePrecheck(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "move-pre")
+	defer m.Close()
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(i32, nil, false))
+
+	b := NewBuilder(ctx)
+	defer b.Close()
+
+	if err := llvm.Catch(func() { b.MoveToEnd(Block{}) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil block should panic ErrInvalidArg, got %v", err)
+	}
+
+	ctx2 := llvm.NewContext()
+	defer ctx2.Close()
+	m2 := NewModule(ctx2, "other")
+	fn2 := m2.NewFunction("g", ctx2.Fn(ctx2.Int(32), nil, false))
+	blk2 := fn2.NewBlock("entry")
+	if err := llvm.Catch(func() { b.MoveToEnd(blk2) }); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("cross-context block should panic ErrCrossContext, got %v", err)
+	}
+
+	blk := fn.NewBlock("entry")
+	if err := b.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := llvm.Catch(func() { b.MoveToEnd(blk) }); err == nil || err.Reason != llvm.ErrClosed {
+		t.Fatalf("closed builder MoveToEnd should panic ErrClosed, got %v", err)
+	}
+}
+
+func TestBuilderMoveBeforeLifetime(t *testing.T) {
+	ctx, m, b := buildAddModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer b.Close()
+
+	fn, _ := m.GetFunction("add")
+	entry := fn.NewBlock("entry")
+	b.MoveToEnd(entry)
+	ret := b.Ret(fn.ParamAs[llvm.IntT](0))
+
+	b.MoveBefore(ret)
+	b.RetVoid()
+	got := m.String()
+	if !strings.Contains(got, "ret void") {
+		t.Fatalf("MoveBefore should position before ret:\n%s", got)
+	}
+	if !strings.Contains(got, "ret i32 %0") {
+		t.Fatalf("original ret should remain:\n%s", got)
+	}
+}
+
 func TestBuilderClosePrecheck(t *testing.T) {
 	ctx := llvm.NewContext()
 	defer ctx.Close()

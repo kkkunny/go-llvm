@@ -153,7 +153,7 @@ func TestModuleCloseLifecycle(t *testing.T) {
 	m := NewModule(ctx, "life")
 	i32 := ctx.Int(32)
 	g := m.NewGlobal("g", i32)
-	v := g.Value()
+	v := g
 
 	if !v.Alive() {
 		t.Fatal("value should be alive while module open")
@@ -175,7 +175,7 @@ func TestModuleDisown(t *testing.T) {
 	m := NewModule(ctx, "disown")
 	i32 := ctx.Int(32)
 	g := m.NewGlobal("g", i32)
-	v := g.Value()
+	v := g
 
 	release := m.Disown()
 	if !v.Alive() {
@@ -250,7 +250,7 @@ func TestGlobal(t *testing.T) {
 
 	i32 := ctx.Int(32)
 	g := m.NewGlobal("g", i32)
-	if got := g.Value().Type().String(); got != "ptr" {
+	if got := g.Type().String(); got != "ptr" {
 		t.Fatalf("global value type = %q", got)
 	}
 	if g.IsConstant() {
