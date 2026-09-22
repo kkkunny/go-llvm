@@ -17,6 +17,9 @@ type Module struct {
 
 // NewModule 创建模块并登记到 Context 生命周期
 func NewModule(ctx *llvm.Context, name string) *Module {
+	if !ctx.Alive() {
+		errPanic(llvm.ErrUseAfterFree, "ir.NewModule", "context is closed")
+	}
 	m := &Module{
 		ref:  binding.LLVMModuleCreateWithNameInContext(name, ctx.Ref()),
 		ctx:  ctx,

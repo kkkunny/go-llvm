@@ -16,6 +16,9 @@ type Builder struct {
 
 // NewBuilder 创建构建器并登记到 Context 生命周期
 func NewBuilder(ctx *llvm.Context) *Builder {
+	if !ctx.Alive() {
+		errPanic(llvm.ErrUseAfterFree, "ir.NewBuilder", "context is closed")
+	}
 	b := &Builder{ref: binding.LLVMCreateBuilderInContext(ctx.Ref()), ctx: ctx}
 	b.unown = ctx.Own(b)
 	return b
