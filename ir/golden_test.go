@@ -114,3 +114,80 @@ func TestGoldenLoop(t *testing.T) {
 	checkGolden(t, m.String(), "loop.ll")
 	_ = i64
 }
+
+// TestGoldenEH 覆盖 Itanium 式（invoke/landingpad/resume）与 funclet 式（catchswitch/catchpad/catchret/cleanuppad/cleanupret）
+func TestGoldenEH(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "eh")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	ptr := ctx.Ptr(0)
+	pers := m.NewFunction("pers", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	g := m.NewFunction("g", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	h := m.NewFunction("h", ctx.Fn(ctx.Void(), nil, false))
+	ti := m.NewGlobal("ti", ptr)
+
+	b := NewBuilder(ctx)
+	defer b.Close()
+
+	// ---- itanium ----
+	f1 := m.NewFunction("itanium", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	f1.SetPersonality(pers)
+	e1 := f1.NewBlock("entry")
+	c1 := f1.NewBlock("cont")
+	l1 := f1.NewBlock("lpad")
+
+	b.MoveToEnd(e1)
+	v := b.Invoke[llvm.IntT](g, []llvm.AnyValue{f1.ParamAs[llvm.IntT](0)}, c1, l1, "v")
+	b.MoveToEnd(c1)
+	b.Ret(v)
+	b.MoveToEnd(l1)
+	lp := b.LandingPad(ctx.Struct([]llvm.AnyType{ptr, i32}, false), "lp")
+	lp.AddClause(ti)
+	lp.SetCleanup(true)
+	b.Resume(lp)
+
+	// ---- funclets ----
+	f2 := m.NewFunction("funclets", ctx.Fn(ctx.Void(), nil, false))
+	f2.SetPersonality(pers)
+	e2 := f2.NewBlock("entry")
+	c2 := f2.NewBlock("cont")
+	d2 := f2.NewBlock("dispatch")
+	hn := f2.NewBlock("hnd")
+	dn := f2.NewBlock("done")
+
+	b.MoveToEnd(e2)
+	b.Invoke[llvm.VoidT](h, nil, c2, d2, "")
+	b.MoveToEnd(c2)
+	b.RetVoid()
+	b.MoveToEnd(d2)
+	cs := b.CatchSwitch(nil, Block{}, "cs")
+	cs.AddHandler(hn)
+	b.MoveToEnd(hn)
+	cp := b.CatchPad(cs, []llvm.AnyValue{ti}, "cp")
+	b.CatchRet(cp, dn)
+	b.MoveToEnd(dn)
+	b.RetVoid()
+
+	// ---- cleanup ----
+	f3 := m.NewFunction("cleanup", ctx.Fn(ctx.Void(), nil, false))
+	f3.SetPersonality(pers)
+	e3 := f3.NewBlock("entry")
+	c3 := f3.NewBlock("cont")
+	k3 := f3.NewBlock("clean")
+
+	b.MoveToEnd(e3)
+	b.Invoke[llvm.VoidT](h, nil, c3, k3, "")
+	b.MoveToEnd(c3)
+	b.RetVoid()
+	b.MoveToEnd(k3)
+	clp := b.CleanupPad(nil, nil, "clp")
+	b.CleanupRet(clp, Block{})
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	checkGolden(t, m.String(), "eh.ll")
+}
