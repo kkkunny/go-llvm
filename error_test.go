@@ -63,6 +63,14 @@ func TestMustWrapsPlainError(t *testing.T) {
 	}
 }
 
+func TestWrapErrorUnwrap(t *testing.T) {
+	base := errors.New("lookup failed")
+	got := WrapError(ErrJIT, "llvm.Test", base)
+	if !errors.Is(got, base) {
+		t.Fatal("wrapped error should unwrap to its cause")
+	}
+}
+
 func TestErrorMessage(t *testing.T) {
 	err := &Error{Reason: ErrTypeMismatch, Op: "llvm.Builder.Add", Msg: "operand kinds differ"}
 	want := "llvm.Builder.Add: operand kinds differ"

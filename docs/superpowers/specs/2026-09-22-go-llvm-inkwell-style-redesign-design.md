@@ -244,3 +244,17 @@ func (e *LLJIT) MapSymbol(name string, p unsafe.Pointer) error
 
 1. Builder 方法去掉 `Create` 前缀（`b.Add` 而非 `b.CreateSAdd`）——默认采纳，如有异议请提出。
 2. legacy MCJIT/Interpreter 直接删除、不做兼容层——默认采纳。
+
+## 9. As-built 差异（P1 收尾后回填）
+
+P0/P1 落地时对设计稿的偏离，以实现为准：
+
+| 设计稿 | as-built |
+|---|---|
+| §4.1 Builder 返回角色含 `GEP` | 仅当指令存在角色专属操作时返回角色（`Alloca`/`Load`/`Store`/`Call`/`Phi`/`Switch`），其余返回裸 `Value[T]`；无 GEP 角色 |
+| §4.2 参数写 `IntValue`/`Type[IntT]` | 统一用 `ValueRef[T]`/`TypeRef[T]` 以便泛型推断（如 `b.Trunc(v ValueRef[IntT], to IntType, name)`） |
+| §4.4 `Disown()` 返回 release | `Module.Disown()`/`Context.Disown()`/`MemoryBuffer.Disown()` 立即失效 Go 侧句柄、无返回值（AGENTS「Lifetime」） |
+| §4.5 `Module.NewFunc[F]` 返回 `Func[F]` | 类型更名 `ir.GoFunc[F]`（避免与 `jit.Func[F]` 同名不同义）；`Module.NewGlobalConst`（原 `NewConstant`）；`TargetMachine.ApplyTo`（原 `SetTo`） |
+| 校验仅在构造/操作入口隐式进行 | `Value.Check`/`Type.Check`/`Context.CheckAlive`/`CheckType`/`CheckTypes`/`CheckValues` 导出供子包复用；`ir` 角色方法与 `Module.Check`/`Block.Check` 每次操作前显式校验，并有表驱动用后即焚测试 |
+| 未定义并发策略 | 见 AGENTS「Core conventions」并发条目：Context/Lifetime/LLJIT 适配器缓存/bridge 注册表受锁保护，其余句柄单 goroutine |
+

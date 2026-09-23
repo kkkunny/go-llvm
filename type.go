@@ -444,7 +444,7 @@ func kindMatches[U Kind](ref binding.LLVMTypeRef) bool {
 }
 
 func sameKind(a, b Kind) bool {
-	return kindName(a) == kindName(b)
+	return any(a) == any(b)
 }
 
 func kindName(k Kind) string {

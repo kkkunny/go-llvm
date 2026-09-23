@@ -26,9 +26,13 @@ type Error struct {
 	Reason ErrKind
 	Op     string // 如 "llvm.Builder.Add"
 	Msg    string
+	cause  error // 底层错误链（WrapError 保留），支持 errors.Is/As 追溯
 }
 
 func (e *Error) Error() string { return fmt.Sprintf("%s: %s", e.Op, e.Msg) }
+
+// Unwrap 返回底层错误（若有）
+func (e *Error) Unwrap() error { return e.cause }
 
 // errPanic 构造并 panic（内部用）
 func errPanic(reason ErrKind, op, format string, args ...any) {
@@ -75,5 +79,5 @@ func WrapError(reason ErrKind, op string, err error) *Error {
 	if e, ok := err.(*Error); ok {
 		return e
 	}
-	return &Error{Reason: reason, Op: op, Msg: err.Error()}
+	return &Error{Reason: reason, Op: op, Msg: err.Error(), cause: err}
 }

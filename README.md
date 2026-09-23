@@ -89,7 +89,9 @@ func main() {
   converts back to an error. All builder calls are pre-checked (positioned builder, same context,
   live handles, matching operand types) before reaching cgo.
 * `Context`/`Module`/`Builder` implement `io.Closer`. Values are owned by their context/module;
-  use-after-free and double-close are detected.
+  every operation (builder calls plus module/block/instruction role methods) self-checks lifetime,
+  so use-after-free and double-close surface as `ErrUseAfterFree`/`ErrClosed` panics instead of
+  touching dangling handles.
 
 ### Code generation
 

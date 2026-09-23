@@ -1,6 +1,7 @@
 package llvm
 
 import (
+	"errors"
 	"reflect"
 	"strconv"
 )
@@ -64,10 +65,20 @@ func typeOfGo(ctx *Context, t reflect.Type) (AnyType, error) {
 		for i := range fields {
 			ft, err := typeOfGo(ctx, t.Field(i).Type)
 			if err != nil {
+				var inner *Error
+				if errors.As(err, &inner) {
+					return nil, &Error{
+						Reason: inner.Reason,
+						Op:     "llvm.TypeOfGo",
+						Msg:    "struct field " + t.Field(i).Name + ": " + inner.Msg,
+						cause:  err,
+					}
+				}
 				return nil, &Error{
 					Reason: ErrUnsupported,
 					Op:     "llvm.TypeOfGo",
-					Msg:    "struct field " + t.Field(i).Name + ": " + err.(*Error).Msg,
+					Msg:    "struct field " + t.Field(i).Name + ": " + err.Error(),
+					cause:  err,
 				}
 			}
 			fields[i] = ft

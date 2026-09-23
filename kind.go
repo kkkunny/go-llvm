@@ -43,33 +43,8 @@ func (MetaT) kind()   {}
 func (TokenT) kind()  {}
 func (DynT) kind()    {}
 
-// kindOf 返回类型参数 T 对应的种类标记
+// kindOf 返回类型参数 T 对应的种类标记（T 的约束即标记集合，直接返回实例）
 func kindOf[T Kind]() Kind {
 	var t T
-	switch any(t).(type) {
-	case VoidT:
-		return VoidT{}
-	case IntT:
-		return IntT{}
-	case FloatT:
-		return FloatT{}
-	case PtrT:
-		return PtrT{}
-	case StructT:
-		return StructT{}
-	case ArrayT:
-		return ArrayT{}
-	case VecT:
-		return VecT{}
-	case FnT:
-		return FnT{}
-	case LabelT:
-		return LabelT{}
-	case MetaT:
-		return MetaT{}
-	case TokenT:
-		return TokenT{}
-	default:
-		return DynT{}
-	}
+	return t
 }
