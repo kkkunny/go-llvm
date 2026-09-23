@@ -129,6 +129,28 @@ func (f Function) SetLinkage(l llvm.Linkage) {
 	binding.LLVMSetLinkage(f.Ref(), binding.LLVMLinkage(l))
 }
 
+// SetPersonality 设置 personality 函数（EH 展开用）
+func (f Function) SetPersonality(pers llvm.ValueRef[llvm.FnT]) {
+	const op = "ir.Function.SetPersonality"
+	f.Check(op)
+	pv := pers.AsValue()
+	if pv.IsNil() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil personality")
+	}
+	f.Context().CheckValues(op, pv)
+	binding.LLVMSetPersonalityFn(f.Ref(), pv.Ref())
+}
+
+// Personality personality 函数（未设置时返回 false）
+func (f Function) Personality() (llvm.Value[llvm.FnT], bool) {
+	f.Check("ir.Function.Personality")
+	ref := binding.LLVMGetPersonalityFn(f.Ref())
+	if ref.IsNil() {
+		return llvm.Value[llvm.FnT]{}, false
+	}
+	return llvm.NewValue[llvm.FnT](f.Context(), f.Lifetime(), ref), true
+}
+
 // Param 函数参数角色（内嵌 Value[DynT]）
 type Param struct {
 	llvm.Value[llvm.DynT]

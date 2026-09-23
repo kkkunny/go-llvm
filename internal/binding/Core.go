@@ -1473,6 +1473,81 @@ func LLVMAddCase(v LLVMValueRef, onVal LLVMValueRef, dest LLVMBasicBlockRef) {
 	C.LLVMAddCase(v.c, onVal.c, dest.c)
 }
 
+// LLVMGetNumClauses Get the number of clauses on the landingpad instruction.
+func LLVMGetNumClauses(landingPad LLVMValueRef) uint32 {
+	return uint32(C.LLVMGetNumClauses(landingPad.c))
+}
+
+// LLVMGetClause Get the value of the clause at index Idx on the landingpad instruction.
+func LLVMGetClause(landingPad LLVMValueRef, idx uint32) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetClause(landingPad.c, C.unsigned(idx))}
+}
+
+// LLVMAddClause Add a catch or filter clause to the landingpad instruction.
+func LLVMAddClause(landingPad, clauseVal LLVMValueRef) {
+	C.LLVMAddClause(landingPad.c, clauseVal.c)
+}
+
+// LLVMIsCleanup Get the 'cleanup' flag in the landingpad instruction.
+func LLVMIsCleanup(landingPad LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsCleanup(landingPad.c))
+}
+
+// LLVMSetCleanup Set the 'cleanup' flag in the landingpad instruction.
+func LLVMSetCleanup(landingPad LLVMValueRef, val bool) {
+	C.LLVMSetCleanup(landingPad.c, bool2LLVMBool(val))
+}
+
+// LLVMAddHandler Add a destination to the catchswitch instruction.
+func LLVMAddHandler(catchSwitch LLVMValueRef, dest LLVMBasicBlockRef) {
+	C.LLVMAddHandler(catchSwitch.c, dest.c)
+}
+
+// LLVMGetNumHandlers Get the number of handlers on the catchswitch instruction.
+func LLVMGetNumHandlers(catchSwitch LLVMValueRef) uint32 {
+	return uint32(C.LLVMGetNumHandlers(catchSwitch.c))
+}
+
+// LLVMGetHandlers Obtain the basic blocks acting as handlers for a catchswitch instruction.
+func LLVMGetHandlers(catchSwitch LLVMValueRef) []LLVMBasicBlockRef {
+	n := int(LLVMGetNumHandlers(catchSwitch))
+	if n == 0 {
+		return nil
+	}
+	handlers := make([]C.LLVMBasicBlockRef, n)
+	C.LLVMGetHandlers(catchSwitch.c, &handlers[0])
+	refs := make([]LLVMBasicBlockRef, n)
+	for i, h := range handlers {
+		refs[i] = LLVMBasicBlockRef{c: h}
+	}
+	return refs
+}
+
+// LLVMGetArgOperand Get a funcletpad argument at the given index.
+func LLVMGetArgOperand(funclet LLVMValueRef, i uint32) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetArgOperand(funclet.c, C.unsigned(i))}
+}
+
+// LLVMSetArgOperand Set a funcletpad argument at the given index.
+func LLVMSetArgOperand(funclet LLVMValueRef, i uint32, value LLVMValueRef) {
+	C.LLVMSetArgOperand(funclet.c, C.unsigned(i), value.c)
+}
+
+// LLVMGetParentCatchSwitch Get the parent catchswitch instruction of a catchpad instruction.
+func LLVMGetParentCatchSwitch(catchPad LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetParentCatchSwitch(catchPad.c)}
+}
+
+// LLVMGetPersonalityFn Get the personality function attached to the function.
+func LLVMGetPersonalityFn(fn LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetPersonalityFn(fn.c)}
+}
+
+// LLVMSetPersonalityFn Set the personality function attached to the function.
+func LLVMSetPersonalityFn(fn, persFn LLVMValueRef) {
+	C.LLVMSetPersonalityFn(fn.c, persFn.c)
+}
+
 // LLVMGetNumSuccessors Obtain the number of successors of a terminator instruction.
 func LLVMGetNumSuccessors(term LLVMValueRef) uint32 {
 	return uint32(C.LLVMGetNumSuccessors(term.c))
