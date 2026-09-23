@@ -173,7 +173,7 @@ func (m *Module) NewFunction(name string, t llvm.FnType) Function {
 		llvm.Panicf(llvm.ErrCrossContext, op, "function type belongs to another context")
 	}
 	ref := binding.LLVMAddFunction(m.ref, name, t.Ref())
-	return Function{Value: wrapValue[llvm.FnT](m.ctx, m.life, ref)}
+	return Function{Value: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}
 }
 
 // GetFunction 按名称查找函数
@@ -183,7 +183,7 @@ func (m *Module) GetFunction(name string) (Function, bool) {
 	if ref.IsNil() {
 		return Function{}, false
 	}
-	return Function{Value: wrapValue[llvm.FnT](m.ctx, m.life, ref)}, true
+	return Function{Value: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}, true
 }
 
 // NewGlobal 声明全局变量（无初始化器）
@@ -192,7 +192,7 @@ func (m *Module) NewGlobal(name string, t llvm.AnyType) Global {
 	m.Check(op)
 	m.ctx.CheckType(op, t)
 	ref := binding.LLVMAddGlobal(m.ref, t.Ref(), name)
-	return Global{Value: wrapValue[llvm.PtrT](m.ctx, m.life, ref)}
+	return Global{Value: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}
 }
 
 // NewConstant 声明常量全局变量
@@ -213,7 +213,7 @@ func (m *Module) GetGlobal(name string) (Global, bool) {
 	if ref.IsNil() {
 		return Global{}, false
 	}
-	return Global{Value: wrapValue[llvm.PtrT](m.ctx, m.life, ref)}, true
+	return Global{Value: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}, true
 }
 
 // DelGlobal 删除全局变量

@@ -75,7 +75,7 @@ func (b *Builder) Alloca(t llvm.AnyType, name string) Alloca {
 		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildAlloca(b.ref, t.Ref(), name)
-	return Alloca{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
+	return Alloca{Value: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
 }
 
 // Load 从指针加载 U 类型的值（泛型方法：结果种类由调用方断言并预检）
@@ -87,7 +87,7 @@ func (b *Builder) Load[U llvm.Kind](p llvm.ValueRef[llvm.PtrT], t llvm.TypeRef[U
 		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildLoad(b.ref, tt.Ref(), pv.Ref(), name)
-	return Load[U]{Value: wrapValue[U](b.ctx, b.inserted.life, ref)}
+	return Load[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
 }
 
 // Store 将值写入指针
@@ -96,7 +96,7 @@ func (b *Builder) Store(v llvm.AnyValue, p llvm.ValueRef[llvm.PtrT]) Store {
 	pv := p.AsValue()
 	b.pre(op, v, pv.Dyn())
 	ref := binding.LLVMBuildStore(b.ref, v.Ref(), pv.Ref())
-	return Store{Value: wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+	return Store{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
 
 // GEP 插入 getelementptr
@@ -130,7 +130,7 @@ func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], 
 	} else {
 		ref = binding.LLVMBuildGEP(b.ref, elem.Ref(), pv.Ref(), refs, name)
 	}
-	return wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)
 }
 
 // MemSet 插入 memset 调用
@@ -140,7 +140,7 @@ func (b *Builder) MemSet(p llvm.ValueRef[llvm.PtrT], val, n llvm.ValueRef[llvm.I
 	b.pre(op, pv.Dyn(), vv.Dyn(), nv.Dyn())
 	preAlign(op, align)
 	ref := binding.LLVMBuildMemSet(b.ref, pv.Ref(), vv.Ref(), nv.Ref(), align)
-	return Call[llvm.VoidT]{Value: wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.VoidT]{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
 
 // MemCpy 插入 memcpy 调用
@@ -164,7 +164,7 @@ func (b *Builder) memTransfer(op string, dst llvm.ValueRef[llvm.PtrT], dstAlign 
 	} else {
 		ref = binding.LLVMBuildMemCpy(b.ref, dv.Ref(), dstAlign, sv.Ref(), srcAlign, nv.Ref())
 	}
-	return Call[llvm.VoidT]{Value: wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.VoidT]{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
 
 // Malloc 插入 malloc 调用
@@ -175,7 +175,7 @@ func (b *Builder) Malloc(t llvm.AnyType, name string) Call[llvm.PtrT] {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid type")
 	}
 	ref := binding.LLVMBuildMalloc(b.ref, t.Ref(), name)
-	return Call[llvm.PtrT]{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.PtrT]{Value: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
 }
 
 // MallocArray 插入数组 malloc 调用
@@ -187,7 +187,7 @@ func (b *Builder) MallocArray(elem llvm.AnyType, n llvm.ValueRef[llvm.IntT], nam
 		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid type")
 	}
 	ref := binding.LLVMBuildArrayMalloc(b.ref, elem.Ref(), nv.Ref(), name)
-	return Call[llvm.PtrT]{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.PtrT]{Value: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
 }
 
 // Free 插入 free 调用
@@ -196,5 +196,5 @@ func (b *Builder) Free(p llvm.ValueRef[llvm.PtrT]) Call[llvm.VoidT] {
 	pv := p.AsValue()
 	b.pre(op, pv.Dyn())
 	ref := binding.LLVMBuildFree(b.ref, pv.Ref())
-	return Call[llvm.VoidT]{Value: wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+	return Call[llvm.VoidT]{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }

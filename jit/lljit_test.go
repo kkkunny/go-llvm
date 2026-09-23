@@ -1,6 +1,7 @@
 package jit
 
 import (
+	"sync"
 	"testing"
 	"unsafe"
 
@@ -132,6 +133,33 @@ func TestLLJITAddObjectFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = ctx
+}
+
+func TestLLJITConcurrentFunc(t *testing.T) {
+	j := newJIT(t)
+	defer j.Close()
+
+	_, m := retModule(t, "concurrent", 42)
+	if err := j.AddIRModule(m); err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			f, err := j.Func[func() int32]("answer")
+			if err != nil {
+				t.Errorf("Func: %v", err)
+				return
+			}
+			if got := f(); got != 42 {
+				t.Errorf("answer() = %d, want 42", got)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func mustNativeTarget(t *testing.T) target.Target {

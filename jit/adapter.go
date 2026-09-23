@@ -106,7 +106,11 @@ type adapterEntry struct {
 	ret     bridgeSlotKind
 }
 
+// adapterFor 返回签名对应的适配器（按签名缓存，首次调用时编译）。
+// 持锁串行化编译，避免并发下同一签名重复生成同名适配器符号。
 func (j *LLJIT) adapterFor(ft reflect.Type) (*adapterEntry, error) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
 	if e, ok := j.adapters[ft]; ok {
 		return e, nil
 	}

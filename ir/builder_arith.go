@@ -107,7 +107,7 @@ func (b *Builder) Neg(v llvm.ValueRef[llvm.IntT], name string) llvm.Value[llvm.I
 	const op = "ir.Builder.Neg"
 	vv := v.AsValue()
 	b.pre(op, vv.Dyn())
-	return wrapValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildNeg(b.ref, vv.Ref(), name))
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildNeg(b.ref, vv.Ref(), name))
 }
 
 // Not 插入按位取反
@@ -115,14 +115,14 @@ func (b *Builder) Not(v llvm.ValueRef[llvm.IntT], name string) llvm.Value[llvm.I
 	const op = "ir.Builder.Not"
 	vv := v.AsValue()
 	b.pre(op, vv.Dyn())
-	return wrapValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildNot(b.ref, vv.Ref(), name))
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildNot(b.ref, vv.Ref(), name))
 }
 
 // intBinop 整数二元指令公共实现
 func (b *Builder) intBinop(op string, l, r llvm.ValueRef[llvm.IntT], name string, build func(binding.LLVMBuilderRef, binding.LLVMValueRef, binding.LLVMValueRef, string) binding.LLVMValueRef) llvm.Value[llvm.IntT] {
 	lv, rv := l.AsValue(), r.AsValue()
 	b.preSameType(op, lv.Dyn(), rv.Dyn())
-	return wrapValue[llvm.IntT](b.ctx, b.inserted.life, build(b.ref, lv.Ref(), rv.Ref(), name))
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, build(b.ref, lv.Ref(), rv.Ref(), name))
 }
 
 // ===== 浮点算术 =====
@@ -157,14 +157,14 @@ func (b *Builder) FNeg(v llvm.ValueRef[llvm.FloatT], name string) llvm.Value[llv
 	const op = "ir.Builder.FNeg"
 	vv := v.AsValue()
 	b.pre(op, vv.Dyn())
-	return wrapValue[llvm.FloatT](b.ctx, b.inserted.life, binding.LLVMBuildFNeg(b.ref, vv.Ref(), name))
+	return llvm.NewValue[llvm.FloatT](b.ctx, b.inserted.life, binding.LLVMBuildFNeg(b.ref, vv.Ref(), name))
 }
 
 // floatBinop 浮点二元指令公共实现
 func (b *Builder) floatBinop(op string, l, r llvm.ValueRef[llvm.FloatT], name string, build func(binding.LLVMBuilderRef, binding.LLVMValueRef, binding.LLVMValueRef, string) binding.LLVMValueRef) llvm.Value[llvm.FloatT] {
 	lv, rv := l.AsValue(), r.AsValue()
 	b.preSameType(op, lv.Dyn(), rv.Dyn())
-	return wrapValue[llvm.FloatT](b.ctx, b.inserted.life, build(b.ref, lv.Ref(), rv.Ref(), name))
+	return llvm.NewValue[llvm.FloatT](b.ctx, b.inserted.life, build(b.ref, lv.Ref(), rv.Ref(), name))
 }
 
 // ===== 比较与选择 =====
@@ -174,7 +174,7 @@ func (b *Builder) ICmp(pred llvm.IntPred, l, r llvm.AnyValue, name string) llvm.
 	const op = "ir.Builder.ICmp"
 	b.preSameType(op, l, r)
 	ref := binding.LLVMBuildICmp(b.ref, binding.LLVMIntPredicate(pred), l.Ref(), r.Ref(), name)
-	return wrapValue[llvm.IntT](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)
 }
 
 // FCmp 插入浮点比较，返回 i1
@@ -183,7 +183,7 @@ func (b *Builder) FCmp(pred llvm.FloatPred, l, r llvm.ValueRef[llvm.FloatT], nam
 	lv, rv := l.AsValue(), r.AsValue()
 	b.preSameType(op, lv.Dyn(), rv.Dyn())
 	ref := binding.LLVMBuildFCmp(b.ref, binding.LLVMRealPredicate(pred), lv.Ref(), rv.Ref(), name)
-	return wrapValue[llvm.IntT](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)
 }
 
 // Select 插入 select；x/y 种类一致由编译期保证
@@ -196,5 +196,5 @@ func (b *Builder) Select[T llvm.Kind](cond llvm.ValueRef[llvm.IntT], x, y llvm.V
 		llvm.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
 	}
 	ref := binding.LLVMBuildSelect(b.ref, cv.Ref(), xv.Ref(), yv.Ref(), name)
-	return wrapValue[T](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[T](b.ctx, b.inserted.life, ref)
 }

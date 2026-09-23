@@ -12,9 +12,12 @@ import (
 
 // LLJIT ORC 延迟编译 JIT 实例；独立所有权根（不经 Context.Own），用毕 Close。
 // 移交给它的模块与其 Context 由 LLJIT 负责释放。
+// 并发：Func/MapFunc/Lookup 等方法的适配器缓存与注册表受锁保护；
+// Close 与其他方法之间的并发调用仍由调用方自行串行化。
 type LLJIT struct {
 	ref         binding.LLVMOrcLLJITRef
 	closed      bool
+	mu          sync.Mutex // 保护 adapters 缓存
 	adapters    map[reflect.Type]*adapterEntry
 	channelOnce sync.Once
 	channelErr  error

@@ -24,7 +24,7 @@ func (c Call[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	ref := binding.LLVMGetOperand(c.Ref(), i)
-	return wrapDyn(c.Context(), c.Lifetime(), ref)
+	return llvm.ValueOf(c.Context(), c.Lifetime(), ref)
 }
 
 // SetArg 替换第 i 个实参
@@ -45,7 +45,7 @@ func (c Call[T]) CalledFunction() (llvm.Value[llvm.FnT], bool) {
 	if ref.IsNil() {
 		return llvm.Value[llvm.FnT]{}, false
 	}
-	return wrapValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
+	return llvm.NewValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
 }
 
 // Phi PHI 节点角色（内嵌 Value[T]）
@@ -93,7 +93,7 @@ func (p Phi[T]) IncomingAt(i uint32) Incoming[T] {
 	val := binding.LLVMGetIncomingValue(p.Ref(), i)
 	blk := binding.LLVMGetIncomingBlock(p.Ref(), i)
 	return Incoming[T]{
-		Value: wrapValue[T](p.Context(), p.Lifetime(), val),
+		Value: llvm.NewValue[T](p.Context(), p.Lifetime(), val),
 		Block: wrapBlock(p.Context(), p.Lifetime(), blk),
 	}
 }

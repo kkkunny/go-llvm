@@ -32,7 +32,7 @@ func (f Function) Param(i uint) Param {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "parameter index %d out of range", i)
 	}
 	ref := binding.LLVMGetParam(f.Ref(), uint32(i))
-	return Param{Value: wrapValue[llvm.DynT](f.Context(), f.Lifetime(), ref)}
+	return Param{Value: llvm.NewValue[llvm.DynT](f.Context(), f.Lifetime(), ref)}
 }
 
 // ParamAs 第 i 个参数（泛型方法；种类不符 panic）
@@ -119,7 +119,7 @@ func (p Param) SetAlign(n uint32) {
 // Belong 参数所属函数
 func (p Param) Belong() Function {
 	p.Check("ir.Param.Belong")
-	return Function{Value: wrapValue[llvm.FnT](p.Context(), p.Lifetime(), binding.LLVMGetParamParent(p.Ref()))}
+	return Function{Value: llvm.NewValue[llvm.FnT](p.Context(), p.Lifetime(), binding.LLVMGetParamParent(p.Ref()))}
 }
 
 // Func Go 签名绑定的函数句柄

@@ -110,14 +110,14 @@ func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
 				"element type %s does not match array element type %s", TypeOfRef(ctx, binding.LLVMTypeOf(e.Ref())), elem)
 		}
 	}
-	ref := binding.LLVMConstArray(elem.Ref(), anyValuesToRefs(elems))
+	ref := binding.LLVMConstArray(elem.Ref(), AnyValuesToRefs(elems))
 	return Value[ArrayT]{ref: ref, ctx: ctx, life: ctx.life}
 }
 
 // ConstStruct 构造字面量结构体常量
 func (ctx *Context) ConstStruct(packed bool, elems ...AnyValue) Value[StructT] {
 	ctx.CheckValues("llvm.Context.ConstStruct", elems...)
-	ref := binding.LLVMConstStructInContext(ctx.ref, anyValuesToRefs(elems), packed)
+	ref := binding.LLVMConstStructInContext(ctx.ref, AnyValuesToRefs(elems), packed)
 	return Value[StructT]{ref: ref, ctx: ctx, life: ctx.life}
 }
 
@@ -134,7 +134,7 @@ func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[Stru
 				"element %d type %s does not match field type %s", i, TypeOfRef(ctx, binding.LLVMTypeOf(e.Ref())), t.Elem(uint32(i)))
 		}
 	}
-	ref := binding.LLVMConstNamedStruct(t.ref, anyValuesToRefs(elems))
+	ref := binding.LLVMConstNamedStruct(t.ref, AnyValuesToRefs(elems))
 	return Value[StructT]{ref: ref, ctx: ctx, life: ctx.life}
 }
 
@@ -184,18 +184,11 @@ func (ctx *Context) CheckValues(op string, vs ...AnyValue) {
 	}
 }
 
-func anyValuesToRefs(values []AnyValue) []binding.LLVMValueRef {
+// AnyValuesToRefs 将值列表转换为底层句柄列表（供 llvm/* 子包桥接使用）
+func AnyValuesToRefs(values []AnyValue) []binding.LLVMValueRef {
 	refs := make([]binding.LLVMValueRef, len(values))
 	for i, v := range values {
 		refs[i] = v.Ref()
-	}
-	return refs
-}
-
-func intValuesToRefs(values []Value[IntT]) []binding.LLVMValueRef {
-	refs := make([]binding.LLVMValueRef, len(values))
-	for i, v := range values {
-		refs[i] = v.ref
 	}
 	return refs
 }

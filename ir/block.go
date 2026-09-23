@@ -41,7 +41,7 @@ func (b Block) SetName(name string) {
 // Belong 所属函数
 func (b Block) Belong() Function {
 	b.Check("ir.Block.Belong")
-	return Function{Value: wrapValue[llvm.FnT](b.ctx, b.life, binding.LLVMGetBasicBlockParent(b.ref))}
+	return Function{Value: llvm.NewValue[llvm.FnT](b.ctx, b.life, binding.LLVMGetBasicBlockParent(b.ref))}
 }
 
 // Insts 全部指令（擦除种类）
@@ -49,7 +49,7 @@ func (b Block) Insts() []llvm.Value[llvm.DynT] {
 	b.Check("ir.Block.Insts")
 	var insts []llvm.Value[llvm.DynT]
 	for ref := binding.LLVMGetFirstInstruction(b.ref); !ref.IsNil(); ref = binding.LLVMGetNextInstruction(ref) {
-		insts = append(insts, wrapDyn(b.ctx, b.life, ref))
+		insts = append(insts, llvm.ValueOf(b.ctx, b.life, ref))
 	}
 	return insts
 }
@@ -61,7 +61,7 @@ func (b Block) FirstInst() (llvm.Value[llvm.DynT], bool) {
 	if ref.IsNil() {
 		return llvm.Value[llvm.DynT]{}, false
 	}
-	return wrapDyn(b.ctx, b.life, ref), true
+	return llvm.ValueOf(b.ctx, b.life, ref), true
 }
 
 // LastInst 最后一条指令
@@ -71,7 +71,7 @@ func (b Block) LastInst() (llvm.Value[llvm.DynT], bool) {
 	if ref.IsNil() {
 		return llvm.Value[llvm.DynT]{}, false
 	}
-	return wrapDyn(b.ctx, b.life, ref), true
+	return llvm.ValueOf(b.ctx, b.life, ref), true
 }
 
 // Next 下一个基本块

@@ -65,7 +65,7 @@ func (s Switch) CaseValue(i uint32) llvm.Value[llvm.DynT] {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
 	}
 	ref := binding.LLVMGetSwitchCaseValue(s.Ref(), i+1)
-	return wrapDyn(s.Context(), s.Lifetime(), ref)
+	return llvm.ValueOf(s.Context(), s.Lifetime(), ref)
 }
 
 // ===== Builder 终结指令 =====
@@ -75,7 +75,7 @@ func (b *Builder) RetVoid() llvm.Value[llvm.VoidT] {
 	const op = "ir.Builder.RetVoid"
 	b.pre(op)
 	ref := binding.LLVMBuildRetVoid(b.ref)
-	return wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
 }
 
 // Ret 插入 ret v
@@ -83,7 +83,7 @@ func (b *Builder) Ret(v llvm.AnyValue) llvm.Value[llvm.VoidT] {
 	const op = "ir.Builder.Ret"
 	b.pre(op, v)
 	ref := binding.LLVMBuildRet(b.ref, v.Ref())
-	return wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
 }
 
 // Br 插入无条件跳转
@@ -92,7 +92,7 @@ func (b *Builder) Br(blk Block) llvm.Value[llvm.VoidT] {
 	b.pre(op)
 	b.preBlock(op, blk)
 	ref := binding.LLVMBuildBr(b.ref, blk.ref)
-	return wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
 }
 
 // CondBr 插入条件跳转
@@ -106,7 +106,7 @@ func (b *Builder) CondBr(cond llvm.ValueRef[llvm.IntT], then, els Block) llvm.Va
 		llvm.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
 	}
 	ref := binding.LLVMBuildCondBr(b.ref, cv.Ref(), then.ref, els.ref)
-	return wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
 }
 
 // Switch 插入 switch 终结指令
@@ -116,7 +116,7 @@ func (b *Builder) Switch(v llvm.ValueRef[llvm.IntT], def Block) Switch {
 	b.pre(op, vv.Dyn())
 	b.preBlock(op, def)
 	ref := binding.LLVMBuildSwitch(b.ref, vv.Ref(), def.ref, 0)
-	return Switch{Value: wrapValue[llvm.IntT](b.ctx, b.inserted.life, ref)}
+	return Switch{Value: llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)}
 }
 
 // Unreachable 插入 unreachable
@@ -124,5 +124,5 @@ func (b *Builder) Unreachable() llvm.Value[llvm.VoidT] {
 	const op = "ir.Builder.Unreachable"
 	b.pre(op)
 	ref := binding.LLVMBuildUnreachable(b.ref)
-	return wrapValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
+	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
 }

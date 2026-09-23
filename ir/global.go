@@ -24,7 +24,7 @@ func (g Global) Initializer() (llvm.Value[llvm.DynT], bool) {
 	if ref.IsNil() {
 		return llvm.Value[llvm.DynT]{}, false
 	}
-	return wrapDyn(g.Context(), g.Lifetime(), ref), true
+	return llvm.ValueOf(g.Context(), g.Lifetime(), ref), true
 }
 
 // SetInitializer 设置初始化器
