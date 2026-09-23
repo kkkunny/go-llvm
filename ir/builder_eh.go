@@ -105,6 +105,73 @@ func (l LandingPad[T]) IsCleanup() bool {
 	return binding.LLVMIsCleanup(l.Ref())
 }
 
+// CatchSwitch catchswitch 指令角色（内嵌 Value[TokenT]）
+type CatchSwitch struct {
+	llvm.Value[llvm.TokenT]
+}
+
+// AddHandler 追加处理器入口块（须与 catchswitch 同函数）
+func (s CatchSwitch) AddHandler(blk Block) {
+	const op = "ir.CatchSwitch.AddHandler"
+	s.Check(op)
+	blk.Check(op)
+	binding.LLVMAddHandler(s.Ref(), blk.ref)
+}
+
+// HandlerCount 处理器数量
+func (s CatchSwitch) HandlerCount() uint32 {
+	s.Check("ir.CatchSwitch.HandlerCount")
+	return binding.LLVMGetNumHandlers(s.Ref())
+}
+
+// HandlerAt 第 i 个处理器入口块
+func (s CatchSwitch) HandlerAt(i uint32) Block {
+	const op = "ir.CatchSwitch.HandlerAt"
+	s.Check(op)
+	if i >= s.HandlerCount() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "handler index %d out of range", i)
+	}
+	return wrapBlock(s.Context(), s.Lifetime(), binding.LLVMGetHandlers(s.Ref())[i])
+}
+
+// FuncletPad funclet pad 指令角色（catchpad/cleanuppad，内嵌 Value[TokenT]）
+type FuncletPad struct {
+	llvm.Value[llvm.TokenT]
+}
+
+// ArgCount 实参个数（LLVMGetNumOperands 含末位 parent pad，故减 1）
+func (p FuncletPad) ArgCount() uint32 {
+	p.Check("ir.FuncletPad.ArgCount")
+	return uint32(binding.LLVMGetNumOperands(p.Ref())) - 1
+}
+
+// Arg 第 i 个实参（擦除种类）
+func (p FuncletPad) Arg(i uint32) llvm.Value[llvm.DynT] {
+	const op = "ir.FuncletPad.Arg"
+	p.Check(op)
+	if i >= p.ArgCount() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+	}
+	return llvm.ValueOf(p.Context(), p.Lifetime(), binding.LLVMGetArgOperand(p.Ref(), i))
+}
+
+// SetArg 替换第 i 个实参
+func (p FuncletPad) SetArg(i uint32, v llvm.AnyValue) {
+	const op = "ir.FuncletPad.SetArg"
+	p.Check(op)
+	if i >= p.ArgCount() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+	}
+	p.Context().CheckValues(op, v)
+	binding.LLVMSetArgOperand(p.Ref(), i, v.Ref())
+}
+
+// ParentCatchSwitch 所属 catchswitch（仅 catchpad 有意义）
+func (p FuncletPad) ParentCatchSwitch() CatchSwitch {
+	p.Check("ir.FuncletPad.ParentCatchSwitch")
+	return CatchSwitch{Value: llvm.NewValue[llvm.TokenT](p.Context(), p.Lifetime(), binding.LLVMGetParentCatchSwitch(p.Ref()))}
+}
+
 // ===== EH 构建方法 =====
 
 // Invoke 插入 invoke 调用：then 为正常出口、unwind 为异常出口；
@@ -157,4 +224,76 @@ func (b *Builder) Resume(exn llvm.AnyValue) llvm.Value[llvm.VoidT] {
 	b.pre(op, coreAny(exn))
 	ref := binding.LLVMBuildResume(b.ref, exn.Ref())
 	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
+}
+
+// CatchSwitch 插入 catchswitch（终结指令）；parent 为 nil 表示 within none，
+// unwindTo 为零块表示 unwind to caller。处理器用 CatchSwitch.AddHandler 追加
+func (b *Builder) CatchSwitch(parent llvm.ValueRef[llvm.TokenT], unwindTo Block, name string) CatchSwitch {
+	const op = "ir.Builder.CatchSwitch"
+	b.pre(op)
+	parentRef := b.preParentPad(op, parent)
+	unwindRef := b.preOptBlock(op, unwindTo)
+	ref := binding.LLVMBuildCatchSwitch(b.ref, parentRef, unwindRef, 0, name)
+	return CatchSwitch{Value: llvm.NewValue[llvm.TokenT](b.ctx, b.inserted.life, ref)}
+}
+
+// CatchPad 插入 catchpad（须为块首指令）；parent 为 nil 表示 within none
+func (b *Builder) CatchPad(parent llvm.ValueRef[llvm.TokenT], args []llvm.AnyValue, name string) FuncletPad {
+	const op = "ir.Builder.CatchPad"
+	b.pre(op)
+	parentRef := b.preParentPad(op, parent)
+	for _, a := range args {
+		b.checkVal(op, coreAny(a))
+	}
+	ref := binding.LLVMBuildCatchPad(b.ref, parentRef, b.valueRefs(args), name)
+	return FuncletPad{Value: llvm.NewValue[llvm.TokenT](b.ctx, b.inserted.life, ref)}
+}
+
+// CleanupPad 插入 cleanuppad（须为块首指令）；parent 为 nil 表示 within none
+func (b *Builder) CleanupPad(parent llvm.ValueRef[llvm.TokenT], args []llvm.AnyValue, name string) FuncletPad {
+	const op = "ir.Builder.CleanupPad"
+	b.pre(op)
+	parentRef := b.preParentPad(op, parent)
+	for _, a := range args {
+		b.checkVal(op, coreAny(a))
+	}
+	ref := binding.LLVMBuildCleanupPad(b.ref, parentRef, b.valueRefs(args), name)
+	return FuncletPad{Value: llvm.NewValue[llvm.TokenT](b.ctx, b.inserted.life, ref)}
+}
+
+// CatchRet 从 catchpad 转移到目标块（void 终结指令，无 name）
+func (b *Builder) CatchRet(pad FuncletPad, to Block) llvm.Value[llvm.VoidT] {
+	const op = "ir.Builder.CatchRet"
+	b.pre(op, core(pad.Value))
+	b.preBlockOwn(op, to)
+	ref := binding.LLVMBuildCatchRet(b.ref, pad.Ref(), to.ref)
+	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
+}
+
+// CleanupRet 从 cleanuppad 转移；unwindTo 为零块表示 unwind to caller（void 终结指令，无 name）
+func (b *Builder) CleanupRet(pad FuncletPad, unwindTo Block) llvm.Value[llvm.VoidT] {
+	const op = "ir.Builder.CleanupRet"
+	b.pre(op, core(pad.Value))
+	unwindRef := b.preOptBlock(op, unwindTo)
+	ref := binding.LLVMBuildCleanupRet(b.ref, pad.Ref(), unwindRef)
+	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
+}
+
+// preParentPad 预检可选父 pad（nil = within none）；返回底层句柄（零值 = none）
+func (b *Builder) preParentPad(op string, parent llvm.ValueRef[llvm.TokenT]) binding.LLVMValueRef {
+	if parent == nil {
+		return binding.LLVMValueRef{}
+	}
+	pv := parent.AsValue()
+	b.checkVal(op, core(pv))
+	return pv.Ref()
+}
+
+// preOptBlock 预检可选目标块（零块 = to/unwind to caller）；返回底层句柄（零值 = caller）
+func (b *Builder) preOptBlock(op string, blk Block) binding.LLVMBasicBlockRef {
+	if blk.ref.IsNil() {
+		return binding.LLVMBasicBlockRef{}
+	}
+	b.preBlockOwn(op, blk)
+	return blk.ref
 }

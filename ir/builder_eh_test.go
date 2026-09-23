@@ -218,3 +218,120 @@ func TestBuilderLandingPadPrecheck(t *testing.T) {
 	}
 	b.Unreachable()
 }
+
+func TestBuilderFunclets(t *testing.T) {
+	ctx, m, b := buildEHModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer b.Close()
+
+	i32 := ctx.Int(32)
+	ptr := ctx.Ptr(0)
+	pers := m.NewFunction("pers", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	h := m.NewFunction("h", ctx.Fn(ctx.Void(), nil, false))
+	ti := m.NewGlobal("ti", ptr)
+
+	// ---- catchswitch -> catchpad -> catchret ----
+	fn := m.NewFunction("funclets", ctx.Fn(ctx.Void(), nil, false))
+	fn.SetPersonality(pers)
+	entry := fn.NewBlock("entry")
+	cont := fn.NewBlock("cont")
+	dispatch := fn.NewBlock("dispatch")
+	hnd := fn.NewBlock("hnd")
+	done := fn.NewBlock("done")
+
+	b.MoveToEnd(entry)
+	b.Invoke[llvm.VoidT](h, nil, cont, dispatch, "") // EH pad 需 unwind 边进入
+
+	b.MoveToEnd(cont)
+	b.RetVoid()
+
+	b.MoveToEnd(dispatch)                   // EH pad 不得在 entry 块
+	cs := b.CatchSwitch(nil, Block{}, "cs") // parent=nil 即 within none；unwindTo 零块即 unwind to caller
+	cs.AddHandler(hnd)
+	if cs.HandlerCount() != 1 {
+		t.Fatalf("handler count = %d, want 1", cs.HandlerCount())
+	}
+	if cs.HandlerAt(0) != hnd {
+		t.Fatalf("handler 0 = %s, want hnd", cs.HandlerAt(0).Name())
+	}
+
+	b.MoveToEnd(hnd)
+	cp := b.CatchPad(cs, []llvm.AnyValue{ti}, "cp")
+	if got := cp.ParentCatchSwitch(); got.Name() != "cs" {
+		t.Fatalf("parent catchswitch = %s, want cs", got.Name())
+	}
+	if cp.ArgCount() != 1 {
+		t.Fatalf("catchpad arg count = %d, want 1", cp.ArgCount())
+	}
+	if got := cp.Arg(0); got.Name() != "ti" {
+		t.Fatalf("catchpad arg 0 = %s, want ti", got.Name())
+	}
+	b.CatchRet(cp, done)
+
+	b.MoveToEnd(done)
+	b.RetVoid()
+
+	// ---- cleanuppad -> cleanupret ----
+	kn := m.NewFunction("cleanup", ctx.Fn(ctx.Void(), nil, false))
+	kn.SetPersonality(pers)
+	e2 := kn.NewBlock("entry")
+	c2 := kn.NewBlock("cont")
+	clean := kn.NewBlock("clean")
+
+	b.MoveToEnd(e2)
+	b.Invoke[llvm.VoidT](h, nil, c2, clean, "")
+	b.MoveToEnd(c2)
+	b.RetVoid()
+
+	b.MoveToEnd(clean)
+	clp := b.CleanupPad(nil, nil, "clp")
+	if clp.ArgCount() != 0 {
+		t.Fatalf("cleanuppad arg count = %d, want 0", clp.ArgCount())
+	}
+	b.CleanupRet(clp, Block{}) // unwind to caller
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	got := m.String()
+	if !strings.Contains(got, "catchswitch within none [label %hnd] unwind to caller") {
+		t.Fatalf("missing catchswitch:\n%s", got)
+	}
+	if !strings.Contains(got, "catchpad within %cs [ptr @ti]") {
+		t.Fatalf("missing catchpad:\n%s", got)
+	}
+	if !strings.Contains(got, "catchret from %cp to label %done") {
+		t.Fatalf("missing catchret:\n%s", got)
+	}
+	if !strings.Contains(got, "cleanuppad within none []") {
+		t.Fatalf("missing cleanuppad:\n%s", got)
+	}
+	if !strings.Contains(got, "cleanupret from %clp unwind to caller") {
+		t.Fatalf("missing cleanupret:\n%s", got)
+	}
+}
+
+func TestBuilderFuncletPrecheck(t *testing.T) {
+	ctx, m, b := buildEHModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer b.Close()
+
+	fn := m.NewFunction("f", ctx.Fn(ctx.Void(), nil, false))
+	entry := fn.NewBlock("entry")
+	b.MoveToEnd(entry)
+
+	cs := b.CatchSwitch(nil, Block{}, "cs")
+
+	// handler 下标越界
+	if err := llvm.Catch(func() { cs.HandlerAt(3) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("handler out of range should panic ErrInvalidArg, got %v", err)
+	}
+	// funclet pad 实参下标越界
+	pad := b.CatchPad(cs, nil, "cp")
+	if err := llvm.Catch(func() { pad.Arg(0) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("pad arg out of range should panic ErrInvalidArg, got %v", err)
+	}
+	b.Unreachable()
+}
