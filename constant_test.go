@@ -184,3 +184,21 @@ func TestConstMismatchPanic(t *testing.T) {
 		t.Fatalf("want ErrCrossContext, got %v", err)
 	}
 }
+
+func TestConstVector(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	i32 := ctx.Int(32)
+	v := ctx.ConstVector(i32, ctx.ConstInt(i32, 1).Value, ctx.ConstInt(i32, 2).Value)
+	if got := v.String(); !strings.Contains(got, "<i32 1, i32 2>") {
+		t.Fatalf("const vector = %s", got)
+	}
+
+	// 元素类型不符
+	if err := Catch(func() {
+		ctx.ConstVector(i32, ctx.ConstFloat(ctx.Float(FloatDouble), 1).Value)
+	}); err == nil || err.Reason != ErrTypeMismatch {
+		t.Fatalf("elem type mismatch should panic ErrTypeMismatch, got %v", err)
+	}
+}

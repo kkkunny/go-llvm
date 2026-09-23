@@ -916,6 +916,12 @@ func LLVMConstNamedStruct(structTy LLVMTypeRef, constantVals []LLVMValueRef) LLV
 	return LLVMValueRef{c: C.LLVMConstNamedStruct(structTy.c, ptr, length)}
 }
 
+// LLVMConstVector Create a ConstantVector from values.
+func LLVMConstVector(scalarConstantVals []LLVMValueRef) LLVMValueRef {
+	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](scalarConstantVals)
+	return LLVMValueRef{c: C.LLVMConstVector(ptr, length)}
+}
+
 // LLVMGetAggregateElement Get element of a constant aggregate (struct, array or vector) at the specified index. Returns null if the index is out of range, or it's not possible to determine the element (e.g., because the constant is a constant expression.)
 // @see llvm::Constant::getAggregateElement()
 func LLVMGetAggregateElement(c LLVMValueRef, idx uint32) LLVMValueRef {
@@ -2173,6 +2179,20 @@ func LLVMBuildExtractElement(builder LLVMBuilderRef, vecVal, index LLVMValueRef,
 func LLVMBuildExtractValue(builder LLVMBuilderRef, aggVal LLVMValueRef, index uint32, name string) LLVMValueRef {
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMBuildExtractValue(builder.c, aggVal.c, C.unsigned(index), name)}
+	})
+}
+
+// LLVMBuildInsertElement Insert a value into a vector element.
+func LLVMBuildInsertElement(builder LLVMBuilderRef, vecVal, eltVal, index LLVMValueRef, name string) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildInsertElement(builder.c, vecVal.c, eltVal.c, index.c, name)}
+	})
+}
+
+// LLVMBuildShuffleVector Create a shufflevector instruction.
+func LLVMBuildShuffleVector(builder LLVMBuilderRef, v1, v2, mask LLVMValueRef, name string) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildShuffleVector(builder.c, v1.c, v2.c, mask.c, name)}
 	})
 }
 

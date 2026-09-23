@@ -131,6 +131,22 @@ func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
 	return Value[ArrayT]{ref: ref, ctx: ctx, life: ctx.life}
 }
 
+// ConstVector 构造向量常量；元素类型/归属不符则 panic
+func (ctx *Context) ConstVector(elem AnyType, elems ...AnyValue) Value[VecT] {
+	const op = "llvm.Context.ConstVector"
+	ctx.CheckType(op, elem)
+	ctx.CheckValues(op, elems...)
+	elemRef := elem.Ref()
+	for i, e := range elems {
+		if ref := binding.LLVMTypeOf(e.Ref()); !elemRef.Equal(ref) {
+			errPanic(ErrTypeMismatch, op,
+				"element %d type %s does not match vector element type %s", i, TypeOfRef(ctx, ref), elem)
+		}
+	}
+	ref := binding.LLVMConstVector(AnyValuesToRefs(elems))
+	return Value[VecT]{ref: ref, ctx: ctx, life: ctx.life}
+}
+
 // ConstStruct 构造字面量结构体常量
 func (ctx *Context) ConstStruct(packed bool, elems ...AnyValue) Value[StructT] {
 	ctx.CheckValues("llvm.Context.ConstStruct", elems...)
