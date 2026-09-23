@@ -43,16 +43,6 @@ func (j *LLJIT) check(op string) {
 	}
 }
 
-// checkModule 前置校验模块可用
-func checkModule(op string, mod *ir.Module) {
-	if mod == nil || mod.Ref().IsNil() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil module")
-	}
-	if !mod.Lifetime().Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "module is closed")
-	}
-}
-
 // Close 释放 JIT 及其托管的所有模块/上下文；二次调用返回 ErrClosed
 func (j *LLJIT) Close() error {
 	if j.closed {
@@ -83,12 +73,12 @@ func (j *LLJIT) DataLayoutStr() string {
 func (j *LLJIT) AddIRModule(mod *ir.Module) error {
 	const op = "jit.LLJIT.AddIRModule"
 	j.check(op)
-	checkModule(op, mod)
+	mod.Check(op)
 
 	ctx := mod.Context()
 	tsctx := binding.LLVMOrcCreateNewThreadSafeContextFromLLVMContext(ctx.Ref())
-	mod.Disown()()
-	ctx.Disown()()
+	mod.Disown()
+	ctx.Disown()
 	tsm := binding.LLVMOrcCreateNewThreadSafeModule(mod.Ref(), tsctx)
 	binding.LLVMOrcDisposeThreadSafeContext(tsctx)
 	// ORC 约定：调用后所有权无条件移交（失败时由 JIT 错误路径释放 TSM）

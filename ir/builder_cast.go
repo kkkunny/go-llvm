@@ -116,6 +116,6 @@ func (b *Builder) BitCast[U llvm.Kind](v llvm.AnyValue, to llvm.TypeRef[U], name
 // preCastTo 预检目标类型归属同一 Context
 func preCastTo[T llvm.Kind](op string, b *Builder, to llvm.TypeRef[T]) {
 	if to.AsType().Context() != b.ctx {
-		errPanic(llvm.ErrCrossContext, op, "target type belongs to another context")
+		llvm.Panicf(llvm.ErrCrossContext, op, "target type belongs to another context")
 	}
 }

@@ -17,7 +17,7 @@ type Builder struct {
 // NewBuilder 创建构建器并登记到 Context 生命周期
 func NewBuilder(ctx *llvm.Context) *Builder {
 	if !ctx.Alive() {
-		errPanic(llvm.ErrUseAfterFree, "ir.NewBuilder", "context is closed")
+		llvm.Panicf(llvm.ErrUseAfterFree, "ir.NewBuilder", "context is closed")
 	}
 	b := &Builder{ref: binding.LLVMCreateBuilderInContext(ctx.Ref()), ctx: ctx}
 	b.unown = ctx.Own(b)
@@ -76,7 +76,7 @@ func (b *Builder) CurrentBlock() (Block, bool) {
 // preAlive 校验 Builder 未关闭（不要求已定位，供定位类方法使用）
 func (b *Builder) preAlive(op string) {
 	if b.closed {
-		errPanic(llvm.ErrClosed, op, "builder already closed")
+		llvm.Panicf(llvm.ErrClosed, op, "builder already closed")
 	}
 }
 
@@ -84,20 +84,20 @@ func (b *Builder) preAlive(op string) {
 func (b *Builder) pre(op string, vs ...llvm.AnyValue) {
 	b.preAlive(op)
 	if b.inserted == nil || binding.LLVMGetInsertBlock(b.ref).IsNil() {
-		errPanic(llvm.ErrInvalidArg, op, "builder is not positioned at any block")
+		llvm.Panicf(llvm.ErrInvalidArg, op, "builder is not positioned at any block")
 	}
 	for _, v := range vs {
 		if v == nil {
 			continue
 		}
 		if v.IsNil() {
-			errPanic(llvm.ErrInvalidArg, op, "nil operand")
+			llvm.Panicf(llvm.ErrInvalidArg, op, "nil operand")
 		}
 		if !v.Alive() {
-			errPanic(llvm.ErrUseAfterFree, op, "operand is freed")
+			llvm.Panicf(llvm.ErrUseAfterFree, op, "operand is freed")
 		}
 		if v.Context() != b.ctx {
-			errPanic(llvm.ErrCrossContext, op, "operand belongs to another context")
+			llvm.Panicf(llvm.ErrCrossContext, op, "operand belongs to another context")
 		}
 	}
 }
@@ -106,32 +106,27 @@ func (b *Builder) pre(op string, vs ...llvm.AnyValue) {
 func (b *Builder) preSameType(op string, l, r llvm.AnyValue) {
 	b.pre(op, l, r)
 	if !l.Dyn().Type().Equal(r.Dyn().Type()) {
-		errPanic(llvm.ErrTypeMismatch, op, "operand types differ: %s vs %s", l.Dyn().Type(), r.Dyn().Type())
+		llvm.Panicf(llvm.ErrTypeMismatch, op, "operand types differ: %s vs %s", l.Dyn().Type(), r.Dyn().Type())
 	}
 }
 
 // preAlign 预检对齐值为 2 的幂
 func preAlign(op string, n uint32) {
 	if n == 0 || n&(n-1) != 0 {
-		errPanic(llvm.ErrInvalidArg, op, "alignment %d is not a power of two", n)
+		llvm.Panicf(llvm.ErrInvalidArg, op, "alignment %d is not a power of two", n)
 	}
-}
-
-// errPanic 转发到 root 包的 panic 构造（保持错误类型统一）
-func errPanic(reason llvm.ErrKind, op, format string, args ...any) {
-	llvm.Panicf(reason, op, format, args...)
 }
 
 // preBlockOwn 预检基本块句柄本身（nil/跨 Context/已释放），不要求 Builder 已定位
 func (b *Builder) preBlockOwn(op string, blk Block) {
 	if blk.ref.IsNil() {
-		errPanic(llvm.ErrInvalidArg, op, "nil block")
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil block")
 	}
 	if blk.ctx != b.ctx {
-		errPanic(llvm.ErrCrossContext, op, "block belongs to another context")
+		llvm.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
 	}
 	if !blk.life.Alive() {
-		errPanic(llvm.ErrUseAfterFree, op, "block is freed")
+		llvm.Panicf(llvm.ErrUseAfterFree, op, "block is freed")
 	}
 }
 

@@ -193,7 +193,7 @@ func (b *Builder) Select[T llvm.Kind](cond llvm.ValueRef[llvm.IntT], x, y llvm.V
 	b.pre(op, cv.Dyn(), xv.Dyn(), yv.Dyn())
 	b.preSameType(op, xv.Dyn(), yv.Dyn())
 	if bits := llvm.AsIntType(cv.Type()).Bits(); bits != 1 {
-		errPanic(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
+		llvm.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
 	}
 	ref := binding.LLVMBuildSelect(b.ref, cv.Ref(), xv.Ref(), yv.Ref(), name)
 	return wrapValue[T](b.ctx, b.inserted.life, ref)

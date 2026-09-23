@@ -56,6 +56,13 @@ func TestMust(t *testing.T) {
 	Must(0, &Error{Reason: ErrNotFound, Op: "llvm.Test", Msg: "missing"})
 }
 
+func TestMustWrapsPlainError(t *testing.T) {
+	err := Catch(func() { Must(0, errors.New("boom")) })
+	if err == nil || err.Reason != ErrInternal {
+		t.Fatalf("plain error should be wrapped as ErrInternal and caught by Catch, got %v", err)
+	}
+}
+
 func TestErrorMessage(t *testing.T) {
 	err := &Error{Reason: ErrTypeMismatch, Op: "llvm.Builder.Add", Msg: "operand kinds differ"}
 	want := "llvm.Builder.Add: operand kinds differ"

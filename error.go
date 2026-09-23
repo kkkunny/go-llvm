@@ -55,10 +55,13 @@ func Catch(fn func()) (err *Error) {
 	return nil
 }
 
-// Must err 非 nil 时 panic(err)，否则返回 v
+// Must err 非 nil 时 panic *Error（非 *Error 会经 WrapError 归一，保证 Catch 可收敛），否则返回 v
 func Must[T any](v T, err error) T {
 	if err != nil {
-		panic(err)
+		if e, ok := err.(*Error); ok {
+			panic(e)
+		}
+		panic(WrapError(ErrInternal, "llvm.Must", err))
 	}
 	return v
 }

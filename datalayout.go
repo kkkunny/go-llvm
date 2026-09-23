@@ -95,14 +95,14 @@ func (d *DataLayout) PointerSizeForAS(addrspace uint32) uint32 {
 // IntPtrType 指针等宽整数类型
 func (d *DataLayout) IntPtrType(ctx *Context) IntType {
 	d.check("llvm.DataLayout.IntPtrType")
-	ctx.checkAlive("llvm.DataLayout.IntPtrType")
+	ctx.CheckAlive("llvm.DataLayout.IntPtrType")
 	return IntType{Type[IntT]{ref: binding.LLVMIntPtrTypeInContext(ctx.ref, d.ref), ctx: ctx}}
 }
 
 // IntPtrTypeForAS 指定地址空间指针等宽整数类型
 func (d *DataLayout) IntPtrTypeForAS(ctx *Context, addrspace uint32) IntType {
 	d.check("llvm.DataLayout.IntPtrTypeForAS")
-	ctx.checkAlive("llvm.DataLayout.IntPtrTypeForAS")
+	ctx.CheckAlive("llvm.DataLayout.IntPtrTypeForAS")
 	return IntType{Type[IntT]{ref: binding.LLVMIntPtrTypeForASInContext(ctx.ref, d.ref, addrspace), ctx: ctx}}
 }
 

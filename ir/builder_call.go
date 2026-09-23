@@ -21,7 +21,7 @@ func (b *Builder) CallIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], sig 
 	pv := fnPtr.AsValue()
 	b.pre(op, pv.Dyn())
 	if sig.Context() != b.ctx {
-		errPanic(llvm.ErrCrossContext, op, "signature belongs to another context")
+		llvm.Panicf(llvm.ErrCrossContext, op, "signature belongs to another context")
 	}
 	ref := b.call(op, pv.Dyn(), sig, args, name)
 	return Call[U]{Value: wrapValue[U](b.ctx, b.inserted.life, ref)}
@@ -32,14 +32,14 @@ func (b *Builder) call(op string, callee llvm.AnyValue, sig llvm.FnType, args []
 	b.pre(op, args...)
 	params := sig.Params()
 	if !sig.IsVarArg() && uint(len(args)) != uint(len(params)) {
-		errPanic(llvm.ErrTypeMismatch, op, "expect %d arguments, got %d", len(params), len(args))
+		llvm.Panicf(llvm.ErrTypeMismatch, op, "expect %d arguments, got %d", len(params), len(args))
 	}
 	if uint(len(args)) < uint(len(params)) {
-		errPanic(llvm.ErrTypeMismatch, op, "expect at least %d arguments, got %d", len(params), len(args))
+		llvm.Panicf(llvm.ErrTypeMismatch, op, "expect at least %d arguments, got %d", len(params), len(args))
 	}
 	for i, p := range params {
 		if !p.Equal(args[i].Dyn().Type()) {
-			errPanic(llvm.ErrTypeMismatch, op, "argument %d type %s does not match parameter type %s", i, args[i].Dyn().Type(), p)
+			llvm.Panicf(llvm.ErrTypeMismatch, op, "argument %d type %s does not match parameter type %s", i, args[i].Dyn().Type(), p)
 		}
 	}
 
@@ -52,7 +52,7 @@ func (b *Builder) PHI[T llvm.Kind](t llvm.TypeRef[T], name string) Phi[T] {
 	tt := t.AsType()
 	b.pre(op)
 	if tt.Context() != b.ctx {
-		errPanic(llvm.ErrCrossContext, op, "type belongs to another context")
+		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildPhi(b.ref, tt.Ref(), name)
 	return Phi[T]{Value: wrapValue[T](b.ctx, b.inserted.life, ref)}
@@ -63,7 +63,7 @@ func (b *Builder) ExtractValue[U llvm.Kind](agg llvm.AnyValue, indices []uint32,
 	const op = "ir.Builder.ExtractValue"
 	b.pre(op, agg)
 	if len(indices) == 0 {
-		errPanic(llvm.ErrInvalidArg, op, "empty index path")
+		llvm.Panicf(llvm.ErrInvalidArg, op, "empty index path")
 	}
 	ref := binding.LLVMBuildExtractValue(b.ref, agg.Ref(), indices[0], name)
 	for _, idx := range indices[1:] {
@@ -78,7 +78,7 @@ func (b *Builder) InsertValue[T llvm.Kind](agg llvm.ValueRef[T], v llvm.AnyValue
 	av := agg.AsValue()
 	b.pre(op, av.Dyn(), v)
 	if len(indices) == 0 {
-		errPanic(llvm.ErrInvalidArg, op, "empty index path")
+		llvm.Panicf(llvm.ErrInvalidArg, op, "empty index path")
 	}
 	ref := binding.LLVMBuildInsertValue(b.ref, av.Ref(), v.Ref(), indices[0], name)
 	for _, idx := range indices[1:] {

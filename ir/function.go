@@ -14,14 +14,23 @@ type Function struct {
 
 // Signature 函数类型
 func (f Function) Signature() llvm.FnType {
+	f.Check("ir.Function.Signature")
 	return llvm.AsFnType(llvm.TypeOfRef(f.Context(), binding.LLVMGetFunctionType(f.Ref())))
 }
 
 // CountParams 参数个数
-func (f Function) CountParams() uint { return uint(binding.LLVMCountParams(f.Ref())) }
+func (f Function) CountParams() uint {
+	f.Check("ir.Function.CountParams")
+	return uint(binding.LLVMCountParams(f.Ref()))
+}
 
 // Param 第 i 个参数（擦除种类）
 func (f Function) Param(i uint) Param {
+	const op = "ir.Function.Param"
+	f.Check(op)
+	if i >= f.CountParams() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "parameter index %d out of range", i)
+	}
 	ref := binding.LLVMGetParam(f.Ref(), uint32(i))
 	return Param{Value: wrapValue[llvm.DynT](f.Context(), f.Lifetime(), ref)}
 }
@@ -33,6 +42,7 @@ func (f Function) ParamAs[U llvm.Kind](i uint) llvm.Value[U] {
 
 // Params 全部参数
 func (f Function) Params() []Param {
+	f.Check("ir.Function.Params")
 	n := f.CountParams()
 	params := make([]Param, n)
 	for i := range params {
@@ -43,12 +53,14 @@ func (f Function) Params() []Param {
 
 // NewBlock 追加基本块
 func (f Function) NewBlock(name string) Block {
+	f.Check("ir.Function.NewBlock")
 	ref := binding.LLVMAppendBasicBlockInContext(f.Context().Ref(), f.Ref(), name)
 	return wrapBlock(f.Context(), f.Lifetime(), ref)
 }
 
 // Blocks 全部基本块
 func (f Function) Blocks() []Block {
+	f.Check("ir.Function.Blocks")
 	refs := binding.LLVMGetBasicBlocks(f.Ref())
 	blocks := make([]Block, len(refs))
 	for i, ref := range refs {
@@ -59,6 +71,7 @@ func (f Function) Blocks() []Block {
 
 // EntryBlock 入口块
 func (f Function) EntryBlock() (Block, bool) {
+	f.Check("ir.Function.EntryBlock")
 	ref := binding.LLVMGetEntryBasicBlock(f.Ref())
 	if ref.IsNil() {
 		return Block{}, false
@@ -67,18 +80,26 @@ func (f Function) EntryBlock() (Block, bool) {
 }
 
 // OnlyDecl 是否只有声明（无基本块）
-func (f Function) OnlyDecl() bool { return binding.LLVMIsDeclaration(f.Ref()) }
+func (f Function) OnlyDecl() bool {
+	f.Check("ir.Function.OnlyDecl")
+	return binding.LLVMIsDeclaration(f.Ref())
+}
 
 // Verify 校验函数
 func (f Function) Verify() bool {
+	f.Check("ir.Function.Verify")
 	return !binding.LLVMVerifyFunction(f.Ref(), binding.LLVMReturnStatusAction)
 }
 
 // Linkage 链接类型
-func (f Function) Linkage() llvm.Linkage { return llvm.Linkage(binding.LLVMGetLinkage(f.Ref())) }
+func (f Function) Linkage() llvm.Linkage {
+	f.Check("ir.Function.Linkage")
+	return llvm.Linkage(binding.LLVMGetLinkage(f.Ref()))
+}
 
 // SetLinkage 设置链接类型
 func (f Function) SetLinkage(l llvm.Linkage) {
+	f.Check("ir.Function.SetLinkage")
 	binding.LLVMSetLinkage(f.Ref(), binding.LLVMLinkage(l))
 }
 
@@ -88,10 +109,16 @@ type Param struct {
 }
 
 // SetAlign 设置参数对齐
-func (p Param) SetAlign(n uint32) { binding.LLVMSetAlignment(p.Ref(), n) }
+func (p Param) SetAlign(n uint32) {
+	const op = "ir.Param.SetAlign"
+	p.Check(op)
+	preAlign(op, n)
+	binding.LLVMSetAlignment(p.Ref(), n)
+}
 
 // Belong 参数所属函数
 func (p Param) Belong() Function {
+	p.Check("ir.Param.Belong")
 	return Function{Value: wrapValue[llvm.FnT](p.Context(), p.Lifetime(), binding.LLVMGetParamParent(p.Ref()))}
 }
 

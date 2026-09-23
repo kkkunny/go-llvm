@@ -69,14 +69,13 @@ func (ctx *Context) Close() error {
 	return nil
 }
 
-// Disown 解除与外部接管方（如 JIT ThreadSafeModule）的所有权：级联关闭未移交的子资源
+// Disown 立即解除与外部接管方（如 JIT ThreadSafeModule）的所有权：级联关闭未移交的子资源
 // （Builder 等），但不释放底层上下文（由接管方释放）；其下所有 Go 侧句柄立即失效。
-// 返回 release 供接管方在释放底层资源时调用（幂等）。
-func (ctx *Context) Disown() func() {
+func (ctx *Context) Disown() {
 	ctx.mu.Lock()
 	if ctx.disowned || !ctx.life.Alive() {
 		ctx.mu.Unlock()
-		return func() {}
+		return
 	}
 	ctx.disowned = true
 	closers := ctx.closers
@@ -86,7 +85,6 @@ func (ctx *Context) Disown() func() {
 		_ = closers[i].c.Close()
 	}
 	ctx.life.Kill()
-	return func() {}
 }
 
 // Ref 返回底层句柄（供 llvm/* 子包桥接使用）
@@ -98,8 +96,8 @@ func (ctx *Context) Lifetime() *Lifetime { return ctx.life }
 // Alive 上下文是否存活
 func (ctx *Context) Alive() bool { return ctx.life.Alive() }
 
-// checkAlive 校验上下文存活；类型/常量/值构造入口统一调用
-func (ctx *Context) checkAlive(op string) {
+// CheckAlive 校验上下文存活；类型/常量/值构造入口统一调用（供 llvm/* 子包使用）
+func (ctx *Context) CheckAlive(op string) {
 	if !ctx.life.Alive() {
 		errPanic(ErrUseAfterFree, op, "context is closed")
 	}

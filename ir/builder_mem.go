@@ -12,12 +12,17 @@ type Alloca struct {
 
 // SetAlign 设置分配对齐
 func (a Alloca) SetAlign(n uint32) {
-	preAlign("ir.Alloca.SetAlign", n)
+	const op = "ir.Alloca.SetAlign"
+	a.Check(op)
+	preAlign(op, n)
 	binding.LLVMSetAlignment(a.Ref(), n)
 }
 
 // Align 分配对齐
-func (a Alloca) Align() uint32 { return binding.LLVMGetAlignment(a.Ref()) }
+func (a Alloca) Align() uint32 {
+	a.Check("ir.Alloca.Align")
+	return binding.LLVMGetAlignment(a.Ref())
+}
 
 // Load 加载指令角色（内嵌 Value[T]）
 type Load[T llvm.Kind] struct {
@@ -26,12 +31,17 @@ type Load[T llvm.Kind] struct {
 
 // SetAlign 设置加载对齐
 func (l Load[T]) SetAlign(n uint32) {
-	preAlign("ir.Load.SetAlign", n)
+	const op = "ir.Load.SetAlign"
+	l.Check(op)
+	preAlign(op, n)
 	binding.LLVMSetAlignment(l.Ref(), n)
 }
 
 // Align 加载对齐
-func (l Load[T]) Align() uint32 { return binding.LLVMGetAlignment(l.Ref()) }
+func (l Load[T]) Align() uint32 {
+	l.Check("ir.Load.Align")
+	return binding.LLVMGetAlignment(l.Ref())
+}
 
 // Store 存储指令角色（内嵌 Value[VoidT]）
 type Store struct {
@@ -40,12 +50,17 @@ type Store struct {
 
 // SetAlign 设置存储对齐
 func (s Store) SetAlign(n uint32) {
-	preAlign("ir.Store.SetAlign", n)
+	const op = "ir.Store.SetAlign"
+	s.Check(op)
+	preAlign(op, n)
 	binding.LLVMSetAlignment(s.Ref(), n)
 }
 
 // Align 存储对齐
-func (s Store) Align() uint32 { return binding.LLVMGetAlignment(s.Ref()) }
+func (s Store) Align() uint32 {
+	s.Check("ir.Store.Align")
+	return binding.LLVMGetAlignment(s.Ref())
+}
 
 // ===== 内存指令 =====
 
@@ -54,10 +69,10 @@ func (b *Builder) Alloca(t llvm.AnyType, name string) Alloca {
 	const op = "ir.Builder.Alloca"
 	b.pre(op)
 	if t == nil {
-		errPanic(llvm.ErrInvalidArg, op, "nil type")
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil type")
 	}
 	if t.Context() != b.ctx {
-		errPanic(llvm.ErrCrossContext, op, "type belongs to another context")
+		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildAlloca(b.ref, t.Ref(), name)
 	return Alloca{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
@@ -69,7 +84,7 @@ func (b *Builder) Load[U llvm.Kind](p llvm.ValueRef[llvm.PtrT], t llvm.TypeRef[U
 	pv, tt := p.AsValue(), t.AsType()
 	b.pre(op, pv.Dyn())
 	if tt.Context() != b.ctx {
-		errPanic(llvm.ErrCrossContext, op, "type belongs to another context")
+		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildLoad(b.ref, tt.Ref(), pv.Ref(), name)
 	return Load[U]{Value: wrapValue[U](b.ctx, b.inserted.life, ref)}
@@ -98,10 +113,10 @@ func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], 
 	pv := p.AsValue()
 	b.pre(op, pv.Dyn())
 	if elem == nil {
-		errPanic(llvm.ErrInvalidArg, op, "nil element type")
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil element type")
 	}
 	if elem.Context() != b.ctx {
-		errPanic(llvm.ErrCrossContext, op, "element type belongs to another context")
+		llvm.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
 	}
 	refs := make([]binding.LLVMValueRef, len(idx))
 	for i, x := range idx {
@@ -157,7 +172,7 @@ func (b *Builder) Malloc(t llvm.AnyType, name string) Call[llvm.PtrT] {
 	const op = "ir.Builder.Malloc"
 	b.pre(op)
 	if t == nil || t.Context() != b.ctx {
-		errPanic(llvm.ErrInvalidArg, op, "invalid type")
+		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid type")
 	}
 	ref := binding.LLVMBuildMalloc(b.ref, t.Ref(), name)
 	return Call[llvm.PtrT]{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
@@ -169,7 +184,7 @@ func (b *Builder) MallocArray(elem llvm.AnyType, n llvm.ValueRef[llvm.IntT], nam
 	nv := n.AsValue()
 	b.pre(op, nv.Dyn())
 	if elem == nil || elem.Context() != b.ctx {
-		errPanic(llvm.ErrInvalidArg, op, "invalid type")
+		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid type")
 	}
 	ref := binding.LLVMBuildArrayMalloc(b.ref, elem.Ref(), nv.Ref(), name)
 	return Call[llvm.PtrT]{Value: wrapValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}

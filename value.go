@@ -56,8 +56,9 @@ func (v Value[T]) Lifetime() *Lifetime { return v.life }
 // IsNil 是否为空句柄
 func (v Value[T]) IsNil() bool { return v.ref.IsNil() }
 
-// check 值操作前置校验：句柄非零值且 Context/生命周期均存活
-func (v Value[T]) check(op string) {
+// Check 值操作前置校验：句柄非零值且 Context/生命周期均存活。
+// 供 llvm/* 子包的值角色方法统一调用（角色经内嵌 Value[T] 自动继承）。
+func (v Value[T]) Check(op string) {
 	if v.ref.IsNil() {
 		errPanic(ErrInvalidArg, op, "nil value handle")
 	}
@@ -74,37 +75,37 @@ func (v Value[T]) String() string {
 	if v.ref.IsNil() {
 		return "<nil>"
 	}
-	v.check("llvm.Value.String")
+	v.Check("llvm.Value.String")
 	return binding.LLVMPrintValueToString(v.ref)
 }
 
 // Name 值名称
 func (v Value[T]) Name() string {
-	v.check("llvm.Value.Name")
+	v.Check("llvm.Value.Name")
 	return binding.LLVMGetValueName(v.ref)
 }
 
 // SetName 设置值名称
 func (v Value[T]) SetName(name string) {
-	v.check("llvm.Value.SetName")
+	v.Check("llvm.Value.SetName")
 	binding.LLVMSetValueName(v.ref, name)
 }
 
 // IsConstant 是否常量
 func (v Value[T]) IsConstant() bool {
-	v.check("llvm.Value.IsConstant")
+	v.Check("llvm.Value.IsConstant")
 	return binding.LLVMIsConstant(v.ref)
 }
 
 // Type 值的类型（依赖类型：T 与值种类一致）
 func (v Value[T]) Type() Type[T] {
-	v.check("llvm.Value.Type")
+	v.Check("llvm.Value.Type")
 	return Type[T]{ref: binding.LLVMTypeOf(v.ref), ctx: v.ctx}
 }
 
 // As 运行时校验种类后转换类型参数；目标是 DynT 时始终成功
 func (v Value[T]) As[U Kind]() (Value[U], error) {
-	v.check("llvm.Value.As")
+	v.Check("llvm.Value.As")
 	if !kindMatches[U](binding.LLVMTypeOf(v.ref)) {
 		return Value[U]{}, &Error{
 			Reason: ErrTypeMismatch,

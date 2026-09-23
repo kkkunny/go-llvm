@@ -74,16 +74,6 @@ func (m *TargetMachine) check(op string) {
 	}
 }
 
-// checkModule 前置校验模块可用
-func checkModule(op string, mod *ir.Module) {
-	if mod == nil || mod.Ref().IsNil() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil module")
-	}
-	if !mod.Lifetime().Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "module is closed")
-	}
-}
-
 // Close 释放目标机器；二次调用返回 ErrClosed
 func (m *TargetMachine) Close() error {
 	if m.closed {
@@ -134,7 +124,7 @@ func (m *TargetMachine) SetAsmVerbosity(verbose bool) {
 func (m *TargetMachine) SetTo(mod *ir.Module) {
 	const op = "target.TargetMachine.SetTo"
 	m.check(op)
-	checkModule(op, mod)
+	mod.Check(op)
 	mod.SetTargetTriple(m.Triple())
 	dl := m.DataLayout()
 	defer dl.Close()
@@ -145,7 +135,7 @@ func (m *TargetMachine) SetTo(mod *ir.Module) {
 func (m *TargetMachine) EmitToFile(mod *ir.Module, path string, ft FileType) error {
 	const op = "target.TargetMachine.EmitToFile"
 	m.check(op)
-	checkModule(op, mod)
+	mod.Check(op)
 	if err := binding.LLVMTargetMachineEmitToFile(m.ref, mod.Ref(), path, binding.LLVMCodeGenFileType(ft)); err != nil {
 		return llvm.WrapError(llvm.ErrCodeGen, op, err)
 	}
@@ -156,7 +146,7 @@ func (m *TargetMachine) EmitToFile(mod *ir.Module, path string, ft FileType) err
 func (m *TargetMachine) Emit(mod *ir.Module, ft FileType) (*llvm.MemoryBuffer, error) {
 	const op = "target.TargetMachine.Emit"
 	m.check(op)
-	checkModule(op, mod)
+	mod.Check(op)
 	buf, err := binding.LLVMTargetMachineEmitToMemoryBuffer(m.ref, mod.Ref(), binding.LLVMCodeGenFileType(ft))
 	if err != nil {
 		return nil, llvm.WrapError(llvm.ErrCodeGen, op, err)
