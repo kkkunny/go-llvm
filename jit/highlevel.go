@@ -2,12 +2,16 @@ package jit
 
 import (
 	"reflect"
+	"sync"
 	"unsafe"
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/ir"
 )
+
+// slotsPool 复用桥调用的槽位数组，避免每次 Go→JIT 调用都堆分配 128B
+var slotsPool = sync.Pool{New: func() any { return new([binding.BridgeMaxSlots]uint64) }}
 
 // Func 按名字取出 JIT 函数并包装为真实 Go 函数值（reflect.MakeFunc）。
 // 调用闭包把实参装箱到固定槽位，经 C 桥调用按签名缓存的 IR 适配器。
@@ -29,11 +33,16 @@ func (j *LLJIT) Func[F any](name string) (F, error) {
 	}
 
 	fn := reflect.MakeFunc(ft, func(args []reflect.Value) []reflect.Value {
-		slots := make([]uint64, binding.BridgeMaxSlots)
+		sp := slotsPool.Get().(*[binding.BridgeMaxSlots]uint64)
+		slots := sp[:]
 		for i, a := range args {
 			slots[i] = boxValue(a)
 		}
 		raw := binding.BridgeCall(e.adapter, addr, slots)
+		for i := range slots {
+			slots[i] = 0
+		}
+		slotsPool.Put(sp)
 		if ft.NumOut() == 0 {
 			return nil
 		}
@@ -142,10 +151,10 @@ func (j *LLJIT) RunMain(args []string) (int32, error) {
 
 	argv := binding.NewCStringArray(args)
 	defer argv.Free()
-	slots := make([]uint64, binding.BridgeMaxSlots)
+	var slots [binding.BridgeMaxSlots]uint64
 	slots[0] = uint64(len(args))
 	slots[1] = uint64(uintptr(unsafe.Pointer(argv.Ptr())))
 	slots[2] = 0
-	raw := binding.BridgeCall(e.adapter, addr, slots)
+	raw := binding.BridgeCall(e.adapter, addr, slots[:])
 	return int32(raw), nil
 }
