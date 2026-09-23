@@ -14,6 +14,7 @@ var (
 	_ llvm.ValueRef[llvm.PtrT]  = Global{}
 	_ llvm.ValueRef[llvm.FnT]   = Function{}
 	_ llvm.ValueRef[llvm.DynT]  = Param{}
+	_ llvm.ValueRef[llvm.IntT]  = Invoke[llvm.IntT]{}
 	_ llvm.AnyValue             = Alloca{}
 	_ llvm.AnyValue             = Load[llvm.IntT]{}
 	_ llvm.AnyValue             = Store{}
@@ -23,4 +24,5 @@ var (
 	_ llvm.AnyValue             = Global{}
 	_ llvm.AnyValue             = Function{}
 	_ llvm.AnyValue             = Param{}
+	_ llvm.AnyValue             = Invoke[llvm.IntT]{}
 )

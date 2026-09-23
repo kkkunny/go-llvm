@@ -32,6 +32,12 @@ func (b *Builder) CallIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], sig 
 // call 调用公共路径：实参预检 + 参数个数/类型校验后发指令（callee 已由调用方校验）
 func (b *Builder) call(op string, callee binding.LLVMValueRef, sig llvm.FnType, args []llvm.AnyValue, name string) binding.LLVMValueRef {
 	b.pre(op)
+	b.checkCallArgs(op, sig, args)
+	return binding.LLVMBuildCall(b.ref, sig.Ref(), callee, b.valueRefs(args), name)
+}
+
+// checkCallArgs 调用类指令（call/invoke）公共实参预检：个数/类型与签名匹配
+func (b *Builder) checkCallArgs(op string, sig llvm.FnType, args []llvm.AnyValue) {
 	for _, a := range args {
 		b.checkVal(op, coreAny(a))
 	}
@@ -52,7 +58,6 @@ func (b *Builder) call(op string, callee binding.LLVMValueRef, sig llvm.FnType, 
 			}
 		}
 	}
-	return binding.LLVMBuildCall(b.ref, sig.Ref(), callee, b.valueRefs(args), name)
 }
 
 // checkKind 校验底层类型句柄与种类参数 U 匹配；不符 panic
