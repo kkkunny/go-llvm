@@ -10,7 +10,7 @@ import (
 	"github.com/kkkunny/go-llvm/target"
 )
 
-func newJIT(t *testing.T) *LLJIT {
+func newJIT(t testing.TB) *LLJIT {
 	t.Helper()
 	if err := target.InitNative(); err != nil {
 		t.Fatal(err)
@@ -22,7 +22,7 @@ func newJIT(t *testing.T) *LLJIT {
 	return j
 }
 
-func retModule(t *testing.T, name string, v int64) (*llvm.Context, *ir.Module) {
+func retModule(t testing.TB, name string, v int64) (*llvm.Context, *ir.Module) {
 	t.Helper()
 	ctx := llvm.NewContext()
 	m := ir.NewModule(ctx, name)
@@ -162,7 +162,7 @@ func TestLLJITConcurrentFunc(t *testing.T) {
 	wg.Wait()
 }
 
-func mustNativeTarget(t *testing.T) target.Target {
+func mustNativeTarget(t testing.TB) target.Target {
 	t.Helper()
 	native, err := target.NativeTarget()
 	if err != nil {
