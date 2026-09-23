@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"iter"
+
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
@@ -44,7 +46,7 @@ func (b Block) Belong() Function {
 	return Function{Value: llvm.NewValue[llvm.FnT](b.ctx, b.life, binding.LLVMGetBasicBlockParent(b.ref))}
 }
 
-// Insts 全部指令（擦除种类）
+// Insts 全部指令（擦除种类）；需要零分配遍历时用 AllInsts
 func (b Block) Insts() []llvm.Value[llvm.DynT] {
 	b.Check("ir.Block.Insts")
 	var insts []llvm.Value[llvm.DynT]
@@ -52,6 +54,18 @@ func (b Block) Insts() []llvm.Value[llvm.DynT] {
 		insts = append(insts, llvm.ValueOf(b.ctx, b.life, ref))
 	}
 	return insts
+}
+
+// AllInsts 惰性遍历全部指令（range 友好，无切片分配）
+func (b Block) AllInsts() iter.Seq[llvm.Value[llvm.DynT]] {
+	return func(yield func(llvm.Value[llvm.DynT]) bool) {
+		b.Check("ir.Block.AllInsts")
+		for ref := binding.LLVMGetFirstInstruction(b.ref); !ref.IsNil(); ref = binding.LLVMGetNextInstruction(ref) {
+			if !yield(llvm.ValueOf(b.ctx, b.life, ref)) {
+				return
+			}
+		}
+	}
 }
 
 // FirstInst 第一条指令

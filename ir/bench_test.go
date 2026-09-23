@@ -43,6 +43,32 @@ func BenchmarkBuilderCall(b *testing.B) {
 	}
 }
 
+func BenchmarkBlockAllInsts(b *testing.B) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "bench_allinsts")
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{i32, i32}, false))
+	blk := fn.NewBlock("entry")
+	bld := NewBuilder(ctx)
+	defer bld.Close()
+	bld.MoveToEnd(blk)
+	x, y := fn.ParamAs[llvm.IntT](0), fn.ParamAs[llvm.IntT](1)
+	for i := 0; i < 64; i++ {
+		bld.Add(x, y, "")
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		n := 0
+		for range blk.AllInsts() {
+			n++
+		}
+		if n != 64 {
+			b.Fatalf("unexpected instruction count: %d", n)
+		}
+	}
+}
+
 func BenchmarkBlockInsts(b *testing.B) {
 	ctx := llvm.NewContext()
 	defer ctx.Close()

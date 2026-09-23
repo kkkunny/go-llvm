@@ -2,6 +2,7 @@ package llvm
 
 import (
 	"io"
+	"reflect"
 	"sync"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
@@ -15,6 +16,10 @@ type Context struct {
 	nextID   uint64
 	closers  []owned
 	disowned bool
+
+	cacheMu   sync.Mutex
+	typeCache map[reflect.Type]AnyType // Go 类型 → LLVM 类型映射缓存
+	fnCache   map[reflect.Type]FnType  // Go 函数签名 → LLVM 函数类型缓存
 }
 
 // owned 登记项；id 用于注销时精确定位，避免依赖接口值的可比性
@@ -102,4 +107,42 @@ func (ctx *Context) CheckAlive(op string) {
 	if !ctx.life.Alive() {
 		errPanic(ErrUseAfterFree, op, "context is closed")
 	}
+}
+
+// ===== Go 类型映射缓存（per-Context，随 Context 释放） =====
+
+// lookupGoType 查询 Go 类型映射缓存
+func (ctx *Context) lookupGoType(t reflect.Type) (AnyType, bool) {
+	ctx.cacheMu.Lock()
+	defer ctx.cacheMu.Unlock()
+	ty, ok := ctx.typeCache[t]
+	return ty, ok
+}
+
+// storeGoType 写入 Go 类型映射缓存
+func (ctx *Context) storeGoType(t reflect.Type, ty AnyType) {
+	ctx.cacheMu.Lock()
+	defer ctx.cacheMu.Unlock()
+	if ctx.typeCache == nil {
+		ctx.typeCache = make(map[reflect.Type]AnyType)
+	}
+	ctx.typeCache[t] = ty
+}
+
+// lookupFnSig 查询 Go 函数签名映射缓存
+func (ctx *Context) lookupFnSig(t reflect.Type) (FnType, bool) {
+	ctx.cacheMu.Lock()
+	defer ctx.cacheMu.Unlock()
+	sig, ok := ctx.fnCache[t]
+	return sig, ok
+}
+
+// storeFnSig 写入 Go 函数签名映射缓存
+func (ctx *Context) storeFnSig(t reflect.Type, sig FnType) {
+	ctx.cacheMu.Lock()
+	defer ctx.cacheMu.Unlock()
+	if ctx.fnCache == nil {
+		ctx.fnCache = make(map[reflect.Type]FnType)
+	}
+	ctx.fnCache[t] = sig
 }

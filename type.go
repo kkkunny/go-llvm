@@ -1,6 +1,8 @@
 package llvm
 
 import (
+	"iter"
+
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
@@ -209,7 +211,7 @@ func (t StructType) Name() string {
 	return binding.LLVMGetStructName(t.ref)
 }
 
-// Elems 结构体元素类型
+// Elems 结构体元素类型；需要零分配遍历时用 AllElems
 func (t StructType) Elems() []AnyType {
 	t.Check("llvm.StructType.Elems")
 	refs := binding.LLVMGetStructElementTypes(t.ref)
@@ -218,6 +220,19 @@ func (t StructType) Elems() []AnyType {
 		elems[i] = TypeOfRef(t.ctx, ref)
 	}
 	return elems
+}
+
+// AllElems 惰性遍历结构体元素类型（range 友好，无切片分配）
+func (t StructType) AllElems() iter.Seq[AnyType] {
+	return func(yield func(AnyType) bool) {
+		t.Check("llvm.StructType.AllElems")
+		n := binding.LLVMCountStructElementTypes(t.ref)
+		for i := uint32(0); i < n; i++ {
+			if !yield(TypeOfRef(t.ctx, binding.LLVMStructGetTypeAtIndex(t.ref, i))) {
+				return
+			}
+		}
+	}
 }
 
 // Elem 第 i 个结构体元素类型

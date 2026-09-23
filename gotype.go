@@ -17,6 +17,7 @@ func TypeOf[T any](ctx *Context) (Type[DynT], error) {
 
 // TypeOfGo TypeOf 的 reflect.Type 版本
 func TypeOfGo(ctx *Context, t reflect.Type) (Type[DynT], error) {
+	ctx.CheckAlive("llvm.TypeOfGo")
 	ty, err := typeOfGo(ctx, t)
 	if err != nil {
 		return Type[DynT]{}, err
@@ -24,7 +25,21 @@ func TypeOfGo(ctx *Context, t reflect.Type) (Type[DynT], error) {
 	return ty.DynType(), nil
 }
 
+// typeOfGo 映射 Go 类型并写入 Context 级缓存；递归调用同样走缓存
 func typeOfGo(ctx *Context, t reflect.Type) (AnyType, error) {
+	ctx.CheckAlive("llvm.TypeOfGo")
+	if ty, ok := ctx.lookupGoType(t); ok {
+		return ty, nil
+	}
+	ty, err := typeOfGoUncached(ctx, t)
+	if err != nil {
+		return nil, err
+	}
+	ctx.storeGoType(t, ty)
+	return ty, nil
+}
+
+func typeOfGoUncached(ctx *Context, t reflect.Type) (AnyType, error) {
 	switch t.Kind() {
 	case reflect.Bool:
 		return ctx.Bool(), nil
@@ -103,6 +118,7 @@ func ConstOf[T any](ctx *Context, v T) (Value[DynT], error) {
 
 // ConstOfGo ConstOf 的 reflect.Value 版本
 func ConstOfGo(ctx *Context, v reflect.Value) (Value[DynT], error) {
+	ctx.CheckAlive("llvm.ConstOfGo")
 	c, err := constOfGo(ctx, v)
 	if err != nil {
 		return Value[DynT]{}, err
@@ -183,6 +199,10 @@ func FnSignatureOf[F any](ctx *Context) (FnType, reflect.Type, error) {
 
 // FnSignatureOfGo FnSignatureOf 的 reflect.Type 版本
 func FnSignatureOfGo(ctx *Context, ft reflect.Type) (FnType, reflect.Type, error) {
+	ctx.CheckAlive("llvm.FnSignatureOf")
+	if sig, ok := ctx.lookupFnSig(ft); ok {
+		return sig, ft, nil
+	}
 	if ft.Kind() != reflect.Func {
 		return FnType{}, nil, &Error{Reason: ErrUnsupported, Op: "llvm.FnSignatureOf", Msg: "not a function type: " + ft.String()}
 	}
@@ -209,5 +229,7 @@ func FnSignatureOfGo(ctx *Context, ft reflect.Type) (FnType, reflect.Type, error
 		}
 		params[i] = p
 	}
-	return ctx.Fn(ret, params, false), ft, nil
+	sig := ctx.Fn(ret, params, false)
+	ctx.storeFnSig(ft, sig)
+	return sig, ft, nil
 }

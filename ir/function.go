@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"iter"
 	"reflect"
 
 	"github.com/kkkunny/go-llvm"
@@ -58,7 +59,7 @@ func (f Function) NewBlock(name string) Block {
 	return wrapBlock(f.Context(), f.Lifetime(), ref)
 }
 
-// Blocks 全部基本块
+// Blocks 全部基本块；需要零分配遍历时用 AllBlocks
 func (f Function) Blocks() []Block {
 	f.Check("ir.Function.Blocks")
 	refs := binding.LLVMGetBasicBlocks(f.Ref())
@@ -67,6 +68,31 @@ func (f Function) Blocks() []Block {
 		blocks[i] = wrapBlock(f.Context(), f.Lifetime(), ref)
 	}
 	return blocks
+}
+
+// AllBlocks 惰性遍历全部基本块（range 友好，无切片分配）
+func (f Function) AllBlocks() iter.Seq[Block] {
+	return func(yield func(Block) bool) {
+		f.Check("ir.Function.AllBlocks")
+		for ref := binding.LLVMGetFirstBasicBlock(f.Ref()); !ref.IsNil(); ref = binding.LLVMGetNextBasicBlock(ref) {
+			if !yield(wrapBlock(f.Context(), f.Lifetime(), ref)) {
+				return
+			}
+		}
+	}
+}
+
+// AllParams 惰性遍历全部参数（range 友好，无切片分配）
+func (f Function) AllParams() iter.Seq[Param] {
+	return func(yield func(Param) bool) {
+		f.Check("ir.Function.AllParams")
+		n := f.CountParams()
+		for i := uint(0); i < n; i++ {
+			if !yield(f.Param(i)) {
+				return
+			}
+		}
+	}
 }
 
 // EntryBlock 入口块
