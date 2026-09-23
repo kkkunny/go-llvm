@@ -61,9 +61,9 @@ func TestBuilderGEPGolden(t *testing.T) {
 	b.MoveToEnd(fn.NewBlock("entry"))
 
 	p := fn.ParamAs[llvm.PtrT](0)
-	idx := []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i64, 0, false), ctx.ConstInt(i64, 1, false)}
+	idx := []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i64, 0), ctx.ConstInt(i64, 1)}
 	elem := b.GEP(arrTy, p, idx, "elem")
-	b.InBoundsGEP(i32, elem, []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i64, 0, false)}, "inner")
+	b.InBoundsGEP(i32, elem, []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i64, 0)}, "inner")
 	b.RetVoid()
 
 	got := m.String()
@@ -152,7 +152,7 @@ func TestBuilderMemIntrinsics(t *testing.T) {
 	src := fn.ParamAs[llvm.PtrT](1)
 	n := fn.ParamAs[llvm.IntT](2)
 
-	b.MemSet(dst, ctx.ConstInt(i8, 0, false), n, 4)
+	b.MemSet(dst, ctx.ConstInt(i8, 0), n, 4)
 	b.MemCpy(dst, 4, src, 4, n)
 	b.MemMove(dst, 8, src, 8, n)
 	b.RetVoid()
@@ -207,7 +207,7 @@ func TestBuilderAlignPrecheck(t *testing.T) {
 	}
 
 	err = llvm.Catch(func() {
-		b.MemCpy(ctx.Ptr(0).Zero(), 3, ctx.Ptr(0).Zero(), 4, ctx.ConstInt(ctx.Int(64), 1, false).Value)
+		b.MemCpy(ctx.Ptr(0).Zero(), 3, ctx.Ptr(0).Zero(), 4, ctx.ConstInt(ctx.Int(64), 1).Value)
 	})
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("non-power-of-two dst align should panic ErrInvalidArg, got %v", err)

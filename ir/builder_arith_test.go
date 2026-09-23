@@ -152,14 +152,14 @@ func TestBuilderTypeMismatch(t *testing.T) {
 	defer b.Close()
 
 	i32 := fn.ParamAs[llvm.IntT](0)
-	i64 := ctx.ConstInt(ctx.Int(64), 1, false).Value
+	i64 := ctx.ConstInt(ctx.Int(64), 1).Value
 
 	err := llvm.Catch(func() { b.Add(i32, i64, "bad") })
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("mixed widths should panic ErrTypeMismatch, got %v", err)
 	}
 
-	err = llvm.Catch(func() { b.Select(ctx.ConstInt(ctx.Int(32), 1, false), i32, i32, "bad") })
+	err = llvm.Catch(func() { b.Select(ctx.ConstInt(ctx.Int(32), 1), i32, i32, "bad") })
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("non-i1 select condition should panic, got %v", err)
 	}

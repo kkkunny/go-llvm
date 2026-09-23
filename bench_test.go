@@ -8,7 +8,7 @@ func BenchmarkConstArray(b *testing.B) {
 	i32 := ctx.Int(32)
 	elems := make([]AnyValue, 8)
 	for i := range elems {
-		elems[i] = ctx.ConstInt(i32, uint64(i), false)
+		elems[i] = ctx.ConstInt(i32, uint64(i))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

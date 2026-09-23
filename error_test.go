@@ -56,6 +56,20 @@ func TestMust(t *testing.T) {
 	Must(0, &Error{Reason: ErrNotFound, Op: "llvm.Test", Msg: "missing"})
 }
 
+func TestTry(t *testing.T) {
+	v, err := Try(func() int { return 42 })
+	if v != 42 || err != nil {
+		t.Fatalf("Try = %d, %v", v, err)
+	}
+	v, err = Try(func() int {
+		errPanic(ErrInvalidArg, "llvm.Test", "bad")
+		return 0
+	})
+	if err == nil || err.Reason != ErrInvalidArg || v != 0 {
+		t.Fatalf("Try = %d, %v", v, err)
+	}
+}
+
 func TestMustWrapsPlainError(t *testing.T) {
 	err := Catch(func() { Must(0, errors.New("boom")) })
 	if err == nil || err.Reason != ErrInternal {

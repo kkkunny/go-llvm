@@ -13,7 +13,7 @@ func TestUseAfterModuleClose(t *testing.T) {
 	defer ctx.Close()
 	m := NewModule(ctx, "dead")
 	i32 := ctx.Int(32)
-	one := ctx.ConstInt(i32, 1, false)
+	one := ctx.ConstInt(i32, 1)
 
 	fnTy := ctx.Fn(i32, []llvm.AnyType{i32}, false)
 	fn := m.NewFunction("f", fnTy)

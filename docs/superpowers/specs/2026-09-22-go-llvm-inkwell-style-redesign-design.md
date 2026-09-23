@@ -257,4 +257,7 @@ P0/P1 落地时对设计稿的偏离，以实现为准：
 | §4.5 `Module.NewFunc[F]` 返回 `Func[F]` | 类型更名 `ir.GoFunc[F]`（避免与 `jit.Func[F]` 同名不同义）；`Module.NewGlobalConst`（原 `NewConstant`）；`TargetMachine.ApplyTo`（原 `SetTo`） |
 | 校验仅在构造/操作入口隐式进行 | `Value.Check`/`Type.Check`/`Context.CheckAlive`/`CheckType`/`CheckTypes`/`CheckValues` 导出供子包复用；`ir` 角色方法与 `Module.Check`/`Block.Check` 每次操作前显式校验，并有表驱动用后即焚测试 |
 | 未定义并发策略 | 见 AGENTS「Core conventions」并发条目：Context/Lifetime/LLJIT 适配器缓存/bridge 注册表受锁保护，其余句柄单 goroutine |
+| §4.3 `Catch(fn func()) *Error` | 另有 `Try[T]` 返回值版本；常量拆为 `ConstInt`（无符号截断）/`ConstSInt`（符号扩展），并提供 `IntType.Const/ConstS`、`FloatType.Const` 类型导向糖 |
+| §4.2 未规定遍历方式 | 新增 `iter.Seq` 惰性遍历（`Block.AllInsts`/`Function.AllBlocks`/`AllParams`/`StructType.AllElems`），切片版保留 |
+| 未规定性能基线 | 预检去装箱（`preVal`/scratch）、Context 级 Go 类型映射缓存、JIT 桥槽位池化；基准见 `bench_test.go`/`ir/bench_test.go`/`jit/bench_test.go` |
 

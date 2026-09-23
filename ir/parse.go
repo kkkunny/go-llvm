@@ -44,3 +44,17 @@ func ParseBitcode(ctx *llvm.Context, buf *llvm.MemoryBuffer) (*Module, error) {
 	}
 	return newModule(ctx, ref), nil
 }
+
+// ParseIRString 从 IR 文本解析模块（便捷入口：内部创建并释放内存缓冲）
+func ParseIRString(ctx *llvm.Context, s string) (*Module, error) {
+	buf := llvm.NewMemoryBuffer([]byte(s), "<ir>")
+	defer buf.Close()
+	return ParseIR(ctx, buf)
+}
+
+// ParseBitcodeBytes 从 bitcode 字节解析模块（便捷入口：内部创建并释放内存缓冲）
+func ParseBitcodeBytes(ctx *llvm.Context, data []byte) (*Module, error) {
+	buf := llvm.NewMemoryBuffer(data, "<bitcode>")
+	defer buf.Close()
+	return ParseBitcode(ctx, buf)
+}

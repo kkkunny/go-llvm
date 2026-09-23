@@ -120,7 +120,7 @@ func TestLLJITRunMain(t *testing.T) {
 	b := ir.NewBuilder(ctx)
 	b.MoveToEnd(fn.NewBlock("entry"))
 	argc := fn.ParamAs[llvm.IntT](0)
-	b.Ret(b.Add(argc, ctx.ConstInt(i32, 3, false), ""))
+	b.Ret(b.Add(argc, ctx.ConstInt(i32, 3), ""))
 	if err := b.Close(); err != nil {
 		t.Fatal(err)
 	}

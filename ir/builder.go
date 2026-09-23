@@ -13,6 +13,7 @@ type Builder struct {
 	unown    func()
 	closed   bool
 	refs     []binding.LLVMValueRef // 句柄转换 scratch（单 goroutine 使用）
+	i8       llvm.IntType           // 惰性缓存的 i8 类型
 }
 
 // NewBuilder 创建构建器并登记到 Context 生命周期
@@ -23,6 +24,22 @@ func NewBuilder(ctx *llvm.Context) *Builder {
 	b := &Builder{ref: binding.LLVMCreateBuilderInContext(ctx.Ref()), ctx: ctx}
 	b.unown = ctx.Own(b)
 	return b
+}
+
+// NewBuilderAt 创建构建器并把插入点定位到 blk 末尾
+func NewBuilderAt(blk Block) *Builder {
+	blk.Check("ir.NewBuilderAt")
+	b := NewBuilder(blk.ctx)
+	b.MoveToEnd(blk)
+	return b
+}
+
+// i8Type 惰性缓存的 i8 类型（PtrAdd 等使用）
+func (b *Builder) i8Type() llvm.IntType {
+	if b.i8.IsNil() {
+		b.i8 = b.ctx.Int(8)
+	}
+	return b.i8
 }
 
 // Close 释放构建器；二次调用返回 ErrClosed

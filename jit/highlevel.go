@@ -114,11 +114,11 @@ func (j *LLJIT) compileWrapper(name string, ft reflect.Type, idx int64) error {
 	slots := b.Alloca(slotArr, "").Value
 	for i, k := range params {
 		raw := packSlot(b, ctx, fn.Param(uint(i)).Dyn(), i64, k)
-		dst := b.GEP(slotArr, slots, []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i64, 0, false), ctx.ConstInt(i64, uint64(i), false)}, "")
+		dst := b.GEP(slotArr, slots, []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i64, 0), ctx.ConstInt(i64, uint64(i))}, "")
 		b.Store(raw, dst)
 	}
 
-	res := b.Call[llvm.IntT](channel.Value, []llvm.AnyValue{ctx.ConstInt(i64, uint64(idx), false), slots}, "").Value
+	res := b.Call[llvm.IntT](channel.Value, []llvm.AnyValue{ctx.ConstInt(i64, uint64(idx)), slots}, "").Value
 	if ret == slotUnsupported {
 		b.RetVoid()
 	} else {

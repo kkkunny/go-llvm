@@ -64,14 +64,14 @@ func TestBuilderCallChecks(t *testing.T) {
 
 	add, _ := m.GetFunction("add")
 	err := llvm.Catch(func() {
-		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i32, 1, false)}, "tooFew")
+		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i32, 1)}, "tooFew")
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("arity mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 
 	err = llvm.Catch(func() {
-		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i64, 1, false), ctx.ConstInt(i32, 2, false)}, "badType")
+		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i64, 1), ctx.ConstInt(i32, 2)}, "badType")
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("arg type mismatch should panic ErrTypeMismatch, got %v", err)
@@ -92,7 +92,7 @@ func TestBuilderCallVoid(t *testing.T) {
 	b.MoveToEnd(fn.NewBlock("entry"))
 
 	sink, _ := m.GetFunction("sink")
-	b.Call[llvm.VoidT](sink, []llvm.AnyValue{ctx.ConstInt(i32, 7, false)}, "")
+	b.Call[llvm.VoidT](sink, []llvm.AnyValue{ctx.ConstInt(i32, 7)}, "")
 	b.RetVoid()
 
 	if got := m.String(); !strings.Contains(got, "call void @sink(i32 7)") {
@@ -122,7 +122,7 @@ func TestBuilderPHI(t *testing.T) {
 	phi := b.PHI(i32, "p")
 	phi.AddIncoming(
 		Incoming[llvm.IntT]{Value: fn.ParamAs[llvm.IntT](0), Block: entry},
-		Incoming[llvm.IntT]{Value: ctx.ConstInt(i32, 1, false).Value, Block: loop},
+		Incoming[llvm.IntT]{Value: ctx.ConstInt(i32, 1).Value, Block: loop},
 	)
 	b.Br(exit)
 
@@ -144,7 +144,7 @@ func TestBuilderPHI(t *testing.T) {
 	}
 
 	err := llvm.Catch(func() {
-		phi.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(ctx.Int(64), 1, false).Value, Block: entry})
+		phi.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(ctx.Int(64), 1).Value, Block: entry})
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("phi type mismatch should panic ErrTypeMismatch, got %v", err)
@@ -167,7 +167,7 @@ func TestBuilderKindChecks(t *testing.T) {
 
 	add, _ := m.GetFunction("add")
 	agg := fn.ParamAs[llvm.StructT](0)
-	args := []llvm.AnyValue{ctx.ConstInt(i32, 1, false), ctx.ConstInt(i32, 2, false)}
+	args := []llvm.AnyValue{ctx.ConstInt(i32, 1), ctx.ConstInt(i32, 2)}
 
 	err := llvm.Catch(func() { b.Call[llvm.FloatT](add, args, "") })
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
@@ -191,7 +191,7 @@ func TestBuilderKindChecks(t *testing.T) {
 		t.Fatalf("out-of-range index should panic ErrInvalidArg, got %v", err)
 	}
 
-	err = llvm.Catch(func() { b.ExtractValue[llvm.IntT](ctx.ConstInt(i32, 1, false), []uint32{0}, "") })
+	err = llvm.Catch(func() { b.ExtractValue[llvm.IntT](ctx.ConstInt(i32, 1), []uint32{0}, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("indexing scalar should panic ErrInvalidArg, got %v", err)
 	}

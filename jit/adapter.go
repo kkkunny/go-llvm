@@ -157,7 +157,7 @@ func (j *LLJIT) compileAdapter(ft reflect.Type, e *adapterEntry) error {
 
 	args := make([]llvm.AnyValue, len(e.params))
 	for i, k := range e.params {
-		slot := b.GEP(i64, slots, []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i64, uint64(i), false)}, "")
+		slot := b.GEP(i64, slots, []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i64, uint64(i))}, "")
 		raw := b.Load(slot, i64, "").Value
 		args[i] = unpackSlot(b, ctx, raw, sig.Params()[i], k).Dyn()
 	}

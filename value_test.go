@@ -9,7 +9,7 @@ func TestValueTypeAndAs(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
 
-	v := ctx.ConstInt(ctx.Int(32), 42, true)
+	v := ctx.ConstSInt(ctx.Int(32), 42)
 	if got := v.Type().String(); got != "i32" {
 		t.Fatalf("Type() = %q, want i32", got)
 	}
@@ -33,7 +33,7 @@ func TestValueName(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
 
-	v := ctx.ConstInt(ctx.Int(32), 1, true)
+	v := ctx.ConstSInt(ctx.Int(32), 1)
 	if v.Name() != "" {
 		t.Fatalf("constant name should be empty, got %q", v.Name())
 	}
@@ -48,7 +48,7 @@ func TestValueName(t *testing.T) {
 func TestValueAlive(t *testing.T) {
 	ctx := NewContext()
 	life := NewLifetime()
-	v := NewValue[IntT](ctx, life, ctx.ConstInt(ctx.Int(32), 1, true).Ref())
+	v := NewValue[IntT](ctx, life, ctx.ConstSInt(ctx.Int(32), 1).Ref())
 	if !v.Alive() {
 		t.Fatal("value should be alive")
 	}
@@ -67,7 +67,7 @@ func TestValueOfDispatch(t *testing.T) {
 	defer ctx.Close()
 
 	life := NewLifetime()
-	ref := ctx.ConstInt(ctx.Int(32), 7, true).Ref()
+	ref := ctx.ConstSInt(ctx.Int(32), 7).Ref()
 	v := ValueOf(ctx, life, ref)
 	if got := v.Type().String(); got != "i32" {
 		t.Fatalf("ValueOf Type() = %q, want i32", got)

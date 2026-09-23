@@ -51,11 +51,11 @@ func TestGoldenMain(t *testing.T) {
 	b.MoveToEnd(entry)
 
 	// int32 result = add(1, 2); return result == 3 ? 0 : 1
-	one := ctx.ConstInt(i32, 1, false).Value
-	two := ctx.ConstInt(i32, 2, false).Value
+	one := ctx.ConstInt(i32, 1).Value
+	two := ctx.ConstInt(i32, 2).Value
 	sum := b.Add(one, two, "sum")
-	isThree := b.ICmp(llvm.IntEQ, sum, ctx.ConstInt(i32, 3, false).Value, "is_three")
-	ret := b.Select(isThree, ctx.ConstInt(i32, 0, false).Value, ctx.ConstInt(i32, 1, false).Value, "ret")
+	isThree := b.ICmp(llvm.IntEQ, sum, ctx.ConstInt(i32, 3).Value, "is_three")
+	ret := b.Select(isThree, ctx.ConstInt(i32, 0).Value, ctx.ConstInt(i32, 1).Value, "ret")
 	b.Ret(ret)
 
 	if err := m.Verify(); err != nil {
@@ -88,14 +88,14 @@ func TestGoldenLoop(t *testing.T) {
 
 	b.MoveToEnd(entry)
 	acc := b.Alloca(i32, "acc")
-	b.Store(ctx.ConstInt(i32, 0, false).Value, acc)
+	b.Store(ctx.ConstInt(i32, 0).Value, acc)
 	b.Br(loop)
 
 	b.MoveToEnd(loop)
 	i := b.PHI(i32, "i")
 	cur := b.Load(acc, i32, "cur")
-	i.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(i32, 0, false).Value, Block: entry})
-	next := b.Add(i, ctx.ConstInt(i32, 1, false).Value, "next")
+	i.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(i32, 0).Value, Block: entry})
+	next := b.Add(i, ctx.ConstInt(i32, 1).Value, "next")
 	b.Store(next, acc)
 	done := b.ICmp(llvm.IntSGE, next, fn.Function().ParamAs[llvm.IntT](0), "done")
 	b.CondBr(done, exit, loop)

@@ -35,11 +35,26 @@ func (c FloatConst) FloatValue() float64 {
 	return v
 }
 
-// ConstInt 构造整数常量
-func (ctx *Context) ConstInt(t IntType, v uint64, signed bool) IntConst {
+// ConstInt 构造整数常量（值按无符号截断；负数请用 ConstSInt）
+func (ctx *Context) ConstInt(t IntType, v uint64) IntConst {
 	ctx.CheckType("llvm.Context.ConstInt", t)
-	return IntConst{Value[IntT]{ref: binding.LLVMConstInt(t.ref, v, signed), ctx: ctx, life: ctx.life}}
+	return IntConst{Value[IntT]{ref: binding.LLVMConstInt(t.ref, v, false), ctx: ctx, life: ctx.life}}
 }
+
+// ConstSInt 构造有符号整数常量（负数与超宽值按符号扩展）
+func (ctx *Context) ConstSInt(t IntType, v int64) IntConst {
+	ctx.CheckType("llvm.Context.ConstSInt", t)
+	return IntConst{Value[IntT]{ref: binding.LLVMConstInt(t.ref, uint64(v), true), ctx: ctx, life: ctx.life}}
+}
+
+// Const 该类型的整数常量（类型导向糖：i32.Const(5)）
+func (t IntType) Const(v uint64) IntConst { return t.ctx.ConstInt(t, v) }
+
+// ConstS 该类型的有符号整数常量（类型导向糖：i32.ConstS(-1)）
+func (t IntType) ConstS(v int64) IntConst { return t.ctx.ConstSInt(t, v) }
+
+// Const 该类型的浮点常量（类型导向糖：f64.Const(3.14)）
+func (t FloatType) Const(v float64) FloatConst { return t.ctx.ConstFloat(t, v) }
 
 // ConstIntOfString 按进制解析字符串构造整数常量
 func (ctx *Context) ConstIntOfString(t IntType, s string, radix uint8) IntConst {

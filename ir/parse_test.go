@@ -30,7 +30,7 @@ func buildRetModule(t *testing.T, name string) (*llvm.Context, *Module) {
 	fn := m.NewFunction("main", ctx.Fn(i32, nil, false))
 	b := NewBuilder(ctx)
 	b.MoveToEnd(fn.NewBlock("entry"))
-	b.Ret(ctx.ConstInt(i32, 0, false))
+	b.Ret(ctx.ConstInt(i32, 0))
 	if err := b.Close(); err != nil {
 		t.Fatal(err)
 	}

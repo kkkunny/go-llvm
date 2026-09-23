@@ -30,7 +30,7 @@ func retModule(t testing.TB, name string, v int64) (*llvm.Context, *ir.Module) {
 	fn := m.NewFunction("answer", ctx.Fn(i32, nil, false))
 	b := ir.NewBuilder(ctx)
 	b.MoveToEnd(fn.NewBlock("entry"))
-	b.Ret(ctx.ConstInt(i32, uint64(v), false))
+	b.Ret(ctx.ConstInt(i32, uint64(v)))
 	if err := b.Close(); err != nil {
 		t.Fatal(err)
 	}

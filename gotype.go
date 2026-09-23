@@ -138,13 +138,13 @@ func constOfGo(ctx *Context, v reflect.Value) (AnyValue, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ctx.ConstInt(AsIntType(t), uint64(v.Int()), true).Value, nil
+		return ctx.ConstSInt(AsIntType(t), v.Int()).Value, nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		t, err := typeOfGo(ctx, v.Type())
 		if err != nil {
 			return nil, err
 		}
-		return ctx.ConstInt(AsIntType(t), v.Uint(), false).Value, nil
+		return ctx.ConstInt(AsIntType(t), v.Uint()).Value, nil
 	case reflect.Float32, reflect.Float64:
 		t, err := typeOfGo(ctx, v.Type())
 		if err != nil {
@@ -156,7 +156,7 @@ func constOfGo(ctx *Context, v reflect.Value) (AnyValue, error) {
 		if v.IsNil() {
 			return ctx.ConstNull(ptrTy), nil
 		}
-		addr := ctx.ConstInt(ctx.Int(uint32(strconv.IntSize)), uint64(v.Pointer()), false)
+		addr := ctx.ConstInt(ctx.Int(uint32(strconv.IntSize)), uint64(v.Pointer()))
 		return ctx.ConstIntToPtr(addr, ptrTy), nil
 	case reflect.Array:
 		elems := make([]AnyValue, v.Len())

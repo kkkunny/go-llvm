@@ -109,6 +109,11 @@ func (b *Builder) InBoundsGEP(elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], idx
 	return b.gep("ir.Builder.InBoundsGEP", elem, p, idx, name, true)
 }
 
+// PtrAdd 插入按字节偏移的指针加法（等价 GEP i8, ptr, off）
+func (b *Builder) PtrAdd(p llvm.ValueRef[llvm.PtrT], off llvm.ValueRef[llvm.IntT], name string) llvm.Value[llvm.PtrT] {
+	return b.gep("ir.Builder.PtrAdd", b.i8Type(), p, []llvm.ValueRef[llvm.IntT]{off}, name, false)
+}
+
 func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], idx []llvm.ValueRef[llvm.IntT], name string, inBounds bool) llvm.Value[llvm.PtrT] {
 	pv := p.AsValue()
 	b.pre(op, core(pv))

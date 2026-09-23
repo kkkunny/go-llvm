@@ -9,17 +9,17 @@ func TestConstInt(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
 
-	c := ctx.ConstInt(ctx.Int(32), 42, true)
+	c := ctx.ConstSInt(ctx.Int(32), 42)
 	if c.SignedValue() != 42 || c.UnsignedValue() != 42 || c.IsNegative() {
 		t.Fatalf("ConstInt(42): %d/%d/%v", c.SignedValue(), c.UnsignedValue(), c.IsNegative())
 	}
 
-	neg := ctx.ConstInt(ctx.Int(32), ^uint64(0), true) // -1
+	neg := ctx.ConstSInt(ctx.Int(32), -1) // -1
 	if neg.SignedValue() != -1 || !neg.IsNegative() {
 		t.Fatalf("ConstInt(-1): %d/%v", neg.SignedValue(), neg.IsNegative())
 	}
 
-	wide := ctx.ConstInt(ctx.Int(64), 1<<63, true) // INT64_MIN
+	wide := ctx.ConstSInt(ctx.Int(64), -1<<63) // INT64_MIN
 	if wide.SignedValue() != -1<<63 {
 		t.Fatalf("ConstInt(INT64_MIN): %d", wide.SignedValue())
 	}
@@ -33,6 +33,22 @@ func TestConstInt(t *testing.T) {
 
 	if got := ctx.ConstIntOfString(ctx.Int(32), "ff", 16).String(); got != "i32 255" {
 		t.Fatalf("ConstIntOfString = %q", got)
+	}
+}
+
+func TestConstSugar(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+	i32 := ctx.Int(32)
+	if got := i32.Const(42).SignedValue(); got != 42 {
+		t.Fatalf("i32.Const(42) = %d", got)
+	}
+	if got := i32.ConstS(-1).SignedValue(); got != -1 {
+		t.Fatalf("i32.ConstS(-1) = %d", got)
+	}
+	f64 := ctx.Float(FloatDouble)
+	if got := f64.Const(3.5).FloatValue(); got != 3.5 {
+		t.Fatalf("f64.Const(3.5) = %v", got)
 	}
 }
 
@@ -96,7 +112,7 @@ func TestConstArrayStruct(t *testing.T) {
 	defer ctx.Close()
 
 	i32 := ctx.Int(32)
-	arr := ctx.ConstArray(i32, ctx.ConstInt(i32, 1, false), ctx.ConstInt(i32, 2, false))
+	arr := ctx.ConstArray(i32, ctx.ConstInt(i32, 1), ctx.ConstInt(i32, 2))
 	if got := arr.Type().String(); got != "[2 x i32]" {
 		t.Fatalf("ConstArray type = %q", got)
 	}
@@ -104,7 +120,7 @@ func TestConstArrayStruct(t *testing.T) {
 		t.Fatalf("ConstArray = %q", got)
 	}
 
-	st := ctx.ConstStruct(false, ctx.ConstInt(i32, 1, false), ctx.ConstFloat(ctx.Float(FloatDouble), 2.0))
+	st := ctx.ConstStruct(false, ctx.ConstInt(i32, 1), ctx.ConstFloat(ctx.Float(FloatDouble), 2.0))
 	if got := st.Type().String(); got != "{ i32, double }" {
 		t.Fatalf("ConstStruct type = %q", got)
 	}
@@ -114,7 +130,7 @@ func TestConstArrayStruct(t *testing.T) {
 
 	named := ctx.NamedStruct("Pair")
 	named.SetBody([]AnyType{i32, i32}, false)
-	ns := ctx.ConstNamedStruct(named, ctx.ConstInt(i32, 3, false), ctx.ConstInt(i32, 4, false))
+	ns := ctx.ConstNamedStruct(named, ctx.ConstInt(i32, 3), ctx.ConstInt(i32, 4))
 	if got := ns.Type().String(); got != "%Pair = type { i32, i32 }" {
 		t.Fatalf("ConstNamedStruct type = %q", got)
 	}
@@ -131,7 +147,7 @@ func TestConstGEP(t *testing.T) {
 	i64 := ctx.Int(64)
 	nullPtr := ctx.ConstNull(ctx.Ptr(0))
 
-	gep := ctx.ConstGEP(i32, nullPtr, false, ctx.ConstInt(i64, 1, false))
+	gep := ctx.ConstGEP(i32, nullPtr, false, ctx.ConstInt(i64, 1))
 	if got := gep.Type().String(); got != "ptr" {
 		t.Fatalf("ConstGEP type = %q", got)
 	}
@@ -139,7 +155,7 @@ func TestConstGEP(t *testing.T) {
 		t.Fatalf("ConstGEP = %q", got)
 	}
 
-	inbounds := ctx.ConstGEP(i32, nullPtr, true, ctx.ConstInt(i64, 2, false))
+	inbounds := ctx.ConstGEP(i32, nullPtr, true, ctx.ConstInt(i64, 2))
 	if got := inbounds.String(); !strings.Contains(got, "getelementptr inbounds (i32, ptr null, i64 2)") {
 		t.Fatalf("ConstInBoundsGEP = %q", got)
 	}
@@ -162,7 +178,7 @@ func TestConstMismatchPanic(t *testing.T) {
 	ctx2 := NewContext()
 	defer ctx2.Close()
 	err = Catch(func() {
-		ctx.ConstArray(i32, ctx2.ConstInt(i32, 1, false))
+		ctx.ConstArray(i32, ctx2.ConstInt(i32, 1))
 	})
 	if err == nil || err.Reason != ErrCrossContext {
 		t.Fatalf("want ErrCrossContext, got %v", err)

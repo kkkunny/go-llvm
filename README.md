@@ -67,9 +67,9 @@ func main() {
 
 	// 类型安全：Add 只接受 i32 值，ICmp 返回 i1，Select 要求分支同类型
 	i32 := ctx.Int(32)
-	sum := builder.Add(ctx.ConstInt(i32, 1, false).Value, ctx.ConstInt(i32, 2, false).Value, "sum")
-	ok := builder.ICmp(llvm.IntEQ, sum, ctx.ConstInt(i32, 3, false).Value, "ok")
-	result := builder.Select(ok, ctx.ConstInt(i32, 0, false).Value, ctx.ConstInt(i32, 1, false).Value, "result")
+	sum := builder.Add(i32.Const(1), i32.Const(2), "sum")
+	ok := builder.ICmp(llvm.IntEQ, sum, i32.Const(3), "ok")
+	result := builder.Select(ok, i32.Const(0), i32.Const(1), "result")
 	builder.Ret(result)
 
 	if err := module.Verify(); err != nil {
@@ -83,15 +83,23 @@ func main() {
 
 * Values and types are kind-parameterized: `llvm.Value[llvm.IntT]`, `llvm.Type[llvm.FnT]`, etc.
   Category-specific operations live on role wrappers (`IntType.Bits()`, `Alloca.SetAlign()`, `Phi.AddIncoming()`).
+  Role wrappers implement `ValueRef[T]`/`TypeRef[T]`, so they can be passed directly wherever a typed value is
+  expected — no unwrapping needed (`builder.Add(i32.Const(1), i32.Const(2), "sum")`).
+* Constants come in unsigned-truncating (`ConstInt`) and sign-extending (`ConstSInt`) flavors, with
+  type-directed sugar: `i32.Const(5)`, `i32.ConstS(-1)`, `f64.Const(3.14)`.
 * Dynamic sources (parsed IR, instruction iteration) yield `llvm.Value[llvm.DynT]`; recover the kind with
   the generic method `As[U]()` / `MustAs[U]()`.
-* Recoverable failures return `error`; programmer errors `panic(*llvm.Error)`, which `llvm.Catch`
-  converts back to an error. All builder calls are pre-checked (positioned builder, same context,
-  live handles, matching operand types) before reaching cgo.
+* Recoverable failures return `error`; programmer errors `panic(*llvm.Error)`, which `llvm.Catch` converts
+  back to an error and `llvm.Try` converts while also returning a value. All builder calls are pre-checked
+  (positioned builder, same context, live handles, matching operand types, result kinds) before reaching cgo.
 * `Context`/`Module`/`Builder` implement `io.Closer`. Values are owned by their context/module;
   every operation (builder calls plus module/block/instruction role methods) self-checks lifetime,
   so use-after-free and double-close surface as `ErrUseAfterFree`/`ErrClosed` panics instead of
-  touching dangling handles.
+  touching dangling handles. `MemoryBuffer`/`DataLayout` additionally carry a GC finalizer as a
+  safety net, so a forgotten `Close` leaks until the next GC instead of forever.
+* Traversal APIs come in slice and lazy flavors: `Block.Insts()` / `Block.AllInsts()`,
+  `Function.Blocks()` / `AllBlocks()` / `AllParams()`, `StructType.Elems()` / `AllElems()`.
+  The `All*` variants are `iter.Seq` and allocate nothing (`for inst := range blk.AllInsts()`).
 
 ### Code generation
 
@@ -123,6 +131,12 @@ _ = j.MapFunc("host_cb", func(x int32) int32 { return x * 2 })  // 宿主函数�
 p, _ := j.Lookup("some_symbol")                    // unsafe.Pointer 低层入口
 code, _ := j.RunMain([]string{"prog"})             // 按 main(argc, argv, envp) 调用
 ```
+
+`Func[F]` / `MapFunc[F]` calls go through `reflect` + a fixed-signature C channel, so each call costs
+roughly 0.1–0.5 µs and one small allocation (slot arrays are pooled). Fetch the Go function value once
+and keep it. For hot loops, look the symbol up with `Lookup` and call the address from your own cgo
+binding — note that a bare `unsafe.Pointer` cannot be called from pure Go without cgo or an
+assembly trampoline, so the escape hatch requires a cgo-enabled caller.
 
 ### Non-standard LLVM prefixes
 

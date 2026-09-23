@@ -24,14 +24,14 @@ func fibModule(t *testing.T) *ir.Module {
 	b := ir.NewBuilder(ctx)
 	n := fn.ParamAs[llvm.IntT](0)
 	b.MoveToEnd(entry)
-	b.CondBr(b.ICmp(llvm.IntSLT, n, ctx.ConstInt(i32, 2, false), ""), base, recur)
+	b.CondBr(b.ICmp(llvm.IntSLT, n, ctx.ConstInt(i32, 2), ""), base, recur)
 
 	b.MoveToEnd(base)
 	b.Br(done)
 
 	b.MoveToEnd(recur)
-	a := b.Sub(n, ctx.ConstInt(i32, 1, false), "")
-	bv := b.Sub(n, ctx.ConstInt(i32, 2, false), "")
+	a := b.Sub(n, ctx.ConstInt(i32, 1), "")
+	bv := b.Sub(n, ctx.ConstInt(i32, 2), "")
 	fa := b.Call[llvm.IntT](fn.Value, []llvm.AnyValue{a.Dyn()}, "")
 	fb := b.Call[llvm.IntT](fn.Value, []llvm.AnyValue{bv.Dyn()}, "")
 	sum := b.Add(fa.Value, fb.Value, "")

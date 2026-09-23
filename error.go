@@ -59,6 +59,21 @@ func Catch(fn func()) (err *Error) {
 	return nil
 }
 
+// Try 执行 fn 并返回其结果；fn panic 的 *Error 收敛为 error 返回（非 *Error 原样重抛）
+func Try[T any](fn func() T) (v T, err *Error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(*Error); ok {
+				err = e
+			} else {
+				panic(r)
+			}
+		}
+	}()
+	v = fn()
+	return v, nil
+}
+
 // Must err 非 nil 时 panic *Error（非 *Error 会经 WrapError 归一，保证 Catch 可收敛），否则返回 v
 func Must[T any](v T, err error) T {
 	if err != nil {

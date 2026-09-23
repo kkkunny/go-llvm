@@ -37,13 +37,13 @@ func TestBuilderPrecheck(t *testing.T) {
 
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
-	other := ctx2.ConstInt(ctx2.Int(32), 1, false)
+	other := ctx2.ConstInt(ctx2.Int(32), 1)
 	if err := llvm.Catch(func() { b.Ret(other) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context operand should panic ErrCrossContext, got %v", err)
 	}
 
 	life := llvm.NewLifetime()
-	dead := llvm.NewValue[llvm.IntT](ctx, life, ctx.ConstInt(i32, 1, false).Ref())
+	dead := llvm.NewValue[llvm.IntT](ctx, life, ctx.ConstInt(i32, 1).Ref())
 	life.Kill()
 	if err := llvm.Catch(func() { b.Ret(dead) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("dead operand should panic ErrUseAfterFree, got %v", err)
@@ -174,7 +174,7 @@ func TestBuilderBranches(t *testing.T) {
 	b.CondBr(ctx.ConstBool(true), thenBlk, elseBlk)
 
 	b.MoveToEnd(thenBlk)
-	b.Ret(ctx.ConstInt(i32, ^uint64(0), true))
+	b.Ret(ctx.ConstSInt(i32, -1))
 
 	b.MoveToEnd(elseBlk)
 	b.Br(thenBlk)
@@ -193,7 +193,7 @@ func TestBuilderBranches(t *testing.T) {
 	blk2 := fn.NewBlock("bad")
 	b.MoveToEnd(blk2)
 	err := llvm.Catch(func() {
-		b.CondBr(ctx.ConstInt(i32, 1, false), thenBlk, elseBlk)
+		b.CondBr(ctx.ConstInt(i32, 1), thenBlk, elseBlk)
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("non-i1 condition should panic ErrTypeMismatch, got %v", err)
@@ -219,8 +219,8 @@ func TestBuilderSwitch(t *testing.T) {
 	b.MoveToEnd(entry)
 
 	sw := b.Switch(fn.ParamAs[llvm.IntT](0), defBlk)
-	sw.AddCase(ctx.ConstInt(i32, 1, false), case1)
-	sw.AddCase(ctx.ConstInt(i32, 2, false), case2)
+	sw.AddCase(ctx.ConstInt(i32, 1), case1)
+	sw.AddCase(ctx.ConstInt(i32, 2), case2)
 
 	if sw.Count() != 2 {
 		t.Fatalf("switch case count = %d", sw.Count())
@@ -255,7 +255,7 @@ func TestBuilderSwitch(t *testing.T) {
 
 	// case 类型不符
 	b.MoveToEnd(case1)
-	err := llvm.Catch(func() { sw.AddCase(ctx.ConstInt(ctx.Int(64), 1, false), case2) })
+	err := llvm.Catch(func() { sw.AddCase(ctx.ConstInt(ctx.Int(64), 1), case2) })
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("case type mismatch should panic, got %v", err)
 	}
@@ -274,7 +274,7 @@ func TestBuilderUnreachableAndMoveBefore(t *testing.T) {
 	b := NewBuilder(ctx)
 	defer b.Close()
 	b.MoveToEnd(entry)
-	ret := b.Ret(ctx.ConstInt(i32, 0, false))
+	ret := b.Ret(ctx.ConstInt(i32, 0))
 	b.Unreachable()
 
 	if got := m.String(); !strings.Contains(got, "unreachable") {
@@ -283,7 +283,7 @@ func TestBuilderUnreachableAndMoveBefore(t *testing.T) {
 
 	// MoveBefore 在 ret 前插入指令
 	b.MoveBefore(ret)
-	b.Ret(ctx.ConstInt(i32, 1, false))
+	b.Ret(ctx.ConstInt(i32, 1))
 
 	if cur, ok := b.CurrentBlock(); !ok || cur.Name() != "entry" {
 		t.Fatalf("CurrentBlock() = %v, %v", cur.Name(), ok)

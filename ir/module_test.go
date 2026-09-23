@@ -43,7 +43,7 @@ func TestModuleLookup(t *testing.T) {
 	}
 
 	g := m.NewGlobal("g", i32)
-	g.SetInitializer(ctx.ConstInt(i32, 7, false))
+	g.SetInitializer(ctx.ConstInt(i32, 7))
 	gg, ok := m.GetGlobal("g")
 	if !ok {
 		t.Fatalf("GetGlobal(g) = %v", ok)
@@ -266,12 +266,12 @@ func TestGlobal(t *testing.T) {
 	if _, ok := g.Initializer(); ok {
 		t.Fatal("global without initializer should return false")
 	}
-	g.SetInitializer(ctx.ConstInt(i32, 3, false))
+	g.SetInitializer(ctx.ConstInt(i32, 3))
 	if init, ok := g.Initializer(); !ok || init.String() != "i32 3" {
 		t.Fatalf("Initializer() = %v, %v", init, ok)
 	}
 
-	c := m.NewGlobalConst("c", ctx.ConstInt(i32, 5, false))
+	c := m.NewGlobalConst("c", ctx.ConstInt(i32, 5))
 	if !c.IsConstant() {
 		t.Fatal("NewGlobalConst should be constant")
 	}
