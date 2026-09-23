@@ -118,7 +118,7 @@ func TestLLJITAddObjectFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tm.Close()
-	tm.SetTo(m)
+	tm.ApplyTo(m)
 	obj, err := tm.Emit(m, target.ObjectFile)
 	if err != nil {
 		t.Fatal(err)

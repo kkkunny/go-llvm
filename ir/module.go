@@ -195,9 +195,9 @@ func (m *Module) NewGlobal(name string, t llvm.AnyType) Global {
 	return Global{Value: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}
 }
 
-// NewConstant 声明常量全局变量
-func (m *Module) NewConstant(name string, v llvm.AnyValue) Global {
-	const op = "ir.Module.NewConstant"
+// NewGlobalConst 声明常量全局变量
+func (m *Module) NewGlobalConst(name string, v llvm.AnyValue) Global {
+	const op = "ir.Module.NewGlobalConst"
 	m.Check(op)
 	m.ctx.CheckValues(op, v)
 	g := m.NewGlobal(name, llvm.TypeOfRef(m.ctx, binding.LLVMTypeOf(v.Ref())))

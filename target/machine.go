@@ -120,9 +120,9 @@ func (m *TargetMachine) SetAsmVerbosity(verbose bool) {
 	binding.LLVMSetTargetMachineAsmVerbosity(m.ref, verbose)
 }
 
-// SetTo 把目标三元组与数据布局写入模块（旧 Module.SetTarget 的替代）
-func (m *TargetMachine) SetTo(mod *ir.Module) {
-	const op = "target.TargetMachine.SetTo"
+// ApplyTo 把目标三元组与数据布局写入模块（旧 Module.SetTarget 的替代）
+func (m *TargetMachine) ApplyTo(mod *ir.Module) {
+	const op = "target.TargetMachine.ApplyTo"
 	m.check(op)
 	mod.Check(op)
 	mod.SetTargetTriple(m.Triple())

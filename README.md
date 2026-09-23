@@ -100,7 +100,7 @@ tm, _ := target.NewTargetMachine(native, target.DefaultTriple(), target.HostCPUN
 	target.OptDefault, target.RelocPIC, target.CodeModelDefault)
 defer tm.Close()
 
-tm.SetTo(module)                                   // 写入 triple + data layout
+tm.ApplyTo(module)                                   // 写入 triple + data layout
 _ = tm.EmitToFile(module, "main.o", target.ObjectFile)
 asm, _ := tm.Emit(module, target.AsmFile)          // 或产出到内存缓冲
 defer asm.Close()

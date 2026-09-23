@@ -271,9 +271,9 @@ func TestGlobal(t *testing.T) {
 		t.Fatalf("Initializer() = %v, %v", init, ok)
 	}
 
-	c := m.NewConstant("c", ctx.ConstInt(i32, 5, false))
+	c := m.NewGlobalConst("c", ctx.ConstInt(i32, 5, false))
 	if !c.IsConstant() {
-		t.Fatal("NewConstant should be constant")
+		t.Fatal("NewGlobalConst should be constant")
 	}
 	ci, ok := c.Initializer()
 	if !ok || ci.String() != "i32 5" {

@@ -140,7 +140,7 @@ func TestE2EObjectRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tm.Close()
-	tm.SetTo(m)
+	tm.ApplyTo(m)
 	if err := m.Verify(); err != nil {
 		t.Fatal(err)
 	}

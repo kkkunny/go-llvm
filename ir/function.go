@@ -122,14 +122,14 @@ func (p Param) Belong() Function {
 	return Function{Value: llvm.NewValue[llvm.FnT](p.Context(), p.Lifetime(), binding.LLVMGetParamParent(p.Ref()))}
 }
 
-// Func Go 签名绑定的函数句柄
-type Func[F any] struct {
+// GoFunc Go 签名绑定的函数句柄
+type GoFunc[F any] struct {
 	fn     Function
 	goType reflect.Type
 }
 
 // Function 返回函数角色
-func (f Func[F]) Function() Function { return f.fn }
+func (f GoFunc[F]) Function() Function { return f.fn }
 
 // GoType 返回绑定的 Go 函数类型
-func (f Func[F]) GoType() reflect.Type { return f.goType }
+func (f GoFunc[F]) GoType() reflect.Type { return f.goType }

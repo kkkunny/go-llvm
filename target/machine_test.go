@@ -34,21 +34,21 @@ func newMachineModule(t *testing.T) (*llvm.Context, *ir.Module, *TargetMachine) 
 	if err := b.Close(); err != nil {
 		t.Fatal(err)
 	}
-	tm.SetTo(m)
+	tm.ApplyTo(m)
 	if err := m.Verify(); err != nil {
 		t.Fatal(err)
 	}
 	return ctx, m, tm
 }
 
-func TestTargetMachineSetTo(t *testing.T) {
+func TestTargetMachineApplyTo(t *testing.T) {
 	ctx, m, tm := newMachineModule(t)
 	defer ctx.Close()
 	defer m.Close()
 	defer tm.Close()
 
 	if tm.Triple() != m.TargetTriple() {
-		t.Fatalf("SetTo triple: module %q, machine %q", m.TargetTriple(), tm.Triple())
+		t.Fatalf("ApplyTo triple: module %q, machine %q", m.TargetTriple(), tm.Triple())
 	}
 	if tm.Target().Name() == "" {
 		t.Fatal("Target() should be non-nil")
@@ -58,7 +58,7 @@ func TestTargetMachineSetTo(t *testing.T) {
 	tmdl := tm.DataLayout()
 	defer tmdl.Close()
 	if mdl.String() != tmdl.String() {
-		t.Fatalf("SetTo data layout: module %q, machine %q", mdl.String(), tmdl.String())
+		t.Fatalf("ApplyTo data layout: module %q, machine %q", mdl.String(), tmdl.String())
 	}
 }
 
