@@ -300,6 +300,46 @@ const (
 	LLVMDSNote    LLVMDiagnosticSeverity = C.LLVMDSNote
 )
 
+// LLVMAtomicOrdering is the ordering of a fence/atomic load-store instruction.
+type LLVMAtomicOrdering int32
+
+const (
+	LLVMAtomicOrderingNotAtomic              LLVMAtomicOrdering = C.LLVMAtomicOrderingNotAtomic
+	LLVMAtomicOrderingUnordered              LLVMAtomicOrdering = C.LLVMAtomicOrderingUnordered
+	LLVMAtomicOrderingMonotonic              LLVMAtomicOrdering = C.LLVMAtomicOrderingMonotonic
+	LLVMAtomicOrderingAcquire                LLVMAtomicOrdering = C.LLVMAtomicOrderingAcquire
+	LLVMAtomicOrderingRelease                LLVMAtomicOrdering = C.LLVMAtomicOrderingRelease
+	LLVMAtomicOrderingAcquireRelease         LLVMAtomicOrdering = C.LLVMAtomicOrderingAcquireRelease
+	LLVMAtomicOrderingSequentiallyConsistent LLVMAtomicOrdering = C.LLVMAtomicOrderingSequentiallyConsistent
+)
+
+// LLVMAtomicRMWBinOp is the operation of an atomicrmw instruction.
+type LLVMAtomicRMWBinOp int32
+
+const (
+	LLVMAtomicRMWBinOpXchg     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpXchg
+	LLVMAtomicRMWBinOpAdd      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpAdd
+	LLVMAtomicRMWBinOpSub      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpSub
+	LLVMAtomicRMWBinOpAnd      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpAnd
+	LLVMAtomicRMWBinOpNand     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpNand
+	LLVMAtomicRMWBinOpOr       LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpOr
+	LLVMAtomicRMWBinOpXor      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpXor
+	LLVMAtomicRMWBinOpMax      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpMax
+	LLVMAtomicRMWBinOpMin      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpMin
+	LLVMAtomicRMWBinOpUMax     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUMax
+	LLVMAtomicRMWBinOpUMin     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUMin
+	LLVMAtomicRMWBinOpFAdd     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFAdd
+	LLVMAtomicRMWBinOpFSub     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFSub
+	LLVMAtomicRMWBinOpFMax     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMax
+	LLVMAtomicRMWBinOpFMin     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMin
+	LLVMAtomicRMWBinOpUIncWrap LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUIncWrap
+	LLVMAtomicRMWBinOpUDecWrap LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUDecWrap
+	LLVMAtomicRMWBinOpUSubCond LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUSubCond
+	LLVMAtomicRMWBinOpUSubSat  LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUSubSat
+	LLVMAtomicRMWBinOpFMaximum LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMaximum
+	LLVMAtomicRMWBinOpFMinimum LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMinimum
+)
+
 type LLVMAttributeIndex int32
 
 const (
@@ -2014,6 +2054,95 @@ func LLVMBuildFCmp(builder LLVMBuilderRef, op LLVMRealPredicate, lHS, rHS LLVMVa
 	return string2CString(name, func(name *C.char) LLVMValueRef {
 		return LLVMValueRef{c: C.LLVMBuildFCmp(builder.c, C.LLVMRealPredicate(op), lHS.c, rHS.c, name)}
 	})
+}
+
+// LLVMGetVolatile Get the volatile flag of the memory access instruction.
+func LLVMGetVolatile(inst LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMGetVolatile(inst.c))
+}
+
+// LLVMSetVolatile Set the volatile flag of the memory access instruction.
+func LLVMSetVolatile(inst LLVMValueRef, isVolatile bool) {
+	C.LLVMSetVolatile(inst.c, bool2LLVMBool(isVolatile))
+}
+
+// LLVMGetWeak Get the weak flag of the cmpxchg instruction.
+func LLVMGetWeak(cmpXchgInst LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMGetWeak(cmpXchgInst.c))
+}
+
+// LLVMSetWeak Set the weak flag of the cmpxchg instruction.
+func LLVMSetWeak(cmpXchgInst LLVMValueRef, isWeak bool) {
+	C.LLVMSetWeak(cmpXchgInst.c, bool2LLVMBool(isWeak))
+}
+
+// LLVMGetOrdering Get the ordering of the memory access instruction.
+func LLVMGetOrdering(inst LLVMValueRef) LLVMAtomicOrdering {
+	return LLVMAtomicOrdering(C.LLVMGetOrdering(inst.c))
+}
+
+// LLVMSetOrdering Set the ordering of the memory access instruction.
+func LLVMSetOrdering(inst LLVMValueRef, ordering LLVMAtomicOrdering) {
+	C.LLVMSetOrdering(inst.c, C.LLVMAtomicOrdering(ordering))
+}
+
+// LLVMGetAtomicRMWBinOp Get the operation of the atomicrmw instruction.
+func LLVMGetAtomicRMWBinOp(inst LLVMValueRef) LLVMAtomicRMWBinOp {
+	return LLVMAtomicRMWBinOp(C.LLVMGetAtomicRMWBinOp(inst.c))
+}
+
+// LLVMSetAtomicRMWBinOp Set the operation of the atomicrmw instruction.
+func LLVMSetAtomicRMWBinOp(inst LLVMValueRef, binOp LLVMAtomicRMWBinOp) {
+	C.LLVMSetAtomicRMWBinOp(inst.c, C.LLVMAtomicRMWBinOp(binOp))
+}
+
+// LLVMGetCmpXchgSuccessOrdering Get the success ordering of the cmpxchg instruction.
+func LLVMGetCmpXchgSuccessOrdering(cmpXchgInst LLVMValueRef) LLVMAtomicOrdering {
+	return LLVMAtomicOrdering(C.LLVMGetCmpXchgSuccessOrdering(cmpXchgInst.c))
+}
+
+// LLVMSetCmpXchgSuccessOrdering Set the success ordering of the cmpxchg instruction.
+func LLVMSetCmpXchgSuccessOrdering(cmpXchgInst LLVMValueRef, ordering LLVMAtomicOrdering) {
+	C.LLVMSetCmpXchgSuccessOrdering(cmpXchgInst.c, C.LLVMAtomicOrdering(ordering))
+}
+
+// LLVMGetCmpXchgFailureOrdering Get the failure ordering of the cmpxchg instruction.
+func LLVMGetCmpXchgFailureOrdering(cmpXchgInst LLVMValueRef) LLVMAtomicOrdering {
+	return LLVMAtomicOrdering(C.LLVMGetCmpXchgFailureOrdering(cmpXchgInst.c))
+}
+
+// LLVMSetCmpXchgFailureOrdering Set the failure ordering of the cmpxchg instruction.
+func LLVMSetCmpXchgFailureOrdering(cmpXchgInst LLVMValueRef, ordering LLVMAtomicOrdering) {
+	C.LLVMSetCmpXchgFailureOrdering(cmpXchgInst.c, C.LLVMAtomicOrdering(ordering))
+}
+
+// LLVMIsAtomicSingleThread Get the singlethread flag of the atomic instruction.
+func LLVMIsAtomicSingleThread(inst LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsAtomicSingleThread(inst.c))
+}
+
+// LLVMSetAtomicSingleThread Set the singlethread flag of the atomic instruction.
+func LLVMSetAtomicSingleThread(inst LLVMValueRef, singleThread bool) {
+	C.LLVMSetAtomicSingleThread(inst.c, bool2LLVMBool(singleThread))
+}
+
+// LLVMBuildFence Create a fence instruction. Note: fence is void-valued and must not be named.
+func LLVMBuildFence(builder LLVMBuilderRef, ordering LLVMAtomicOrdering, singleThread bool, name string) LLVMValueRef {
+	return string2CString(name, func(name *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildFence(builder.c, C.LLVMAtomicOrdering(ordering), bool2LLVMBool(singleThread), name)}
+	})
+}
+
+// LLVMBuildAtomicRMW Create an atomicrmw instruction. The C API takes no name;
+// apply LLVMSetValueName afterwards if needed.
+func LLVMBuildAtomicRMW(builder LLVMBuilderRef, op LLVMAtomicRMWBinOp, ptr, val LLVMValueRef, ordering LLVMAtomicOrdering, singleThread bool) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMBuildAtomicRMW(builder.c, C.LLVMAtomicRMWBinOp(op), ptr.c, val.c, C.LLVMAtomicOrdering(ordering), bool2LLVMBool(singleThread))}
+}
+
+// LLVMBuildAtomicCmpXchg Create an atomic cmpxchg instruction. The C API takes no name;
+// apply LLVMSetValueName afterwards if needed.
+func LLVMBuildAtomicCmpXchg(builder LLVMBuilderRef, ptr, cmp, new LLVMValueRef, successOrdering, failureOrdering LLVMAtomicOrdering, singleThread bool) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMBuildAtomicCmpXchg(builder.c, ptr.c, cmp.c, new.c, C.LLVMAtomicOrdering(successOrdering), C.LLVMAtomicOrdering(failureOrdering), bool2LLVMBool(singleThread))}
 }
 
 func LLVMBuildPhi(builder LLVMBuilderRef, ty LLVMTypeRef, name string) LLVMValueRef {

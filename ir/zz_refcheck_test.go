@@ -18,6 +18,9 @@ var (
 	_ llvm.ValueRef[llvm.StructT] = LandingPad[llvm.StructT]{}
 	_ llvm.ValueRef[llvm.TokenT]  = CatchSwitch{}
 	_ llvm.ValueRef[llvm.TokenT]  = FuncletPad{}
+	_ llvm.ValueRef[llvm.VoidT]   = Fence{}
+	_ llvm.ValueRef[llvm.IntT]    = AtomicRMW[llvm.IntT]{}
+	_ llvm.ValueRef[llvm.StructT] = CmpXchg{}
 	_ llvm.AnyValue               = Alloca{}
 	_ llvm.AnyValue               = Load[llvm.IntT]{}
 	_ llvm.AnyValue               = Store{}
@@ -31,4 +34,7 @@ var (
 	_ llvm.AnyValue               = LandingPad[llvm.StructT]{}
 	_ llvm.AnyValue               = CatchSwitch{}
 	_ llvm.AnyValue               = FuncletPad{}
+	_ llvm.AnyValue               = Fence{}
+	_ llvm.AnyValue               = AtomicRMW[llvm.IntT]{}
+	_ llvm.AnyValue               = CmpXchg{}
 )
