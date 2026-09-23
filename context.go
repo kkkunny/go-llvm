@@ -31,6 +31,7 @@ func NewContext() *Context {
 // Own 登记子资源（供 llvm/* 子包使用）；Context.Close 时按逆序级联 Close。
 // 返回注销函数：资源自行关闭或移交所有权后应调用以解除登记（幂等）。
 func (ctx *Context) Own(c io.Closer) func() {
+	ctx.CheckAlive("llvm.Context.Own")
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 	id := ctx.nextID
