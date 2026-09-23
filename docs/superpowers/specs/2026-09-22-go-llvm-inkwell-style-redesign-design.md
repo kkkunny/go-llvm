@@ -260,4 +260,5 @@ P0/P1 落地时对设计稿的偏离，以实现为准：
 | §4.3 `Catch(fn func()) *Error` | 另有 `Try[T]` 返回值版本；常量拆为 `ConstInt`（无符号截断）/`ConstSInt`（符号扩展），并提供 `IntType.Const/ConstS`、`FloatType.Const` 类型导向糖 |
 | §4.2 未规定遍历方式 | 新增 `iter.Seq` 惰性遍历（`Block.AllInsts`/`Function.AllBlocks`/`AllParams`/`StructType.AllElems`），切片版保留 |
 | 未规定性能基线 | 预检去装箱（`preVal`/scratch）、Context 级 Go 类型映射缓存、JIT 桥槽位池化；基准见 `bench_test.go`/`ir/bench_test.go`/`jit/bench_test.go` |
+| §5 P2-1/P2-2/P2-4 指令面 | EH：`Invoke`/`LandingPad`/`CatchSwitch`/`FuncletPad` 角色 + `Invoke(Indirect)`/`LandingPad`/`Resume`/`CatchSwitch`/`CatchPad`/`CleanupPad`/`CatchRet`/`CleanupRet`；personality 走 `Function.SetPersonality`（`LLVMBuildLandingPad` 的 PersFn 参数传零值）。原子：`Fence`/`AtomicRMW[T]`/`CmpXchg` + Load/Store 的 volatile/ordering，内存序组合在预检层校验。vector：`ExtractElement`/`InsertElement`/`ShuffleVector` + `Context.ConstVector`。void 值指令（fence/resume/catchret/cleanupret）不提供 name 参数（LLVM 命名 void 值会被 verifier 拒绝） |
 

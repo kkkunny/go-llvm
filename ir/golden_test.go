@@ -191,3 +191,68 @@ func TestGoldenEH(t *testing.T) {
 	}
 	checkGolden(t, m.String(), "eh.ll")
 }
+
+// TestGoldenAtomic 覆盖 fence/atomicrmw/cmpxchg 与 load/store 原子形态
+func TestGoldenAtomic(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "atomic")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("atomics", ctx.Fn(ctx.Void(), []llvm.AnyType{ctx.Ptr(0)}, false))
+	entry := fn.NewBlock("entry")
+
+	b := NewBuilder(ctx)
+	defer b.Close()
+	b.MoveToEnd(entry)
+
+	p := fn.ParamAs[llvm.PtrT](0)
+	one := ctx.ConstInt(i32, 1).Value
+
+	b.Fence(llvm.AtomicSequentiallyConsistent, false)
+	rm := b.AtomicRMW(llvm.RMWAdd, p, one, llvm.AtomicMonotonic, false, "old")
+	rm.SetAlign(4)
+	b.Store(one, p).SetOrdering(llvm.AtomicRelease)
+	ld := b.Load(p, i32, "cur")
+	ld.SetOrdering(llvm.AtomicAcquire)
+	b.CmpXchg(p, ld, ctx.ConstInt(i32, 2).Value, llvm.AtomicAcquire, llvm.AtomicMonotonic, true, "cx")
+	b.RetVoid()
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	checkGolden(t, m.String(), "atomic.ll")
+}
+
+// TestGoldenVec 覆盖 insertelement/extractelement/shufflevector 与 ConstVector
+func TestGoldenVec(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "vec")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	vty := ctx.Vec(i32, 4)
+	fn := m.NewFunction("vec_demo", ctx.Fn(i32, []llvm.AnyType{vty}, false))
+	entry := fn.NewBlock("entry")
+
+	b := NewBuilder(ctx)
+	defer b.Close()
+	b.MoveToEnd(entry)
+
+	// 以参数为基向量，避免全常量操作数被 IRBuilder 常量折叠
+	vec := fn.ParamAs[llvm.VecT](0)
+	ins := b.InsertElement(vec, ctx.ConstInt(i32, 42).Value, ctx.ConstInt(i32, 1).Value, "ins")
+	mask := ctx.ConstVector(i32,
+		ctx.ConstInt(i32, 0).Value, ctx.ConstInt(i32, 0).Value,
+		ctx.ConstInt(i32, 0).Value, ctx.ConstInt(i32, 0).Value)
+	sh := b.ShuffleVector(ins, ins, mask, "sh")
+	ex := b.ExtractElement[llvm.IntT](sh, ctx.ConstInt(i32, 0).Value, "ex")
+	b.Ret(ex)
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	checkGolden(t, m.String(), "vec.ll")
+}
