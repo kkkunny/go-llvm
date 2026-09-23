@@ -151,6 +151,52 @@ func TestBuilderPHI(t *testing.T) {
 	}
 }
 
+func TestBuilderKindChecks(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "kindcheck")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	st := ctx.Struct([]llvm.AnyType{i32, ctx.Int(64)}, false)
+	m.NewFunction("add", ctx.Fn(i32, []llvm.AnyType{i32, i32}, false))
+	fn := m.NewFunction("caller", ctx.Fn(ctx.Void(), []llvm.AnyType{st, ctx.Ptr(0)}, false))
+	b := NewBuilder(ctx)
+	defer b.Close()
+	b.MoveToEnd(fn.NewBlock("entry"))
+
+	add, _ := m.GetFunction("add")
+	agg := fn.ParamAs[llvm.StructT](0)
+	args := []llvm.AnyValue{ctx.ConstInt(i32, 1, false), ctx.ConstInt(i32, 2, false)}
+
+	err := llvm.Catch(func() { b.Call[llvm.FloatT](add, args, "") })
+	if err == nil || err.Reason != llvm.ErrTypeMismatch {
+		t.Fatalf("Call[FloatT] on i32-returning fn should panic ErrTypeMismatch, got %v", err)
+	}
+
+	err = llvm.Catch(func() {
+		b.CallIndirect[llvm.FloatT](fn.ParamAs[llvm.PtrT](1), ctx.Fn(i32, nil, false), nil, "")
+	})
+	if err == nil || err.Reason != llvm.ErrTypeMismatch {
+		t.Fatalf("CallIndirect[FloatT] on i32-returning sig should panic ErrTypeMismatch, got %v", err)
+	}
+
+	err = llvm.Catch(func() { b.ExtractValue[llvm.FloatT](agg, []uint32{0}, "") })
+	if err == nil || err.Reason != llvm.ErrTypeMismatch {
+		t.Fatalf("ExtractValue[FloatT] on i32 element should panic ErrTypeMismatch, got %v", err)
+	}
+
+	err = llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{9}, "") })
+	if err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("out-of-range index should panic ErrInvalidArg, got %v", err)
+	}
+
+	err = llvm.Catch(func() { b.ExtractValue[llvm.IntT](ctx.ConstInt(i32, 1, false), []uint32{0}, "") })
+	if err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("indexing scalar should panic ErrInvalidArg, got %v", err)
+	}
+}
+
 func TestBuilderAggregate(t *testing.T) {
 	ctx := llvm.NewContext()
 	defer ctx.Close()

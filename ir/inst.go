@@ -68,8 +68,10 @@ func (p Phi[T]) AddIncoming(incomings ...Incoming[T]) {
 	for i, in := range incomings {
 		in.Block.Check(op)
 		in.Value.Check(op)
-		if !in.Value.Type().Equal(p.Type()) {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "incoming type %s differs from phi type %s", in.Value.Type(), p.Type())
+		inRef := binding.LLVMTypeOf(in.Value.Ref())
+		if !inRef.Equal(binding.LLVMTypeOf(p.Ref())) {
+			llvm.Panicf(llvm.ErrTypeMismatch, op, "incoming type %s differs from phi type %s",
+				typeString(p.Context(), in.Value.Ref()), typeString(p.Context(), p.Ref()))
 		}
 		values[i] = in.Value.Ref()
 		blocks[i] = in.Block.ref

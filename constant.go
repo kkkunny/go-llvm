@@ -102,15 +102,17 @@ func (ctx *Context) ConstString(s string, nullTerminate bool) Value[ArrayT] {
 
 // ConstArray 构造数组常量；元素类型/归属不符则 panic
 func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
-	ctx.CheckType("llvm.Context.ConstArray", elem)
-	ctx.CheckValues("llvm.Context.ConstArray", elems...)
+	const op = "llvm.Context.ConstArray"
+	ctx.CheckType(op, elem)
+	ctx.CheckValues(op, elems...)
+	elemRef := elem.Ref()
 	for _, e := range elems {
-		if !elem.Equal(TypeOfRef(ctx, binding.LLVMTypeOf(e.Ref()))) {
-			errPanic(ErrTypeMismatch, "llvm.Context.ConstArray",
-				"element type %s does not match array element type %s", TypeOfRef(ctx, binding.LLVMTypeOf(e.Ref())), elem)
+		if ref := binding.LLVMTypeOf(e.Ref()); !elemRef.Equal(ref) {
+			errPanic(ErrTypeMismatch, op,
+				"element type %s does not match array element type %s", TypeOfRef(ctx, ref), elem)
 		}
 	}
-	ref := binding.LLVMConstArray(elem.Ref(), AnyValuesToRefs(elems))
+	ref := binding.LLVMConstArray(elemRef, AnyValuesToRefs(elems))
 	return Value[ArrayT]{ref: ref, ctx: ctx, life: ctx.life}
 }
 
@@ -123,15 +125,17 @@ func (ctx *Context) ConstStruct(packed bool, elems ...AnyValue) Value[StructT] {
 
 // ConstNamedStruct 构造命名结构体常量；元素个数/类型不符则 panic
 func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[StructT] {
-	ctx.CheckType("llvm.Context.ConstNamedStruct", t)
-	ctx.CheckValues("llvm.Context.ConstNamedStruct", elems...)
-	if got, want := len(elems), len(t.Elems()); got != want {
-		errPanic(ErrTypeMismatch, "llvm.Context.ConstNamedStruct", "expect %d elements, got %d", want, got)
+	const op = "llvm.Context.ConstNamedStruct"
+	ctx.CheckType(op, t)
+	ctx.CheckValues(op, elems...)
+	if got, want := len(elems), int(binding.LLVMCountStructElementTypes(t.ref)); got != want {
+		errPanic(ErrTypeMismatch, op, "expect %d elements, got %d", want, got)
 	}
 	for i, e := range elems {
-		if !t.Elem(uint32(i)).Equal(TypeOfRef(ctx, binding.LLVMTypeOf(e.Ref()))) {
-			errPanic(ErrTypeMismatch, "llvm.Context.ConstNamedStruct",
-				"element %d type %s does not match field type %s", i, TypeOfRef(ctx, binding.LLVMTypeOf(e.Ref())), t.Elem(uint32(i)))
+		want := binding.LLVMStructGetTypeAtIndex(t.ref, uint32(i))
+		if ref := binding.LLVMTypeOf(e.Ref()); !want.Equal(ref) {
+			errPanic(ErrTypeMismatch, op,
+				"element %d type %s does not match field type %s", i, TypeOfRef(ctx, ref), TypeOfRef(ctx, want))
 		}
 	}
 	ref := binding.LLVMConstNamedStruct(t.ref, AnyValuesToRefs(elems))
@@ -140,13 +144,14 @@ func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[Stru
 
 // ConstGEP 构造常量 GEP 表达式；elem 为源元素类型，base 必须是指针值
 func (ctx *Context) ConstGEP(elem AnyType, base ValueRef[PtrT], inBounds bool, idx ...ValueRef[IntT]) Value[PtrT] {
-	ctx.CheckType("llvm.Context.ConstGEP", elem)
+	const op = "llvm.Context.ConstGEP"
+	ctx.CheckType(op, elem)
 	baseV := base.AsValue()
-	ctx.CheckValues("llvm.Context.ConstGEP", baseV.Dyn())
+	ctx.checkValueOwn(op, baseV.ref, baseV.life, baseV.ctx)
 	idxRefs := make([]binding.LLVMValueRef, len(idx))
 	for i, x := range idx {
 		v := x.AsValue()
-		ctx.CheckValues("llvm.Context.ConstGEP", v.Dyn())
+		ctx.checkValueOwn(op, v.ref, v.life, v.ctx)
 		idxRefs[i] = v.ref
 	}
 	var ref binding.LLVMValueRef
@@ -160,9 +165,10 @@ func (ctx *Context) ConstGEP(elem AnyType, base ValueRef[PtrT], inBounds bool, i
 
 // ConstIntToPtr 构造 inttoptr 常量表达式
 func (ctx *Context) ConstIntToPtr(v ValueRef[IntT], to PtrType) Value[PtrT] {
+	const op = "llvm.Context.ConstIntToPtr"
 	vv := v.AsValue()
-	ctx.CheckValues("llvm.Context.ConstIntToPtr", vv.Dyn())
-	ctx.CheckType("llvm.Context.ConstIntToPtr", to)
+	ctx.checkValueOwn(op, vv.ref, vv.life, vv.ctx)
+	ctx.CheckType(op, to)
 	ref := binding.LLVMConstIntToPtr(vv.Ref(), to.Ref())
 	return Value[PtrT]{ref: ref, ctx: ctx, life: ctx.life}
 }
@@ -172,15 +178,26 @@ func (ctx *Context) ConstIntToPtr(v ValueRef[IntT], to PtrType) Value[PtrT] {
 // CheckValues 校验值归属同一 Context 且存活
 func (ctx *Context) CheckValues(op string, vs ...AnyValue) {
 	for _, v := range vs {
-		if v == nil || v.IsNil() {
+		if v == nil {
 			errPanic(ErrInvalidArg, op, "nil value")
 		}
-		if !v.Alive() {
-			errPanic(ErrUseAfterFree, op, "value is freed")
-		}
-		if v.Context() != ctx {
-			errPanic(ErrCrossContext, op, "value belongs to another context")
-		}
+		ctx.checkValueOwn(op, v.Ref(), v.Lifetime(), v.Context())
+	}
+}
+
+// checkValueOwn 校验具体值句柄归属本 Context 且存活（无装箱）
+func (ctx *Context) checkValueOwn(op string, ref binding.LLVMValueRef, life *Lifetime, vctx *Context) {
+	if ref.IsNil() {
+		errPanic(ErrInvalidArg, op, "nil value")
+	}
+	if !ctx.life.Alive() {
+		errPanic(ErrUseAfterFree, op, "context is closed")
+	}
+	if life == nil || !life.Alive() {
+		errPanic(ErrUseAfterFree, op, "value is freed")
+	}
+	if vctx != ctx {
+		errPanic(ErrCrossContext, op, "value belongs to another context")
 	}
 }
 

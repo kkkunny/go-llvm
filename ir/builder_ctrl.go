@@ -81,7 +81,7 @@ func (b *Builder) RetVoid() llvm.Value[llvm.VoidT] {
 // Ret 插入 ret v
 func (b *Builder) Ret(v llvm.AnyValue) llvm.Value[llvm.VoidT] {
 	const op = "ir.Builder.Ret"
-	b.pre(op, v)
+	b.pre(op, coreAny(v))
 	ref := binding.LLVMBuildRet(b.ref, v.Ref())
 	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
 }
@@ -99,7 +99,7 @@ func (b *Builder) Br(blk Block) llvm.Value[llvm.VoidT] {
 func (b *Builder) CondBr(cond llvm.ValueRef[llvm.IntT], then, els Block) llvm.Value[llvm.VoidT] {
 	const op = "ir.Builder.CondBr"
 	cv := cond.AsValue()
-	b.pre(op, cv.Dyn())
+	b.pre(op, core(cv))
 	b.preBlock(op, then)
 	b.preBlock(op, els)
 	if bits := llvm.AsIntType(cv.Type()).Bits(); bits != 1 {
@@ -113,7 +113,7 @@ func (b *Builder) CondBr(cond llvm.ValueRef[llvm.IntT], then, els Block) llvm.Va
 func (b *Builder) Switch(v llvm.ValueRef[llvm.IntT], def Block) Switch {
 	const op = "ir.Builder.Switch"
 	vv := v.AsValue()
-	b.pre(op, vv.Dyn())
+	b.pre(op, core(vv))
 	b.preBlock(op, def)
 	ref := binding.LLVMBuildSwitch(b.ref, vv.Ref(), def.ref, 0)
 	return Switch{Value: llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)}

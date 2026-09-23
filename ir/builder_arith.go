@@ -106,7 +106,7 @@ func (b *Builder) Xor(l, r llvm.ValueRef[llvm.IntT], name string) llvm.Value[llv
 func (b *Builder) Neg(v llvm.ValueRef[llvm.IntT], name string) llvm.Value[llvm.IntT] {
 	const op = "ir.Builder.Neg"
 	vv := v.AsValue()
-	b.pre(op, vv.Dyn())
+	b.pre(op, core(vv))
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildNeg(b.ref, vv.Ref(), name))
 }
 
@@ -114,14 +114,14 @@ func (b *Builder) Neg(v llvm.ValueRef[llvm.IntT], name string) llvm.Value[llvm.I
 func (b *Builder) Not(v llvm.ValueRef[llvm.IntT], name string) llvm.Value[llvm.IntT] {
 	const op = "ir.Builder.Not"
 	vv := v.AsValue()
-	b.pre(op, vv.Dyn())
+	b.pre(op, core(vv))
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildNot(b.ref, vv.Ref(), name))
 }
 
 // intBinop 整数二元指令公共实现
 func (b *Builder) intBinop(op string, l, r llvm.ValueRef[llvm.IntT], name string, build func(binding.LLVMBuilderRef, binding.LLVMValueRef, binding.LLVMValueRef, string) binding.LLVMValueRef) llvm.Value[llvm.IntT] {
 	lv, rv := l.AsValue(), r.AsValue()
-	b.preSameType(op, lv.Dyn(), rv.Dyn())
+	b.preSameType(op, core(lv), core(rv))
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, build(b.ref, lv.Ref(), rv.Ref(), name))
 }
 
@@ -156,14 +156,14 @@ func (b *Builder) FRem(l, r llvm.ValueRef[llvm.FloatT], name string) llvm.Value[
 func (b *Builder) FNeg(v llvm.ValueRef[llvm.FloatT], name string) llvm.Value[llvm.FloatT] {
 	const op = "ir.Builder.FNeg"
 	vv := v.AsValue()
-	b.pre(op, vv.Dyn())
+	b.pre(op, core(vv))
 	return llvm.NewValue[llvm.FloatT](b.ctx, b.inserted.life, binding.LLVMBuildFNeg(b.ref, vv.Ref(), name))
 }
 
 // floatBinop 浮点二元指令公共实现
 func (b *Builder) floatBinop(op string, l, r llvm.ValueRef[llvm.FloatT], name string, build func(binding.LLVMBuilderRef, binding.LLVMValueRef, binding.LLVMValueRef, string) binding.LLVMValueRef) llvm.Value[llvm.FloatT] {
 	lv, rv := l.AsValue(), r.AsValue()
-	b.preSameType(op, lv.Dyn(), rv.Dyn())
+	b.preSameType(op, core(lv), core(rv))
 	return llvm.NewValue[llvm.FloatT](b.ctx, b.inserted.life, build(b.ref, lv.Ref(), rv.Ref(), name))
 }
 
@@ -172,7 +172,7 @@ func (b *Builder) floatBinop(op string, l, r llvm.ValueRef[llvm.FloatT], name st
 // ICmp 插入整数/指针比较，返回 i1
 func (b *Builder) ICmp(pred llvm.IntPred, l, r llvm.AnyValue, name string) llvm.Value[llvm.IntT] {
 	const op = "ir.Builder.ICmp"
-	b.preSameType(op, l, r)
+	b.preSameType(op, coreAny(l), coreAny(r))
 	ref := binding.LLVMBuildICmp(b.ref, binding.LLVMIntPredicate(pred), l.Ref(), r.Ref(), name)
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)
 }
@@ -181,7 +181,7 @@ func (b *Builder) ICmp(pred llvm.IntPred, l, r llvm.AnyValue, name string) llvm.
 func (b *Builder) FCmp(pred llvm.FloatPred, l, r llvm.ValueRef[llvm.FloatT], name string) llvm.Value[llvm.IntT] {
 	const op = "ir.Builder.FCmp"
 	lv, rv := l.AsValue(), r.AsValue()
-	b.preSameType(op, lv.Dyn(), rv.Dyn())
+	b.preSameType(op, core(lv), core(rv))
 	ref := binding.LLVMBuildFCmp(b.ref, binding.LLVMRealPredicate(pred), lv.Ref(), rv.Ref(), name)
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)
 }
@@ -190,8 +190,8 @@ func (b *Builder) FCmp(pred llvm.FloatPred, l, r llvm.ValueRef[llvm.FloatT], nam
 func (b *Builder) Select[T llvm.Kind](cond llvm.ValueRef[llvm.IntT], x, y llvm.ValueRef[T], name string) llvm.Value[T] {
 	const op = "ir.Builder.Select"
 	cv, xv, yv := cond.AsValue(), x.AsValue(), y.AsValue()
-	b.pre(op, cv.Dyn(), xv.Dyn(), yv.Dyn())
-	b.preSameType(op, xv.Dyn(), yv.Dyn())
+	b.pre(op, core(cv), core(xv), core(yv))
+	b.preSameType(op, core(xv), core(yv))
 	if bits := llvm.AsIntType(cv.Type()).Bits(); bits != 1 {
 		llvm.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
 	}

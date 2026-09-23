@@ -82,7 +82,7 @@ func (b *Builder) Alloca(t llvm.AnyType, name string) Alloca {
 func (b *Builder) Load[U llvm.Kind](p llvm.ValueRef[llvm.PtrT], t llvm.TypeRef[U], name string) Load[U] {
 	const op = "ir.Builder.Load"
 	pv, tt := p.AsValue(), t.AsType()
-	b.pre(op, pv.Dyn())
+	b.pre(op, core(pv))
 	if tt.Context() != b.ctx {
 		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
@@ -94,7 +94,7 @@ func (b *Builder) Load[U llvm.Kind](p llvm.ValueRef[llvm.PtrT], t llvm.TypeRef[U
 func (b *Builder) Store(v llvm.AnyValue, p llvm.ValueRef[llvm.PtrT]) Store {
 	const op = "ir.Builder.Store"
 	pv := p.AsValue()
-	b.pre(op, v, pv.Dyn())
+	b.pre(op, coreAny(v), core(pv))
 	ref := binding.LLVMBuildStore(b.ref, v.Ref(), pv.Ref())
 	return Store{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
@@ -111,19 +111,20 @@ func (b *Builder) InBoundsGEP(elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], idx
 
 func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], idx []llvm.ValueRef[llvm.IntT], name string, inBounds bool) llvm.Value[llvm.PtrT] {
 	pv := p.AsValue()
-	b.pre(op, pv.Dyn())
+	b.pre(op, core(pv))
 	if elem == nil {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "nil element type")
 	}
 	if elem.Context() != b.ctx {
 		llvm.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
 	}
-	refs := make([]binding.LLVMValueRef, len(idx))
-	for i, x := range idx {
+	refs := b.refs[:0]
+	for _, x := range idx {
 		v := x.AsValue()
-		b.pre(op, v.Dyn())
-		refs[i] = v.Ref()
+		b.checkVal(op, core(v))
+		refs = append(refs, v.Ref())
 	}
+	b.refs = refs
 	var ref binding.LLVMValueRef
 	if inBounds {
 		ref = binding.LLVMBuildInBoundsGEP(b.ref, elem.Ref(), pv.Ref(), refs, name)
@@ -137,7 +138,7 @@ func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], 
 func (b *Builder) MemSet(p llvm.ValueRef[llvm.PtrT], val, n llvm.ValueRef[llvm.IntT], align uint32) Call[llvm.VoidT] {
 	const op = "ir.Builder.MemSet"
 	pv, vv, nv := p.AsValue(), val.AsValue(), n.AsValue()
-	b.pre(op, pv.Dyn(), vv.Dyn(), nv.Dyn())
+	b.pre(op, core(pv), core(vv), core(nv))
 	preAlign(op, align)
 	ref := binding.LLVMBuildMemSet(b.ref, pv.Ref(), vv.Ref(), nv.Ref(), align)
 	return Call[llvm.VoidT]{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
@@ -155,7 +156,7 @@ func (b *Builder) MemMove(dst llvm.ValueRef[llvm.PtrT], dstAlign uint32, src llv
 
 func (b *Builder) memTransfer(op string, dst llvm.ValueRef[llvm.PtrT], dstAlign uint32, src llvm.ValueRef[llvm.PtrT], srcAlign uint32, n llvm.ValueRef[llvm.IntT], move bool) Call[llvm.VoidT] {
 	dv, sv, nv := dst.AsValue(), src.AsValue(), n.AsValue()
-	b.pre(op, dv.Dyn(), sv.Dyn(), nv.Dyn())
+	b.pre(op, core(dv), core(sv), core(nv))
 	preAlign(op, dstAlign)
 	preAlign(op, srcAlign)
 	var ref binding.LLVMValueRef
@@ -182,7 +183,7 @@ func (b *Builder) Malloc(t llvm.AnyType, name string) Call[llvm.PtrT] {
 func (b *Builder) MallocArray(elem llvm.AnyType, n llvm.ValueRef[llvm.IntT], name string) Call[llvm.PtrT] {
 	const op = "ir.Builder.MallocArray"
 	nv := n.AsValue()
-	b.pre(op, nv.Dyn())
+	b.pre(op, core(nv))
 	if elem == nil || elem.Context() != b.ctx {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid type")
 	}
@@ -194,7 +195,7 @@ func (b *Builder) MallocArray(elem llvm.AnyType, n llvm.ValueRef[llvm.IntT], nam
 func (b *Builder) Free(p llvm.ValueRef[llvm.PtrT]) Call[llvm.VoidT] {
 	const op = "ir.Builder.Free"
 	pv := p.AsValue()
-	b.pre(op, pv.Dyn())
+	b.pre(op, core(pv))
 	ref := binding.LLVMBuildFree(b.ref, pv.Ref())
 	return Call[llvm.VoidT]{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
