@@ -1,6 +1,8 @@
 package llvm
 
 import (
+	"runtime"
+
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
@@ -24,12 +26,25 @@ func NewDataLayout(layout string) *DataLayout {
 	if ref.IsNil() {
 		errPanic(ErrInvalidArg, "llvm.NewDataLayout", "invalid data layout string %q", layout)
 	}
-	return &DataLayout{ref: ref}
+	d := &DataLayout{ref: ref}
+	runtime.SetFinalizer(d, (*DataLayout).finalize)
+	return d
 }
 
 // DataLayoutOf 由底层句柄构建数据布局（供 llvm/target 桥接使用，接管所有权）
 func DataLayoutOf(ref binding.LLVMTargetDataRef) *DataLayout {
-	return &DataLayout{ref: ref}
+	d := &DataLayout{ref: ref}
+	runtime.SetFinalizer(d, (*DataLayout).finalize)
+	return d
+}
+
+// finalize GC 兜底：忘记 Close 时释放底层句柄
+func (d *DataLayout) finalize() {
+	if d.closed {
+		return
+	}
+	d.closed = true
+	binding.LLVMDisposeTargetData(d.ref)
 }
 
 // check 前置校验：句柄非空且未释放
@@ -64,6 +79,7 @@ func (d *DataLayout) Close() error {
 		return &Error{Reason: ErrClosed, Op: "llvm.DataLayout.Close", Msg: "data layout already closed"}
 	}
 	d.closed = true
+	runtime.SetFinalizer(d, nil)
 	binding.LLVMDisposeTargetData(d.ref)
 	return nil
 }

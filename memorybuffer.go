@@ -1,6 +1,8 @@
 package llvm
 
 import (
+	"runtime"
+
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
@@ -26,7 +28,18 @@ func NewMemoryBuffer(data []byte, name string) *MemoryBuffer {
 
 // MemoryBufferOf 由底层句柄构建内存缓冲（供 llvm/* 子包桥接使用，接管所有权）
 func MemoryBufferOf(ref binding.LLVMMemoryBufferRef) *MemoryBuffer {
-	return &MemoryBuffer{ref: ref}
+	b := &MemoryBuffer{ref: ref}
+	runtime.SetFinalizer(b, (*MemoryBuffer).finalize)
+	return b
+}
+
+// finalize GC 兜底：忘记 Close 时释放底层缓冲
+func (b *MemoryBuffer) finalize() {
+	if b.closed {
+		return
+	}
+	b.closed = true
+	binding.LLVMDisposeMemoryBuffer(b.ref)
 }
 
 // Ref 返回底层句柄（供 llvm/* 子包桥接使用）
@@ -64,6 +77,7 @@ func (b *MemoryBuffer) Disown() {
 		return
 	}
 	b.closed = true
+	runtime.SetFinalizer(b, nil) // 接管方负责释放，禁止 finalizer 二次释放
 }
 
 // Close 释放缓冲；二次调用返回 ErrClosed
@@ -72,6 +86,7 @@ func (b *MemoryBuffer) Close() error {
 		return &Error{Reason: ErrClosed, Op: "llvm.MemoryBuffer.Close", Msg: "memory buffer already closed"}
 	}
 	b.closed = true
+	runtime.SetFinalizer(b, nil)
 	binding.LLVMDisposeMemoryBuffer(b.ref)
 	return nil
 }
