@@ -60,6 +60,51 @@ func (c Invoke[T]) CalledFunction() (llvm.Value[llvm.FnT], bool) {
 	return llvm.NewValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
 }
 
+// LandingPad landingpad 指令角色（内嵌 Value[T]，T 通常为 StructT）
+type LandingPad[T llvm.Kind] struct {
+	llvm.Value[T]
+}
+
+// AddClause 追加 catch/filter 子句（catch：类型信息全局；filter：常量数组）。
+// 注：经 Dyn() 走 Value[DynT].IsConstant，避免 Global 角色遮蔽语义（全局常量标志）
+func (l LandingPad[T]) AddClause(v llvm.AnyValue) {
+	const op = "ir.LandingPad.AddClause"
+	l.Check(op)
+	l.Context().CheckValues(op, v)
+	if !v.Dyn().IsConstant() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "clause must be a constant")
+	}
+	binding.LLVMAddClause(l.Ref(), v.Ref())
+}
+
+// ClauseCount 子句数量
+func (l LandingPad[T]) ClauseCount() uint32 {
+	l.Check("ir.LandingPad.ClauseCount")
+	return binding.LLVMGetNumClauses(l.Ref())
+}
+
+// Clause 第 i 条子句（擦除种类）
+func (l LandingPad[T]) Clause(i uint32) llvm.Value[llvm.DynT] {
+	const op = "ir.LandingPad.Clause"
+	l.Check(op)
+	if i >= l.ClauseCount() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "clause index %d out of range", i)
+	}
+	return llvm.ValueOf(l.Context(), l.Lifetime(), binding.LLVMGetClause(l.Ref(), i))
+}
+
+// SetCleanup 设置 cleanup 标志
+func (l LandingPad[T]) SetCleanup(v bool) {
+	l.Check("ir.LandingPad.SetCleanup")
+	binding.LLVMSetCleanup(l.Ref(), v)
+}
+
+// IsCleanup 是否 cleanup
+func (l LandingPad[T]) IsCleanup() bool {
+	l.Check("ir.LandingPad.IsCleanup")
+	return binding.LLVMIsCleanup(l.Ref())
+}
+
 // ===== EH 构建方法 =====
 
 // Invoke 插入 invoke 调用：then 为正常出口、unwind 为异常出口；
@@ -91,4 +136,25 @@ func (b *Builder) InvokeIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], si
 	b.checkCallArgs(op, sig, args)
 	ref := binding.LLVMBuildInvoke(b.ref, sig.Ref(), pv.Ref(), b.valueRefs(args), then.ref, unwind.ref, name)
 	return Invoke[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
+}
+
+// LandingPad 插入 landingpad（t 须为首类聚合类型）；personality 经 Function.SetPersonality 设置。
+// 注：LLVM 22 的 PersFn 构建参数已废弃，传零值
+func (b *Builder) LandingPad[T llvm.Kind](t llvm.TypeRef[T], name string) LandingPad[T] {
+	const op = "ir.Builder.LandingPad"
+	tt := t.AsType()
+	b.pre(op)
+	if tt.Context() != b.ctx {
+		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
+	}
+	ref := binding.LLVMBuildLandingPad(b.ref, tt.Ref(), binding.LLVMValueRef{}, 0, name)
+	return LandingPad[T]{Value: llvm.NewValue[T](b.ctx, b.inserted.life, ref)}
+}
+
+// Resume 以 landingpad 值恢复异常传播（void 指令，无 name）
+func (b *Builder) Resume(exn llvm.AnyValue) llvm.Value[llvm.VoidT] {
+	const op = "ir.Builder.Resume"
+	b.pre(op, coreAny(exn))
+	ref := binding.LLVMBuildResume(b.ref, exn.Ref())
+	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)
 }

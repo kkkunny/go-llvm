@@ -50,7 +50,9 @@ func TestBuilderInvoke(t *testing.T) {
 
 	i32 := ctx.Int(32)
 	g := m.NewFunction("g", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	pers := m.NewFunction("pers", ctx.Fn(i32, []llvm.AnyType{i32}, false))
 	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	fn.SetPersonality(pers)
 	entry := fn.NewBlock("entry")
 	cont := fn.NewBlock("cont")
 	lpad := fn.NewBlock("lpad")
@@ -75,7 +77,14 @@ func TestBuilderInvoke(t *testing.T) {
 	b.Ret(iv)
 
 	b.MoveToEnd(lpad)
-	b.Unreachable() // 任务 3 替换为 landingpad+resume
+	padTy := ctx.Struct([]llvm.AnyType{ctx.Ptr(0), i32}, false)
+	lp := b.LandingPad(padTy, "lp")
+	lp.SetCleanup(true)
+	b.Resume(lp)
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
 
 	got := m.String()
 	if !strings.Contains(got, "invoke i32 @g(i32 %0)") {
@@ -122,4 +131,90 @@ func TestBuilderInvokePrecheck(t *testing.T) {
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("wrong arg count should panic ErrTypeMismatch, got %v", err)
 	}
+}
+
+func TestBuilderLandingPadResume(t *testing.T) {
+	ctx, m, b := buildEHModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer b.Close()
+
+	i32 := ctx.Int(32)
+	ptr := ctx.Ptr(0)
+	pers := m.NewFunction("pers", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	g := m.NewFunction("g", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	ti := m.NewGlobal("ti", ptr)
+
+	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	fn.SetPersonality(pers)
+	entry := fn.NewBlock("entry")
+	cont := fn.NewBlock("cont")
+	lpad := fn.NewBlock("lpad")
+
+	b.MoveToEnd(entry)
+	iv := b.Invoke[llvm.IntT](g, []llvm.AnyValue{fn.ParamAs[llvm.IntT](0)}, cont, lpad, "v")
+
+	b.MoveToEnd(cont)
+	b.Ret(iv)
+
+	b.MoveToEnd(lpad)
+	padTy := ctx.Struct([]llvm.AnyType{ptr, i32}, false)
+	lp := b.LandingPad(padTy, "lp")
+	lp.AddClause(ti)
+	lp.AddClause(ti)
+	lp.SetCleanup(true)
+	if lp.ClauseCount() != 2 {
+		t.Fatalf("clause count = %d, want 2", lp.ClauseCount())
+	}
+	if got := lp.Clause(0); got.Name() != "ti" {
+		t.Fatalf("clause 0 = %s, want ti", got.Name())
+	}
+	if !lp.IsCleanup() {
+		t.Fatal("cleanup should be set")
+	}
+	lp.SetCleanup(false)
+	if lp.IsCleanup() {
+		t.Fatal("cleanup should be cleared")
+	}
+	b.Resume(lp)
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	got := m.String()
+	if !strings.Contains(got, "landingpad { ptr, i32 }") {
+		t.Fatalf("missing landingpad:\n%s", got)
+	}
+	if !strings.Contains(got, "catch ptr @ti") {
+		t.Fatalf("missing catch clause:\n%s", got)
+	}
+	if !strings.Contains(got, "resume { ptr, i32 } %lp") {
+		t.Fatalf("missing resume:\n%s", got)
+	}
+}
+
+func TestBuilderLandingPadPrecheck(t *testing.T) {
+	ctx, m, b := buildEHModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer b.Close()
+
+	i32 := ctx.Int(32)
+	ptr := ctx.Ptr(0)
+	fn := m.NewFunction("f", ctx.Fn(ctx.Void(), []llvm.AnyType{ptr}, false))
+	entry := fn.NewBlock("entry")
+	b.MoveToEnd(entry)
+
+	padTy := ctx.Struct([]llvm.AnyType{ptr, i32}, false)
+	lp := b.LandingPad(padTy, "lp")
+
+	// 子句必须是常量
+	if err := llvm.Catch(func() { lp.AddClause(fn.Param(0)) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("non-constant clause should panic ErrInvalidArg, got %v", err)
+	}
+	// 子句下标越界
+	if err := llvm.Catch(func() { lp.Clause(9) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("clause out of range should panic ErrInvalidArg, got %v", err)
+	}
+	b.Unreachable()
 }
