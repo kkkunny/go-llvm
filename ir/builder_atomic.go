@@ -56,6 +56,24 @@ func preOrderingCmpXchg(op string, success, failure llvm.AtomicOrdering) {
 	}
 }
 
+// preOrderingLoad load 合法内存序：unordered/monotonic/acquire/seq_cst（及 not_atomic 复位）
+func preOrderingLoad(op string, o llvm.AtomicOrdering) {
+	switch o {
+	case llvm.AtomicNotAtomic, llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicSequentiallyConsistent:
+	default:
+		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid load ordering %d", o)
+	}
+}
+
+// preOrderingStore store 合法内存序：unordered/monotonic/release/seq_cst（及 not_atomic 复位）
+func preOrderingStore(op string, o llvm.AtomicOrdering) {
+	switch o {
+	case llvm.AtomicNotAtomic, llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicRelease, llvm.AtomicSequentiallyConsistent:
+	default:
+		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid store ordering %d", o)
+	}
+}
+
 // ===== 指令角色 =====
 
 // Fence fence 指令角色（内嵌 Value[VoidT]；void 值指令不可命名）

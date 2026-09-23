@@ -43,6 +43,32 @@ func (l Load[T]) Align() uint32 {
 	return binding.LLVMGetAlignment(l.Ref())
 }
 
+// SetVolatile 设置 volatile 访问
+func (l Load[T]) SetVolatile(v bool) {
+	l.Check("ir.Load.SetVolatile")
+	binding.LLVMSetVolatile(l.Ref(), v)
+}
+
+// IsVolatile 是否 volatile 访问
+func (l Load[T]) IsVolatile() bool {
+	l.Check("ir.Load.IsVolatile")
+	return binding.LLVMGetVolatile(l.Ref())
+}
+
+// SetOrdering 设置原子内存序
+func (l Load[T]) SetOrdering(o llvm.AtomicOrdering) {
+	const op = "ir.Load.SetOrdering"
+	l.Check(op)
+	preOrderingLoad(op, o)
+	binding.LLVMSetOrdering(l.Ref(), binding.LLVMAtomicOrdering(o))
+}
+
+// Ordering 原子内存序（非原子访问为 AtomicNotAtomic）
+func (l Load[T]) Ordering() llvm.AtomicOrdering {
+	l.Check("ir.Load.Ordering")
+	return llvm.AtomicOrdering(binding.LLVMGetOrdering(l.Ref()))
+}
+
 // Store 存储指令角色（内嵌 Value[VoidT]）
 type Store struct {
 	llvm.Value[llvm.VoidT]
@@ -60,6 +86,32 @@ func (s Store) SetAlign(n uint32) {
 func (s Store) Align() uint32 {
 	s.Check("ir.Store.Align")
 	return binding.LLVMGetAlignment(s.Ref())
+}
+
+// SetVolatile 设置 volatile 访问
+func (s Store) SetVolatile(v bool) {
+	s.Check("ir.Store.SetVolatile")
+	binding.LLVMSetVolatile(s.Ref(), v)
+}
+
+// IsVolatile 是否 volatile 访问
+func (s Store) IsVolatile() bool {
+	s.Check("ir.Store.IsVolatile")
+	return binding.LLVMGetVolatile(s.Ref())
+}
+
+// SetOrdering 设置原子内存序
+func (s Store) SetOrdering(o llvm.AtomicOrdering) {
+	const op = "ir.Store.SetOrdering"
+	s.Check(op)
+	preOrderingStore(op, o)
+	binding.LLVMSetOrdering(s.Ref(), binding.LLVMAtomicOrdering(o))
+}
+
+// Ordering 原子内存序（非原子访问为 AtomicNotAtomic）
+func (s Store) Ordering() llvm.AtomicOrdering {
+	s.Check("ir.Store.Ordering")
+	return llvm.AtomicOrdering(binding.LLVMGetOrdering(s.Ref()))
 }
 
 // ===== 内存指令 =====
