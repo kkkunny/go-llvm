@@ -219,6 +219,53 @@ func TestBuilderLandingPadPrecheck(t *testing.T) {
 	b.Unreachable()
 }
 
+func TestBuilderInvokeIndirect(t *testing.T) {
+	ctx, m, b := buildEHModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer b.Close()
+
+	i32 := ctx.Int(32)
+	ptr := ctx.Ptr(0)
+	pers := m.NewFunction("pers", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{ptr}, false))
+	fn.SetPersonality(pers)
+	entry := fn.NewBlock("entry")
+	cont := fn.NewBlock("cont")
+	lpad := fn.NewBlock("lpad")
+
+	b.MoveToEnd(entry)
+	sig := ctx.Fn(i32, []llvm.AnyType{i32}, false)
+	iv := b.InvokeIndirect[llvm.IntT](fn.ParamAs[llvm.PtrT](0), sig, []llvm.AnyValue{ctx.ConstInt(i32, 7).Value}, cont, lpad, "v")
+	if iv.NormalBlock() != cont || iv.UnwindBlock() != lpad {
+		t.Fatalf("successors = %s/%s, want cont/lpad", iv.NormalBlock().Name(), iv.UnwindBlock().Name())
+	}
+	b.MoveToEnd(cont)
+	b.Ret(iv)
+	b.MoveToEnd(lpad)
+	lp := b.LandingPad(ctx.Struct([]llvm.AnyType{ptr, i32}, false), "lp")
+	lp.SetCleanup(true)
+	b.Resume(lp)
+
+	// 跨 Context 签名
+	ctx2 := llvm.NewContext()
+	defer ctx2.Close()
+	i32b := ctx2.Int(32)
+	sig2 := ctx2.Fn(i32b, []llvm.AnyType{i32b}, false)
+	if err := llvm.Catch(func() {
+		b.InvokeIndirect[llvm.IntT](fn.ParamAs[llvm.PtrT](0), sig2, nil, cont, lpad, "")
+	}); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign signature should panic ErrCrossContext, got %v", err)
+	}
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if got := m.String(); !strings.Contains(got, "invoke i32 %0(i32 7)") {
+		t.Fatalf("missing indirect invoke:\n%s", got)
+	}
+}
+
 func TestBuilderFunclets(t *testing.T) {
 	ctx, m, b := buildEHModule(t)
 	defer ctx.Close()
