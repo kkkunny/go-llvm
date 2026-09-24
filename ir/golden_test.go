@@ -256,3 +256,44 @@ func TestGoldenVec(t *testing.T) {
 	}
 	checkGolden(t, m.String(), "vec.ll")
 }
+
+// TestGoldenAttrsMeta 覆盖属性/调用约定、元数据/模块 flag、comdat 与 ctor 的端到端打印
+func TestGoldenAttrsMeta(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "attrs_meta")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	ptr := ctx.Ptr(0)
+
+	g := m.NewFunction("g", ctx.Fn(i32, []llvm.AnyType{ptr}, false))
+	g.AddAttr(llvm.AttrFunction, ctx.EnumAttr(llvm.AttrNoInline, 0))
+	g.AddAttr(llvm.AttrFunction, ctx.StringAttr("my-attr", "v1"))
+	g.AddAttr(llvm.AttrParam(0), ctx.AlignAttr(8))
+	g.AddAttr(llvm.AttrReturn, ctx.EnumAttr(llvm.AttrNoUndef, 0))
+	g.SetCallConv(llvm.CallConvFast)
+
+	ctor := m.NewFunction("ctor", ctx.Fn(ctx.Void(), nil, false))
+	entry := ctor.NewBlock("entry")
+	b := NewBuilder(ctx)
+	defer b.Close()
+	b.MoveToEnd(entry)
+	v := b.Call[llvm.IntT](g, []llvm.AnyValue{ctx.ConstNull(ptr)}, "v")
+	AttachMetadata(v, "my.kind", ctx.MDNode(ctx.MDString("tag")))
+	b.RetVoid()
+
+	m.AppendCtor(ctor, 65535)
+	m.AddModuleFlag(llvm.ModuleFlagOverride, "my.flag", ctx.MDString("v"))
+	m.AddNamedMetadataOperand("my.md", ctx.MDNode(ctx.MDString("x")))
+	c := m.GetOrInsertComdat("mycomdat")
+	c.SetSelectionKind(llvm.ComdatNoDeduplicate)
+	glob := m.NewGlobal("glob", i32)
+	glob.SetInitializer(ctx.ConstInt(i32, 0).Value)
+	glob.SetComdat(c)
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	checkGolden(t, m.String(), "attrs_meta.ll")
+}
