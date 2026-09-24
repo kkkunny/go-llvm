@@ -18,6 +18,8 @@ const (
 	ErrCodeGen                     // 目标代码生成失败（target 包）
 	ErrJIT                         // JIT 构造/符号解析失败（jit 包）
 	ErrIO                          // 文件/内存缓冲读写失败（ir/target/jit）
+	ErrLink                        // 模块链接失败（ir.Module.Link）
+	ErrPass                        // 优化管线执行失败（pass 包）
 	ErrInternal                    // 兜底
 )
 

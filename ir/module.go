@@ -223,3 +223,23 @@ func (m *Module) DelGlobal(g Global) {
 	m.ctx.CheckValues(op, g)
 	binding.LLVMDeleteGlobal(g.Ref())
 }
+
+// Link 将 src 链接进本模块。src 被 LLVM 消费：Go 侧句柄立即失效（Close 返回 ErrClosed）。
+// 失败返回 ErrLink（src 同样已被消费）
+func (m *Module) Link(src *Module) error {
+	const op = "ir.Module.Link"
+	m.Check(op)
+	src.Check(op)
+	if src == m {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "cannot link a module into itself")
+	}
+	if src.ctx != m.ctx {
+		llvm.Panicf(llvm.ErrCrossContext, op, "source module belongs to another context")
+	}
+	// LLVMLinkModules2 无论成败都会销毁源模块：先失效 Go 侧句柄，避免双重释放
+	src.Disown()
+	if err := binding.LLVMLinkModules(m.ref, src.ref); err != nil {
+		return llvm.WrapError(llvm.ErrLink, op, err)
+	}
+	return nil
+}

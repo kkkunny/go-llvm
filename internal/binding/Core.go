@@ -2314,3 +2314,11 @@ func LLVMGetBufferSize(buf LLVMMemoryBufferRef) uint64 {
 func LLVMDisposeMemoryBuffer(buf LLVMMemoryBufferRef) {
 	C.LLVMDisposeMemoryBuffer(buf.c)
 }
+
+// LLVMGoEmitError 经 LLVMContext::emitError 发出诊断（LLVM-C 无对应 API，供诊断回调测试/调试用）
+func LLVMGoEmitError(c LLVMContextRef, msg string) {
+	string2CString(msg, func(cmsg *C.char) bool {
+		C.LLVMGoEmitError(c.c, cmsg)
+		return false
+	})
+}

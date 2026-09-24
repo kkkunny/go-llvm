@@ -4,6 +4,7 @@ import (
 	"io"
 	"reflect"
 	"sync"
+	"sync/atomic"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
@@ -12,6 +13,7 @@ import (
 type Context struct {
 	ref      binding.LLVMContextRef
 	life     *Lifetime
+	diagID   uint64 // 诊断回调注册表键（全局唯一）
 	mu       sync.Mutex
 	nextID   uint64
 	closers  []owned
@@ -28,9 +30,12 @@ type owned struct {
 	c  io.Closer
 }
 
+// diagIDSeq 诊断回调注册表键的自增序列
+var diagIDSeq atomic.Uint64
+
 // NewContext 创建上下文
 func NewContext() *Context {
-	return &Context{ref: binding.LLVMContextCreate(), life: NewLifetime()}
+	return &Context{ref: binding.LLVMContextCreate(), life: NewLifetime(), diagID: diagIDSeq.Add(1)}
 }
 
 // Own 登记子资源（供 llvm/* 子包使用）；Context.Close 时按逆序级联 Close。

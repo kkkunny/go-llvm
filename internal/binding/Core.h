@@ -17,6 +17,7 @@ LLVMValueRef LLVMConstAggregateZero(LLVMTypeRef ty);
 LLVMTypeRef LLVMGetFunctionType(LLVMValueRef f);
 void LLVMSetDSOLocal(LLVMValueRef v, LLVMBool Local);
 LLVMBool LLVMIsDSOLocal(LLVMValueRef v);
+void LLVMGoEmitError(LLVMContextRef c, const char *msg);
 
 #ifdef __cplusplus
 }

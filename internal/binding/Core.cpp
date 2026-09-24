@@ -1,6 +1,7 @@
 #include "Core.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/LLVMContext.h"
 
 using namespace llvm;
 
@@ -18,4 +19,8 @@ void LLVMSetDSOLocal(LLVMValueRef v, LLVMBool Local) {
 
 LLVMBool LLVMIsDSOLocal(LLVMValueRef v) {
     return unwrap<Function>(v)->isDSOLocal();
+}
+
+void LLVMGoEmitError(LLVMContextRef c, const char *msg) {
+    unwrap(c)->emitError(msg);
 }
