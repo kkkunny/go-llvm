@@ -27,6 +27,9 @@ type (
 
 	LLVMAttributeRef      struct{ c C.LLVMAttributeRef }
 	LLVMDiagnosticInfoRef struct{ c C.LLVMDiagnosticInfoRef }
+	LLVMMetadataRef       struct{ c C.LLVMMetadataRef }
+	LLVMNamedMDNodeRef    struct{ c C.LLVMNamedMDNodeRef }
+	LLVMComdatRef         struct{ c C.LLVMComdatRef }
 
 	// LLVMMemoryBufferRef A memory buffer.
 	LLVMMemoryBufferRef struct{ c C.LLVMMemoryBufferRef }
@@ -40,6 +43,9 @@ func (ref LLVMBasicBlockRef) IsNil() bool     { return ref.c == nil }
 func (ref LLVMBuilderRef) IsNil() bool        { return ref.c == nil }
 func (ref LLVMAttributeRef) IsNil() bool      { return ref.c == nil }
 func (ref LLVMDiagnosticInfoRef) IsNil() bool { return ref.c == nil }
+func (ref LLVMMetadataRef) IsNil() bool       { return ref.c == nil }
+func (ref LLVMNamedMDNodeRef) IsNil() bool    { return ref.c == nil }
+func (ref LLVMComdatRef) IsNil() bool         { return ref.c == nil }
 func (ref LLVMMemoryBufferRef) IsNil() bool   { return ref.c == nil }
 
 // Equal 句柄等值比较

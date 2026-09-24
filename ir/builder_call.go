@@ -10,10 +10,23 @@ func (b *Builder) Call[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyV
 	const op = "ir.Builder.Call"
 	fv := fn.AsValue()
 	b.pre(op, core(fv))
-	sig := llvm.AsFnType(llvm.TypeOfRef(b.ctx, binding.LLVMGetFunctionType(fv.Ref())))
+	sig := callSig(b.ctx, fv.Ref())
 	checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
 	ref := b.call(op, fv.Ref(), sig, args, name)
 	return Call[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
+}
+
+// callSig 调用目标的函数类型：Function 走 LLVMGetFunctionType，
+// InlineAsm 走 LLVMGetInlineAsmFunctionType（其值为 ptr 类型，不能反推签名）
+func callSig(ctx *llvm.Context, callee binding.LLVMValueRef) llvm.FnType {
+	ty := binding.LLVMTypeOf(callee)
+	if binding.LLVMGetTypeKind(ty) == binding.LLVMFunctionTypeKind {
+		return llvm.AsFnType(llvm.TypeOfRef(ctx, ty))
+	}
+	if binding.LLVMGetValueKind(callee) == binding.LLVMInlineAsmValueKind {
+		return llvm.AsFnType(llvm.TypeOfRef(ctx, binding.LLVMGetInlineAsmFunctionType(callee)))
+	}
+	return llvm.AsFnType(llvm.TypeOfRef(ctx, binding.LLVMGetFunctionType(callee)))
 }
 
 // CallIndirect 通过函数指针调用（不透明指针 + 签名）；返回种类 U 在调用前与签名返回类型比对，不符 panic

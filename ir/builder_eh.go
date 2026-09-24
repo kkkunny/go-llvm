@@ -182,7 +182,7 @@ func (b *Builder) Invoke[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.An
 	b.pre(op, core(fv))
 	b.preBlockOwn(op, then)
 	b.preBlockOwn(op, unwind)
-	sig := llvm.AsFnType(llvm.TypeOfRef(b.ctx, binding.LLVMGetFunctionType(fv.Ref())))
+	sig := callSig(b.ctx, fv.Ref())
 	checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
 	b.checkCallArgs(op, sig, args)
 	ref := binding.LLVMBuildInvoke(b.ref, sig.Ref(), fv.Ref(), b.valueRefs(args), then.ref, unwind.ref, name)
