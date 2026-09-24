@@ -59,7 +59,7 @@ and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codege
 
 Add new bindings in the same `/* #include ... */` + `import "C"` style, mapping the exact
 C API name. Prefer wrapping the local header declaration over re-declaring it. C++ shims
-(`Core.cpp`, `PassManager.cpp`) exist only for APIs missing from LLVM-C.
+(`Core.cpp`) exist only for APIs missing from LLVM-C.
 
 All bindings now have their public API consumers. Additional P2-6 surface: `Context.SetDiagnosticHandler`/
 `ClearDiagnosticHandler` (Go callback registry + `ErrorHandling.c` trampoline; LLVM 的默认 handler 对
