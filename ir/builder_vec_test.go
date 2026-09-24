@@ -51,6 +51,7 @@ func TestBuilderVectorInsts(t *testing.T) {
 }
 
 func TestBuilderVectorPrecheck(t *testing.T) {
+	requireDebug(t)
 	ctx := llvm.NewContext()
 	defer ctx.Close()
 	m := NewModule(ctx, "vec-pre")

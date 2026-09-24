@@ -3,12 +3,16 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
-// ===== 内存序预检 =====
+// ===== 内存序预检（语义契约，仅调试层） =====
 
 // preOrderingFence fence 合法内存序：acquire/release/acq_rel/seq_cst
 func preOrderingFence(op string, o llvm.AtomicOrdering) {
+	if !checks.Debug {
+		return
+	}
 	switch o {
 	case llvm.AtomicAcquire, llvm.AtomicRelease, llvm.AtomicAcquireRelease, llvm.AtomicSequentiallyConsistent:
 	default:
@@ -18,6 +22,9 @@ func preOrderingFence(op string, o llvm.AtomicOrdering) {
 
 // preOrderingRMW atomicrmw/成功比较交换合法内存序：monotonic 起（not_atomic/unordered 非法）
 func preOrderingRMW(op string, o llvm.AtomicOrdering) {
+	if !checks.Debug {
+		return
+	}
 	switch o {
 	case llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicRelease, llvm.AtomicAcquireRelease, llvm.AtomicSequentiallyConsistent:
 	default:
@@ -45,6 +52,9 @@ func orderingRank(o llvm.AtomicOrdering) int {
 
 // preOrderingCmpXchg 比较交换内存序预检：失败序不得为 release/acq_rel 且不得强于成功序
 func preOrderingCmpXchg(op string, success, failure llvm.AtomicOrdering) {
+	if !checks.Debug {
+		return
+	}
 	preOrderingRMW(op, success)
 	switch failure {
 	case llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicSequentiallyConsistent:
@@ -58,6 +68,9 @@ func preOrderingCmpXchg(op string, success, failure llvm.AtomicOrdering) {
 
 // preOrderingLoad load 合法内存序：unordered/monotonic/acquire/seq_cst（及 not_atomic 复位）
 func preOrderingLoad(op string, o llvm.AtomicOrdering) {
+	if !checks.Debug {
+		return
+	}
 	switch o {
 	case llvm.AtomicNotAtomic, llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicSequentiallyConsistent:
 	default:
@@ -67,6 +80,9 @@ func preOrderingLoad(op string, o llvm.AtomicOrdering) {
 
 // preOrderingStore store 合法内存序：unordered/monotonic/release/seq_cst（及 not_atomic 复位）
 func preOrderingStore(op string, o llvm.AtomicOrdering) {
+	if !checks.Debug {
+		return
+	}
 	switch o {
 	case llvm.AtomicNotAtomic, llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicRelease, llvm.AtomicSequentiallyConsistent:
 	default:

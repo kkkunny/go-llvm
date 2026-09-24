@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 // Call 调用指令角色（内嵌 Value[T]，自动实现 llvm.ValueRef/AnyValue）
@@ -16,22 +17,22 @@ func (c Call[T]) ArgCount() uint32 {
 	return binding.LLVMGetNumArgOperands(c.Ref())
 }
 
-// Arg 第 i 个实参（擦除种类）
+// Arg 第 i 个实参（擦除种类）；越界校验仅调试层
 func (c Call[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.Call.Arg"
 	c.Check(op)
-	if i >= c.ArgCount() {
+	if checks.Debug && i >= c.ArgCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	ref := binding.LLVMGetOperand(c.Ref(), i)
 	return llvm.ValueOf(c.Context(), c.Lifetime(), ref)
 }
 
-// SetArg 替换第 i 个实参
+// SetArg 替换第 i 个实参；越界校验仅调试层
 func (c Call[T]) SetArg(i uint32, v llvm.AnyValue) {
 	const op = "ir.Call.SetArg"
 	c.Check(op)
-	if i >= c.ArgCount() {
+	if checks.Debug && i >= c.ArgCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	c.Context().CheckValues(op, v)
@@ -59,7 +60,7 @@ type Incoming[T llvm.Kind] struct {
 	Block Block
 }
 
-// AddIncoming 追加 PHI 输入
+// AddIncoming 追加 PHI 输入；值类型一致为语义契约，仅调试层
 func (p Phi[T]) AddIncoming(incomings ...Incoming[T]) {
 	const op = "ir.Phi.AddIncoming"
 	p.Check(op)
@@ -68,10 +69,13 @@ func (p Phi[T]) AddIncoming(incomings ...Incoming[T]) {
 	for i, in := range incomings {
 		in.Block.Check(op)
 		in.Value.Check(op)
-		inRef := binding.LLVMTypeOf(in.Value.Ref())
-		if !inRef.Equal(binding.LLVMTypeOf(p.Ref())) {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "incoming type %s differs from phi type %s",
-				typeString(p.Context(), in.Value.Ref()), typeString(p.Context(), p.Ref()))
+		if checks.Debug {
+			phiTy := typeOfVal(p.Ref(), p.RawType())
+			inTy := typeOfVal(in.Value.Ref(), in.Value.RawType())
+			if !inTy.Equal(phiTy) {
+				llvm.Panicf(llvm.ErrTypeMismatch, op, "incoming type %s differs from phi type %s",
+					typeString(p.Context(), in.Value.Ref()), typeString(p.Context(), p.Ref()))
+			}
 		}
 		values[i] = in.Value.Ref()
 		blocks[i] = in.Block.ref
@@ -85,11 +89,11 @@ func (p Phi[T]) Count() uint32 {
 	return binding.LLVMCountIncoming(p.Ref())
 }
 
-// IncomingAt 第 i 条 PHI 输入
+// IncomingAt 第 i 条 PHI 输入；越界校验仅调试层
 func (p Phi[T]) IncomingAt(i uint32) Incoming[T] {
 	const op = "ir.Phi.IncomingAt"
 	p.Check(op)
-	if i >= p.Count() {
+	if checks.Debug && i >= p.Count() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "incoming index %d out of range", i)
 	}
 	val := binding.LLVMGetIncomingValue(p.Ref(), i)

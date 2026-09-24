@@ -2,6 +2,7 @@ package llvm
 
 import (
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 // AnyValue 值句柄的非泛型视图
@@ -27,6 +28,7 @@ type ValueRef[T Kind] interface {
 // Value 种类级泛型值句柄；类别专属操作见角色包装（如 IntConst.SignedValue）
 type Value[T Kind] struct {
 	ref  binding.LLVMValueRef
+	ty   binding.LLVMTypeRef // 调试层类型缓存（构造时查询一次）；release 恒为空
 	ctx  *Context
 	life *Lifetime
 }
@@ -34,9 +36,21 @@ type Value[T Kind] struct {
 // Ref 返回底层句柄（供 llvm/* 子包桥接使用）
 func (v Value[T]) Ref() binding.LLVMValueRef { return v.ref }
 
+// RawType 返回构造时缓存的底层类型句柄（不做校验）；release 构建恒为空句柄。
+// 供 llvm/* 子包预检在调试层复用，避免重复的 cgo 类型查询。
+func (v Value[T]) RawType() binding.LLVMTypeRef { return v.ty }
+
+// rawType 类型句柄：优先用构造缓存，缺失时查询（调用前须已 Check）
+func (v Value[T]) rawType() binding.LLVMTypeRef {
+	if !v.ty.IsNil() {
+		return v.ty
+	}
+	return binding.LLVMTypeOf(v.ref)
+}
+
 // Dyn 擦除类型参数
 func (v Value[T]) Dyn() Value[DynT] {
-	return Value[DynT]{ref: v.ref, ctx: v.ctx, life: v.life}
+	return Value[DynT]{ref: v.ref, ty: v.ty, ctx: v.ctx, life: v.life}
 }
 
 // AsValue 返回自身（实现 ValueRef[T]；值角色经内嵌继承）
@@ -100,20 +114,21 @@ func (v Value[T]) IsConstant() bool {
 // Type 值的类型（依赖类型：T 与值种类一致）
 func (v Value[T]) Type() Type[T] {
 	v.Check("llvm.Value.Type")
-	return Type[T]{ref: binding.LLVMTypeOf(v.ref), ctx: v.ctx}
+	return Type[T]{ref: v.rawType(), ctx: v.ctx}
 }
 
 // As 运行时校验种类后转换类型参数；目标是 DynT 时始终成功
 func (v Value[T]) As[U Kind]() (Value[U], error) {
 	v.Check("llvm.Value.As")
-	if !kindMatches[U](binding.LLVMTypeOf(v.ref)) {
+	ty := v.rawType()
+	if !kindMatches[U](ty) {
 		return Value[U]{}, &Error{
 			Reason: ErrTypeMismatch,
 			Op:     "llvm.Value.As",
-			Msg:    "value kind mismatch: have " + kindName(kindOfType(binding.LLVMTypeOf(v.ref))) + ", want " + kindName(kindOf[U]()),
+			Msg:    "value kind mismatch: have " + kindName(kindOfType(ty)) + ", want " + kindName(kindOf[U]()),
 		}
 	}
-	return Value[U]{ref: v.ref, ctx: v.ctx, life: v.life}, nil
+	return Value[U]{ref: v.ref, ty: v.ty, ctx: v.ctx, life: v.life}, nil
 }
 
 // MustAs As 的 panic 版本（程序员错误）
@@ -125,12 +140,21 @@ func (v Value[T]) MustAs[U Kind]() Value[U] {
 	return res
 }
 
+// newValue 内部构造值并预取类型句柄（仅调试层；release 构建零额外开销）
+func newValue[T Kind](ctx *Context, life *Lifetime, ref binding.LLVMValueRef) Value[T] {
+	v := Value[T]{ref: ref, ctx: ctx, life: life}
+	if checks.Debug && !ref.IsNil() {
+		v.ty = binding.LLVMTypeOf(ref)
+	}
+	return v
+}
+
 // NewValue 由底层句柄构建值（供 llvm/* 子包桥接使用）
 func NewValue[T Kind](ctx *Context, life *Lifetime, ref binding.LLVMValueRef) Value[T] {
-	return Value[T]{ref: ref, ctx: ctx, life: life}
+	return newValue[T](ctx, life, ref)
 }
 
 // ValueOf 由底层句柄构建擦除值（指令遍历等动态来源）
 func ValueOf(ctx *Context, life *Lifetime, ref binding.LLVMValueRef) Value[DynT] {
-	return Value[DynT]{ref: ref, ctx: ctx, life: life}
+	return newValue[DynT](ctx, life, ref)
 }

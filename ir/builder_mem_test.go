@@ -196,6 +196,7 @@ func TestBuilderMallocFree(t *testing.T) {
 }
 
 func TestBuilderAlignPrecheck(t *testing.T) {
+	requireDebug(t)
 	ctx, m, b, _ := memModule(t)
 	defer ctx.Close()
 	defer m.Close()

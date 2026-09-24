@@ -8,7 +8,7 @@ sub-packages; all cgo lives in `internal/binding`.
 - **master targets LLVM 22** (`MIN/MAX_SUPPORT_MAJOR_VERSION = 22` in the Makefile). Older lines are pinned with git tags (currently `@llvm21`) and carry their own flags/Makefile numbers. If `go build ./...` fails with cgo errors like `could not determine what C.X refers to`, you are compiling this ref against the wrong LLVM major — check `llvm-config --version`.
 - **Go 1.27+** is required: the public API uses generic methods (`func (v Value[T]) As[U Kind]()`), which are only available on concrete types. Do not move generic methods into interfaces — Go does not allow it, and interfaces cannot be satisfied by generic methods.
 - `#cgo` flags are checked in at `internal/binding/cgo.go`: static multi-candidate `-I`/`-L` dirs (`/usr/lib/llvm-NN` first, then `/usr`, `/usr/local`, `/usr/lib64`) with an unversioned `-lLLVM`. Consumers need no extra setup for standard layouts; version dirs are per-line (master lists `llvm-22`), and `make config` regenerates them when bumping the LLVM line.
-- `go build ./...`, `go vet ./...` and `go test ./...` are the verification steps. Golden IR tests can be regenerated with `go test ./ir -run TestGolden -update`. Benchmarks: `go test -run '^$' -bench . -benchmem ./...` (see `bench_test.go`, `ir/bench_test.go`, `jit/bench_test.go`).
+- `go build ./...`, `go vet ./...`, `go test ./...` **and `go test -tags=llvm_release ./...`** are the verification steps: default builds run the full check stack, `llvm_release` is the trust build (see *Checks and build modes* below). Golden IR tests can be regenerated with `go test ./ir -run TestGolden -update` and must produce identical output in both modes. Benchmarks: `make bench` / `make bench-release`, or `go test -run '^$' -bench . -benchmem ./...` (see `bench_test.go`, `ir/bench_test.go`, `jit/bench_test.go`).
 
 ## cgo / Makefile quirks
 
@@ -28,6 +28,7 @@ sub-packages; all cgo lives in `internal/binding`.
 | `llvm/jit` | ORC LLJIT, symbol mapping, Go interop bridge | AOT codegen |
 | `llvm/pass` | optimization pipelines | define passes |
 | `internal/binding` | 1:1 cgo wrappers over LLVM-C + C++ shims | expose high-level API |
+| `internal/checks` | check-mode switch (`Debug` const via `llvm_release` build tag) | import project packages |
 
 Dependency direction is strictly one-way: `llvm` ← `llvm/ir` ← `llvm/target` ← `llvm/jit`,
 and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codegen and
@@ -46,11 +47,15 @@ and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codege
 - **Unknown kinds/opcodes degrade** to `Value[DynT]` instead of panicking.
 - **Errors**: recoverable runtime failures return `error`; programmer errors `panic(*llvm.Error)` with `Reason`/`Op`/`Msg`, recoverable via `llvm.Catch` (or `llvm.Try[T]` when a value is produced). Data-driven unsupported cases (`TypeOf[string]`, variadic Go funcs) return `ErrUnsupported`. `internal/binding` returns plain `error` (it must not import the root package); sub-packages wrap it with `llvm.WrapError(reason, op, err)` and use `ErrCodeGen`/`ErrJIT`/`ErrIO`/`ErrParse` for target/JIT/IO/parse failures.
 - **Constants**: `ConstInt` truncates like an unsigned value; `ConstSInt` sign-extends (use it for negative or over-wide values). Type-directed sugar: `IntType.Const/ConstS`, `FloatType.Const`.
-- **Performance**: the pre-check layer uses the `preVal` value type (`core`/`coreAny`) instead of `AnyValue` interfaces so checks never box `Value[T]`; `Builder` owns a scratch ref buffer (`valueRefs`/`refs`) reused for call args and GEP indices; `Builder.call` reads parameter types straight from binding. Checks that must ask LLVM (`LLVMTypeOf` for operand/argument type equality) are the accepted cgo floor — do not add cgo to the pre-check path without a benchmark. Go type/signature mapping is memoized per `Context` (`typeCache`/`fnCache`) with liveness checked before lookup. The JIT bridge pools its slot arrays; `Func[F]`/`MapFunc[F]` calls still cost reflect + one cgo round trip each.
+- **Performance**: the pre-check layer uses the `preVal` value type (`core`/`coreAny`) instead of `AnyValue` interfaces so checks never box `Value[T]`; `Value.ty` caches the type handle in debug builds only (release pays nothing for it) so type/arg checks cost no cgo. `Builder` owns a scratch ref buffer (`valueRefs`/`refs`) reused for call args and GEP indices — reused for real in release, freshly allocated in debug (B4). The binding layer passes a static empty C string for `Name` when the name is empty (`string2CString`), avoiding two cgo crossings plus a C malloc/free per instruction; keep this fast path when adding build bindings. Go type/signature mapping is memoized per `Context` (`typeCache`/`fnCache`) with liveness checked before lookup. The JIT bridge pools its slot arrays; `Func[F]`/`MapFunc[F]` calls still cost reflect + one cgo round trip each.
 - **Traversal**: prefer the lazy `iter.Seq` APIs (`Block.AllInsts`, `Function.AllBlocks`/`AllParams`, `StructType.AllElems`) over the slice variants in hot paths; slice APIs stay for compatibility.
-- **Pre-checks before cgo**: every `ir.Builder` method calls `pre`/`preSameType`/`preBlock`/`preAlign` first (positioned builder, same context, live handles, matching operand types, power-of-two alignment) so LLVM never sees invalid IR and never aborts. Positioning methods use `preAlive` plus their own operand checks instead (`MoveToEnd`: `preBlockOwn`; `MoveBefore`: `pre` on the instruction), since they must work before the first `pre`.
+- **Checks and build modes (三层校验)**: checks are layered, and every new check must be placed by consequence, not by taste.
+  1. *Compile-time kind safety* (`Value[T]`/`Type[T]`/`ValueRef`) — always on, prefer this when expressible.
+  2. *Crash-class floor* — always on, **pure Go only** (`ref.IsNil()`, `Lifetime.Alive()`, ctx pointer compare, `closed` flags, insert-point tracking). These turn cgo SIGSEGV/UAF into catchable `panic(*llvm.Error)`. Never remove one; never add cgo to this layer.
+  3. *Semantic contracts* — guard with `if checks.Debug { ... }` (`internal/checks`): operand/argument type equality, power-of-two alignment, index bounds, atomic orderings, call arity, result kinds, goroutine-owner sampling, boundary `Verify`. In `-tags=llvm_release` these are dead-code-eliminated, so misuse falls back to LLVM asserts + `Module.Verify()` (same contract as C/Rust/inkwell).
+  `ir.Builder` methods still start with `pre`/`preSameType`/`preBlock`/`preAlign` (positioned builder, same context, live handles first; then the gated semantics). Positioning methods use `preAlive` plus their own operand checks (`MoveToEnd`: `preBlockOwn`; `MoveBefore`: `pre` on the instruction). Debug builds add pending diagnostics (default handler installed in `NewContext`), `requireDebug(t)` for misuse tests, and resource/leak reports in `Context.Close`.
 - **Builder return types**: return a role wrapper only when the instruction has role-specific operations (`Alloca`/`Load`/`Store`/`Call`/`Invoke`/`Phi`/`Switch`/`LandingPad`/`CatchSwitch`/`FuncletPad`/`Fence`/`AtomicRMW`/`CmpXchg`); everything else returns the plain `Value[T]`.
-- **Concurrency**: `Context` (ownership registry), `Lifetime` (atomic), the `LLJIT` adapter cache and the bridge registry are lock-protected; all other handles (`Module`/`Builder`/`Value`/`Type`/`Block`/`TargetMachine`/`DataLayout`/`MemoryBuffer`) are not goroutine-safe and must be used from a single goroutine. `LLJIT.Func`/`MapFunc`/`Lookup` may be called concurrently, but `Close` must be serialized by the caller.
+- **Concurrency**: `Context` (ownership registry), `Lifetime` (atomic), the `LLJIT` adapter cache and the bridge registry are lock-protected; all other handles (`Module`/`Builder`/`Value`/`Type`/`Block`/`TargetMachine`/`DataLayout`/`MemoryBuffer`) are not goroutine-safe and must be used from a single goroutine. Debug builds sample the owning goroutine in `Builder`/`Module` operations and panic on cross-goroutine use (the race detector cannot see C-side state). `LLJIT.Func`/`MapFunc`/`Lookup` may be called concurrently, but `Close` must be serialized by the caller.
 - **Lifetime**: `Context` is the ownership root (`Own` returns an unregister func, `Close` cascades in reverse). `Module`/`Builder` implement `io.Closer`; `Value`/`Type`/`Block`/`GoFunc` never expose `Free` — they carry a `Lifetime` token and are checked on every operation. Second `Close` returns `ErrClosed`. `Module.Disown()`/`Context.Disown()`/`MemoryBuffer.Disown()` transfer ownership to an external owner (JIT) and **immediately** invalidate Go-side handles (no return value); `Context`-independent resources (`TargetMachine`, `MemoryBuffer`, `LLJIT`) are their own roots and are not registered via `Own`. `MemoryBuffer`/`DataLayout` carry a GC finalizer as a leak safety net — `Close`/`Disown` must clear it (`runtime.SetFinalizer(x, nil)`) before releasing the handle.
 - **Comments**: `internal/binding` in English, root and sub-packages in Chinese; match the file you edit.
 - Commits use Conventional Commits, commonly with Chinese descriptions.
@@ -62,10 +67,12 @@ C API name. Prefer wrapping the local header declaration over re-declaring it. C
 (`Core.cpp`) exist only for APIs missing from LLVM-C.
 
 As-built extras: `Context.SetDiagnosticHandler`/`ClearDiagnosticHandler` (Go callback registry +
-`ErrorHandling.c` trampoline; LLVM's default handler calls `exit(1)` on errors — never emit an
-unhandled diagnostic before installing a callback), `Module.Link` (same-context pre-check; the source
-module is consumed by LLVM and its Go handle dies immediately), `Module.AppendCtor/AppendDtor`, and
-`llvm/pass` (`RunPasses`/`AutoOpt`/`RunPassesOnFunction`, all through PassBuilder).
+`ErrorHandling.c` trampoline; LLVM's default handler calls `exit(1)` on errors — `NewContext` now
+installs a default Go handler that logs instead, so unhandled diagnostics no longer kill the
+process), `Module.Link` (same-context pre-check; the source module is consumed by LLVM and its Go
+handle dies immediately; debug builds verify both modules first), `Module.AppendCtor/AppendDtor`,
+and `llvm/pass` (`RunPasses`/`AutoOpt`/`RunPassesOnFunction`, all through PassBuilder). Debug-only
+boundary verification also guards `target.EmitToFile` and `jit.AddIRModule`.
 
 The binding layer keeps its 1:1 LLVM-C mapping role: wrappers with no public consumer yet are allowed
 to stay, and cleanup targets only non-mapping dead code (old shims, orphan helpers) rather than the

@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 // Context LLVM 上下文，也是资源所有权的根：Close 时级联关闭所有登记的子资源
@@ -33,9 +34,13 @@ type owned struct {
 // diagIDSeq 诊断回调注册表键的自增序列
 var diagIDSeq atomic.Uint64
 
-// NewContext 创建上下文
+// NewContext 创建上下文。
+// 默认安装诊断回调（A3）：LLVM 默认 handler 对 error 会退出/abort 进程，安装后
+// 转为日志输出，进程得以存活并由上层继续报错；用户可用 SetDiagnosticHandler 覆盖。
 func NewContext() *Context {
-	return &Context{ref: binding.LLVMContextCreate(), life: NewLifetime(), diagID: diagIDSeq.Add(1)}
+	ctx := &Context{ref: binding.LLVMContextCreate(), life: NewLifetime(), diagID: diagIDSeq.Add(1)}
+	ctx.SetDiagnosticHandler(defaultDiagnosticHandler)
+	return ctx
 }
 
 // Own 登记子资源（供 llvm/* 子包使用）；Context.Close 时按逆序级联 Close。
@@ -71,7 +76,11 @@ func (ctx *Context) Close() error {
 	closers := ctx.closers
 	ctx.closers = nil
 	ctx.mu.Unlock()
-	// 先级联关闭子资源（此时 Context 仍存活），再失效令牌并释放底层上下文
+	// 先级联关闭子资源（此时 Context 仍存活），再失效令牌并释放底层上下文。
+	// 调试层报告未显式 Close 的子资源（C1：资源审计）。
+	if checks.Debug && len(closers) > 0 {
+		logf("context closed with %d child resource(s) not explicitly closed; cascading", len(closers))
+	}
 	for i := len(closers) - 1; i >= 0; i-- {
 		_ = closers[i].c.Close()
 	}

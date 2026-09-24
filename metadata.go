@@ -33,7 +33,7 @@ func (m Metadata) Check(op string) {
 // Value 元数据的值形式（Value[MetaT]）
 func (m Metadata) Value() Value[MetaT] {
 	m.Check("llvm.Metadata.Value")
-	return Value[MetaT]{ref: binding.LLVMMetadataAsValue(m.ctx.ref, m.ref), ctx: m.ctx, life: m.ctx.life}
+	return newValue[MetaT](m.ctx, m.ctx.life, binding.LLVMMetadataAsValue(m.ctx.ref, m.ref))
 }
 
 // IsString 是否 MDString

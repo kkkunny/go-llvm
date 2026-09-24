@@ -90,8 +90,16 @@ func main() {
 * Dynamic sources (parsed IR, instruction iteration) yield `llvm.Value[llvm.DynT]`; recover the kind with
   the generic method `As[U]()` / `MustAs[U]()`.
 * Recoverable failures return `error`; programmer errors `panic(*llvm.Error)`, which `llvm.Catch` converts
-  back to an error and `llvm.Try` converts while also returning a value. All builder calls are pre-checked
-  (positioned builder, same context, live handles, matching operand types, result kinds) before reaching cgo.
+  back to an error and `llvm.Try` converts while also returning a value. Checks are layered:
+  * **崩溃类地板（任何构建都开，纯 Go）**：nil 句柄、已释放（`ErrUseAfterFree`）、跨 `Context`、
+    已关闭的 Context/Module/Builder。缺少它们时 cgo 内的非法句柄是 SIGSEGV —— `recover` 接不住、
+    进程直接死且没有 Go 堆栈；有了它们，所有误用都退化为可 `Catch` 的 Go panic。
+  * **语义契约（仅调试构建）**：操作数类型一致、对齐为 2 的幂、索引越界、原子序合法性、
+    调用实参数量/类型、结果种类。这些在 `-tags=llvm_release` 信任构建下**编译期整体消除**，
+    误用交由 LLVM assert + `Module.Verify()` 兜底（与 C/Rust/inkwell 的 release 语义一致）。
+  * 调试构建另含：单 goroutine 契约采样检查、链接/代码生成/JIT 边界自动 `Verify`、
+    `panic` 消息附带最近操作现场、Context 关闭时的未释放资源报告、LLVM 诊断回调默认安装
+    （把默认 handler 的进程退出变为日志）。
 * `Context`/`Module`/`Builder` implement `io.Closer`. Values are owned by their context/module;
   every operation (builder calls plus module/block/instruction role methods) self-checks lifetime,
   so use-after-free and double-close surface as `ErrUseAfterFree`/`ErrClosed` panics instead of
@@ -159,9 +167,14 @@ own compilation; a `#cgo` file in your own main package would not.
 ```shell
 go build ./...
 go vet ./...
-go test ./...
-go test ./ir -run TestGolden -update   # 重新生成 golden IR
+go test ./...                            # 调试构建（默认）：三层校验全开
+go test -tags=llvm_release ./...         # 信任构建：语义契约/调试增强编译期消除
+go test ./ir -run TestGolden -update     # 重新生成 golden IR（两种构建下结果必须一致）
+make test test-release bench bench-release
 ```
+
+语义契约类负向测试（期望 panic 的误用测试）通过 `requireDebug(t)` 挂在调试构建，
+`llvm_release` 矩阵下自动跳过；崩溃类地板测试两种构建都必须通过。
 
 ## Updating for a new LLVM release
 

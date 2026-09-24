@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 // Alloca alloca 指令角色（内嵌 Value[PtrT]，自动实现 llvm.ValueRef/AnyValue）
@@ -175,13 +176,19 @@ func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], 
 	if elem.Context() != b.ctx {
 		llvm.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
 	}
-	refs := b.refs[:0]
+	// 调试层不复用 scratch（B4）
+	var refs []binding.LLVMValueRef
+	if !checks.Debug {
+		refs = b.refs[:0]
+	}
 	for _, x := range idx {
 		v := x.AsValue()
 		b.checkVal(op, core(v))
 		refs = append(refs, v.Ref())
 	}
-	b.refs = refs
+	if !checks.Debug {
+		b.refs = refs
+	}
 	var ref binding.LLVMValueRef
 	if inBounds {
 		ref = binding.LLVMBuildInBoundsGEP(b.ref, elem.Ref(), pv.Ref(), refs, name)

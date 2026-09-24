@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 func buildAtomicModule(t *testing.T) (*llvm.Context, *Module, *Builder) {
@@ -83,6 +84,7 @@ func TestBuilderAtomics(t *testing.T) {
 }
 
 func TestBuilderAtomicPrecheck(t *testing.T) {
+	requireDebug(t)
 	ctx, m, b := buildAtomicModule(t)
 	defer ctx.Close()
 	defer m.Close()
@@ -165,11 +167,13 @@ func TestBuilderLoadStoreAtomic(t *testing.T) {
 		t.Fatalf("missing atomic store:\n%s", got)
 	}
 
-	// load 不得设 release/acq_rel；store 不得设 acquire/acq_rel
-	if err := llvm.Catch(func() { ld.SetOrdering(llvm.AtomicRelease) }); err == nil || err.Reason != llvm.ErrInvalidArg {
-		t.Fatalf("load release should panic ErrInvalidArg, got %v", err)
-	}
-	if err := llvm.Catch(func() { st.SetOrdering(llvm.AtomicAcquire) }); err == nil || err.Reason != llvm.ErrInvalidArg {
-		t.Fatalf("store acquire should panic ErrInvalidArg, got %v", err)
+	// load 不得设 release/acq_rel；store 不得设 acquire/acq_rel（语义契约，仅调试层）
+	if checks.Debug {
+		if err := llvm.Catch(func() { ld.SetOrdering(llvm.AtomicRelease) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+			t.Fatalf("load release should panic ErrInvalidArg, got %v", err)
+		}
+		if err := llvm.Catch(func() { st.SetOrdering(llvm.AtomicAcquire) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+			t.Fatalf("store acquire should panic ErrInvalidArg, got %v", err)
+		}
 	}
 }

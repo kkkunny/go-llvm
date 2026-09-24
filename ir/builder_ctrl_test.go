@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 func buildAddModule(t *testing.T) (*llvm.Context, *Module, *Builder) {
@@ -189,14 +190,16 @@ func TestBuilderBranches(t *testing.T) {
 		}
 	}
 
-	// CondBr 条件必须 i1
-	blk2 := fn.NewBlock("bad")
-	b.MoveToEnd(blk2)
-	err := llvm.Catch(func() {
-		b.CondBr(ctx.ConstInt(i32, 1), thenBlk, elseBlk)
-	})
-	if err == nil || err.Reason != llvm.ErrTypeMismatch {
-		t.Fatalf("non-i1 condition should panic ErrTypeMismatch, got %v", err)
+	// CondBr 条件必须 i1（语义契约，仅调试层）
+	if checks.Debug {
+		blk2 := fn.NewBlock("bad")
+		b.MoveToEnd(blk2)
+		err := llvm.Catch(func() {
+			b.CondBr(ctx.ConstInt(i32, 1), thenBlk, elseBlk)
+		})
+		if err == nil || err.Reason != llvm.ErrTypeMismatch {
+			t.Fatalf("non-i1 condition should panic ErrTypeMismatch, got %v", err)
+		}
 	}
 	_ = boolTy
 }
@@ -253,11 +256,13 @@ func TestBuilderSwitch(t *testing.T) {
 		}
 	}
 
-	// case 类型不符
-	b.MoveToEnd(case1)
-	err := llvm.Catch(func() { sw.AddCase(ctx.ConstInt(ctx.Int(64), 1), case2) })
-	if err == nil || err.Reason != llvm.ErrTypeMismatch {
-		t.Fatalf("case type mismatch should panic, got %v", err)
+	// case 类型不符（语义契约，仅调试层）
+	if checks.Debug {
+		b.MoveToEnd(case1)
+		err := llvm.Catch(func() { sw.AddCase(ctx.ConstInt(ctx.Int(64), 1), case2) })
+		if err == nil || err.Reason != llvm.ErrTypeMismatch {
+			t.Fatalf("case type mismatch should panic, got %v", err)
+		}
 	}
 }
 

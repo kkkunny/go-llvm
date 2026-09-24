@@ -146,6 +146,7 @@ func TestBuilderCmpAndSelect(t *testing.T) {
 }
 
 func TestBuilderTypeMismatch(t *testing.T) {
+	requireDebug(t)
 	ctx, m, b, fn := arithModule(t)
 	defer ctx.Close()
 	defer m.Close()

@@ -38,13 +38,13 @@ func (c FloatConst) FloatValue() float64 {
 // ConstInt 构造整数常量（值按无符号截断；负数请用 ConstSInt）
 func (ctx *Context) ConstInt(t IntType, v uint64) IntConst {
 	ctx.CheckType("llvm.Context.ConstInt", t)
-	return IntConst{Value[IntT]{ref: binding.LLVMConstInt(t.ref, v, false), ctx: ctx, life: ctx.life}}
+	return IntConst{newValue[IntT](ctx, ctx.life, binding.LLVMConstInt(t.ref, v, false))}
 }
 
 // ConstSInt 构造有符号整数常量（负数与超宽值按符号扩展）
 func (ctx *Context) ConstSInt(t IntType, v int64) IntConst {
 	ctx.CheckType("llvm.Context.ConstSInt", t)
-	return IntConst{Value[IntT]{ref: binding.LLVMConstInt(t.ref, uint64(v), true), ctx: ctx, life: ctx.life}}
+	return IntConst{newValue[IntT](ctx, ctx.life, binding.LLVMConstInt(t.ref, uint64(v), true))}
 }
 
 // Const 该类型的整数常量（类型导向糖：i32.Const(5)）
@@ -59,7 +59,7 @@ func (t FloatType) Const(v float64) FloatConst { return t.ctx.ConstFloat(t, v) }
 // ConstIntOfString 按进制解析字符串构造整数常量
 func (ctx *Context) ConstIntOfString(t IntType, s string, radix uint8) IntConst {
 	ctx.CheckType("llvm.Context.ConstIntOfString", t)
-	return IntConst{Value[IntT]{ref: binding.LLVMConstIntOfString(t.ref, s, radix), ctx: ctx, life: ctx.life}}
+	return IntConst{newValue[IntT](ctx, ctx.life, binding.LLVMConstIntOfString(t.ref, s, radix))}
 }
 
 // ConstBool 构造布尔常量
@@ -68,20 +68,20 @@ func (ctx *Context) ConstBool(v bool) Value[IntT] {
 	if v {
 		n = 1
 	}
-	return Value[IntT]{ref: binding.LLVMConstInt(ctx.Bool().ref, n, false), ctx: ctx, life: ctx.life}
+	return newValue[IntT](ctx, ctx.life, binding.LLVMConstInt(ctx.Bool().ref, n, false))
 }
 
 // ConstFloat 构造浮点常量
 func (ctx *Context) ConstFloat(t FloatType, v float64) FloatConst {
 	ctx.CheckType("llvm.Context.ConstFloat", t)
-	return FloatConst{Value[FloatT]{ref: binding.LLVMConstReal(t.ref, v), ctx: ctx, life: ctx.life}}
+	return FloatConst{newValue[FloatT](ctx, ctx.life, binding.LLVMConstReal(t.ref, v))}
 }
 
 // ConstNull 构造指定类型的 null 常量（泛型方法，接受类型角色或裸 Type[T]）
 func (ctx *Context) ConstNull[T Kind](t TypeRef[T]) Value[T] {
 	tt := t.AsType()
 	ctx.CheckType("llvm.Context.ConstNull", tt)
-	return Value[T]{ref: binding.LLVMConstNull(tt.ref), ctx: ctx, life: ctx.life}
+	return newValue[T](ctx, ctx.life, binding.LLVMConstNull(tt.ref))
 }
 
 // ConstZero 构造指定类型的零值常量（泛型方法）；聚合类型得到 zeroinitializer
@@ -95,7 +95,7 @@ func (ctx *Context) ConstZero[T Kind](t TypeRef[T]) Value[T] {
 	default:
 		ref = binding.LLVMConstNull(tt.ref)
 	}
-	return Value[T]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[T](ctx, ctx.life, ref)
 }
 
 // Null 该类型的 null 常量（角色经内嵌 Type[T] 自动继承）
@@ -112,7 +112,7 @@ func (t Type[T]) Zero() Value[T] {
 func (ctx *Context) ConstString(s string, nullTerminate bool) Value[ArrayT] {
 	ctx.CheckAlive("llvm.Context.ConstString")
 	ref := binding.LLVMConstStringInContext(ctx.ref, s, !nullTerminate)
-	return Value[ArrayT]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[ArrayT](ctx, ctx.life, ref)
 }
 
 // ConstArray 构造数组常量；元素类型/归属不符则 panic
@@ -128,7 +128,7 @@ func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
 		}
 	}
 	ref := binding.LLVMConstArray(elemRef, AnyValuesToRefs(elems))
-	return Value[ArrayT]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[ArrayT](ctx, ctx.life, ref)
 }
 
 // ConstVector 构造向量常量；元素类型/归属不符则 panic
@@ -144,14 +144,14 @@ func (ctx *Context) ConstVector(elem AnyType, elems ...AnyValue) Value[VecT] {
 		}
 	}
 	ref := binding.LLVMConstVector(AnyValuesToRefs(elems))
-	return Value[VecT]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[VecT](ctx, ctx.life, ref)
 }
 
 // ConstStruct 构造字面量结构体常量
 func (ctx *Context) ConstStruct(packed bool, elems ...AnyValue) Value[StructT] {
 	ctx.CheckValues("llvm.Context.ConstStruct", elems...)
 	ref := binding.LLVMConstStructInContext(ctx.ref, AnyValuesToRefs(elems), packed)
-	return Value[StructT]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[StructT](ctx, ctx.life, ref)
 }
 
 // ConstNamedStruct 构造命名结构体常量；元素个数/类型不符则 panic
@@ -170,7 +170,7 @@ func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[Stru
 		}
 	}
 	ref := binding.LLVMConstNamedStruct(t.ref, AnyValuesToRefs(elems))
-	return Value[StructT]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[StructT](ctx, ctx.life, ref)
 }
 
 // ConstGEP 构造常量 GEP 表达式；elem 为源元素类型，base 必须是指针值
@@ -191,7 +191,7 @@ func (ctx *Context) ConstGEP(elem AnyType, base ValueRef[PtrT], inBounds bool, i
 	} else {
 		ref = binding.LLVMConstGEP(elem.Ref(), baseV.ref, idxRefs)
 	}
-	return Value[PtrT]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[PtrT](ctx, ctx.life, ref)
 }
 
 // ConstIntToPtr 构造 inttoptr 常量表达式
@@ -201,7 +201,7 @@ func (ctx *Context) ConstIntToPtr(v ValueRef[IntT], to PtrType) Value[PtrT] {
 	ctx.checkValueOwn(op, vv.ref, vv.life, vv.ctx)
 	ctx.CheckType(op, to)
 	ref := binding.LLVMConstIntToPtr(vv.Ref(), to.Ref())
-	return Value[PtrT]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[PtrT](ctx, ctx.life, ref)
 }
 
 // ===== 内部辅助 =====

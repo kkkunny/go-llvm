@@ -15,5 +15,5 @@ func (ctx *Context) InlineAsm(fn FnType, asm, constraints string, sideEffects, a
 	const op = "llvm.Context.InlineAsm"
 	ctx.CheckType(op, fn)
 	ref := binding.LLVMGetInlineAsm(fn.Ref(), asm, constraints, sideEffects, alignStack, binding.LLVMInlineAsmDialect(dialect), canThrow)
-	return Value[FnT]{ref: ref, ctx: ctx, life: ctx.life}
+	return newValue[FnT](ctx, ctx.life, ref)
 }

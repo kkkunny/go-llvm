@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 func TestFunctionPersonality(t *testing.T) {
@@ -118,18 +119,19 @@ func TestBuilderInvokePrecheck(t *testing.T) {
 		t.Fatalf("unpositioned invoke should panic ErrInvalidArg, got %v", err)
 	}
 
-	// 返回种类不符
-	if err := llvm.Catch(func() {
-		b.Invoke[llvm.FloatT](g, []llvm.AnyValue{fn.ParamAs[llvm.IntT](0)}, cont, lpad, "")
-	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
-		t.Fatalf("wrong return kind should panic ErrTypeMismatch, got %v", err)
-	}
+	// 返回种类不符 / 实参个数不符（语义契约，仅调试层）
+	if checks.Debug {
+		if err := llvm.Catch(func() {
+			b.Invoke[llvm.FloatT](g, []llvm.AnyValue{fn.ParamAs[llvm.IntT](0)}, cont, lpad, "")
+		}); err == nil || err.Reason != llvm.ErrTypeMismatch {
+			t.Fatalf("wrong return kind should panic ErrTypeMismatch, got %v", err)
+		}
 
-	// 实参个数不符
-	if err := llvm.Catch(func() {
-		b.Invoke[llvm.IntT](g, nil, cont, lpad, "")
-	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
-		t.Fatalf("wrong arg count should panic ErrTypeMismatch, got %v", err)
+		if err := llvm.Catch(func() {
+			b.Invoke[llvm.IntT](g, nil, cont, lpad, "")
+		}); err == nil || err.Reason != llvm.ErrTypeMismatch {
+			t.Fatalf("wrong arg count should panic ErrTypeMismatch, got %v", err)
+		}
 	}
 }
 
@@ -194,6 +196,7 @@ func TestBuilderLandingPadResume(t *testing.T) {
 }
 
 func TestBuilderLandingPadPrecheck(t *testing.T) {
+	requireDebug(t)
 	ctx, m, b := buildEHModule(t)
 	defer ctx.Close()
 	defer m.Close()
@@ -360,6 +363,7 @@ func TestBuilderFunclets(t *testing.T) {
 }
 
 func TestBuilderFuncletPrecheck(t *testing.T) {
+	requireDebug(t)
 	ctx, m, b := buildEHModule(t)
 	defer ctx.Close()
 	defer m.Close()

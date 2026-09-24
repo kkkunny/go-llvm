@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 // Invoke invoke 指令角色（内嵌 Value[T]）；实参操作同 Call（LLVM 侧同为 CallBase），
@@ -71,7 +72,7 @@ func (l LandingPad[T]) AddClause(v llvm.AnyValue) {
 	const op = "ir.LandingPad.AddClause"
 	l.Check(op)
 	l.Context().CheckValues(op, v)
-	if !v.Dyn().IsConstant() {
+	if checks.Debug && !v.Dyn().IsConstant() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "clause must be a constant")
 	}
 	binding.LLVMAddClause(l.Ref(), v.Ref())
@@ -87,7 +88,7 @@ func (l LandingPad[T]) ClauseCount() uint32 {
 func (l LandingPad[T]) Clause(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.LandingPad.Clause"
 	l.Check(op)
-	if i >= l.ClauseCount() {
+	if checks.Debug && i >= l.ClauseCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "clause index %d out of range", i)
 	}
 	return llvm.ValueOf(l.Context(), l.Lifetime(), binding.LLVMGetClause(l.Ref(), i))
@@ -128,7 +129,7 @@ func (s CatchSwitch) HandlerCount() uint32 {
 func (s CatchSwitch) HandlerAt(i uint32) Block {
 	const op = "ir.CatchSwitch.HandlerAt"
 	s.Check(op)
-	if i >= s.HandlerCount() {
+	if checks.Debug && i >= s.HandlerCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "handler index %d out of range", i)
 	}
 	return wrapBlock(s.Context(), s.Lifetime(), binding.LLVMGetHandlers(s.Ref())[i])
@@ -149,7 +150,7 @@ func (p FuncletPad) ArgCount() uint32 {
 func (p FuncletPad) Arg(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.FuncletPad.Arg"
 	p.Check(op)
-	if i >= p.ArgCount() {
+	if checks.Debug && i >= p.ArgCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	return llvm.ValueOf(p.Context(), p.Lifetime(), binding.LLVMGetArgOperand(p.Ref(), i))
@@ -159,7 +160,7 @@ func (p FuncletPad) Arg(i uint32) llvm.Value[llvm.DynT] {
 func (p FuncletPad) SetArg(i uint32, v llvm.AnyValue) {
 	const op = "ir.FuncletPad.SetArg"
 	p.Check(op)
-	if i >= p.ArgCount() {
+	if checks.Debug && i >= p.ArgCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	p.Context().CheckValues(op, v)
@@ -182,8 +183,10 @@ func (b *Builder) Invoke[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.An
 	b.pre(op, core(fv))
 	b.preBlockOwn(op, then)
 	b.preBlockOwn(op, unwind)
-	sig := callSig(b.ctx, fv.Ref())
-	checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
+	sig := callSig(b.ctx, fv.Ref(), fv.RawType())
+	if checks.Debug {
+		checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
+	}
 	b.checkCallArgs(op, sig, args)
 	ref := binding.LLVMBuildInvoke(b.ref, sig.Ref(), fv.Ref(), b.valueRefs(args), then.ref, unwind.ref, name)
 	return Invoke[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
@@ -199,7 +202,9 @@ func (b *Builder) InvokeIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], si
 	if sig.Context() != b.ctx {
 		llvm.Panicf(llvm.ErrCrossContext, op, "signature belongs to another context")
 	}
-	checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
+	if checks.Debug {
+		checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
+	}
 	b.checkCallArgs(op, sig, args)
 	ref := binding.LLVMBuildInvoke(b.ref, sig.Ref(), pv.Ref(), b.valueRefs(args), then.ref, unwind.ref, name)
 	return Invoke[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}

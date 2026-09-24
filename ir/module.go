@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 // Module LLVM 模块；Close 后其下所有值失效
@@ -13,6 +14,9 @@ type Module struct {
 	unown    func()
 	closed   bool
 	disowned bool
+
+	ownerGID uint64 // 调试层：owner goroutine id（0=未记录）
+	ops      uint64 // 调试层：采样计数
 }
 
 // newModule 由底层句柄铸造模块并登记到 Context 生命周期
@@ -44,6 +48,9 @@ func (m *Module) Check(op string) {
 	}
 	if m.closed || !m.life.Alive() {
 		llvm.Panicf(llvm.ErrUseAfterFree, op, "module is closed")
+	}
+	if checks.Debug {
+		checkOwner(op, &m.ownerGID, &m.ops, "module", false)
 	}
 }
 
@@ -82,10 +89,19 @@ func (m *Module) Lifetime() *llvm.Lifetime { return m.life }
 // Ref 返回底层句柄（供包内桥接使用）
 func (m *Module) Ref() binding.LLVMModuleRef { return m.ref }
 
-// String 模块 IR 文本
+// String 模块 IR 文本。
+// 注意：不自动 Verify——调试期常需导出构造中的（可能非法的）模块；
+// 打印非法 IR 有极低概率触发 LLVM 崩溃（inkwell #661），需要保险时显式调用 Verify。
 func (m *Module) String() string {
 	m.Check("ir.Module.String")
 	return binding.LLVMPrintModuleToString(m.ref)
+}
+
+// mustVerify 调试层在代码生成/链接等边界处校验模块；失败 panic ErrVerify（携带完整诊断）
+func (m *Module) mustVerify(op string) {
+	if err := m.Verify(); err != nil {
+		llvm.Panicf(llvm.ErrVerify, op, "module verification failed: %s", err)
+	}
 }
 
 // Source 模块源文件名
@@ -235,6 +251,11 @@ func (m *Module) Link(src *Module) error {
 	}
 	if src.ctx != m.ctx {
 		llvm.Panicf(llvm.ErrCrossContext, op, "source module belongs to another context")
+	}
+	// 调试层边界校验（B5）：链接前确保双方模块合法
+	if checks.Debug {
+		m.mustVerify(op)
+		src.mustVerify(op)
 	}
 	// LLVMLinkModules2 无论成败都会销毁源模块：先失效 Go 侧句柄，避免双重释放
 	src.Disown()

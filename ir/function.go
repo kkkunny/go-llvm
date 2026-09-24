@@ -6,6 +6,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 // Function 函数角色（内嵌 Value[FnT]，自动实现 llvm.ValueRef/AnyValue）
@@ -29,7 +30,7 @@ func (f Function) CountParams() uint {
 func (f Function) Param(i uint) Param {
 	const op = "ir.Function.Param"
 	f.Check(op)
-	if i >= f.CountParams() {
+	if checks.Debug && i >= f.CountParams() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "parameter index %d out of range", i)
 	}
 	ref := binding.LLVMGetParam(f.Ref(), uint32(i))

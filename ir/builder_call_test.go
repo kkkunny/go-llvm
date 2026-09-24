@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 func TestBuilderCallGolden(t *testing.T) {
@@ -49,6 +50,7 @@ func TestBuilderCallGolden(t *testing.T) {
 }
 
 func TestBuilderCallChecks(t *testing.T) {
+	requireDebug(t)
 	ctx := llvm.NewContext()
 	defer ctx.Close()
 	m := NewModule(ctx, "callcheck")
@@ -143,15 +145,18 @@ func TestBuilderPHI(t *testing.T) {
 		t.Fatalf("module output missing %q:\n%s", want, got)
 	}
 
-	err := llvm.Catch(func() {
-		phi.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(ctx.Int(64), 1).Value, Block: entry})
-	})
-	if err == nil || err.Reason != llvm.ErrTypeMismatch {
-		t.Fatalf("phi type mismatch should panic ErrTypeMismatch, got %v", err)
+	if checks.Debug {
+		err := llvm.Catch(func() {
+			phi.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(ctx.Int(64), 1).Value, Block: entry})
+		})
+		if err == nil || err.Reason != llvm.ErrTypeMismatch {
+			t.Fatalf("phi type mismatch should panic ErrTypeMismatch, got %v", err)
+		}
 	}
 }
 
 func TestBuilderKindChecks(t *testing.T) {
+	requireDebug(t)
 	ctx := llvm.NewContext()
 	defer ctx.Close()
 	m := NewModule(ctx, "kindcheck")

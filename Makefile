@@ -33,7 +33,20 @@ LLVM_MAJOR = $(shell $(LLVM_CONFIG_BIN) --version 2>/dev/null | cut -d. -f1)
 LLVM_PREFIX = /usr/lib/llvm-$(LLVM_MAJOR)
 CGO_FILE = internal/binding/cgo.go
 
-.PHONY: config
+.PHONY: config test test-release vet bench bench-release
+
+# 默认（调试）构建：三层校验全开（崩溃类地板 + 语义契约 + 调试增强）
+test:
+	go test ./...
+# 信任构建：语义契约与调试增强在编译期消除，仅保留纯 Go 崩溃类地板
+test-release:
+	go test -tags=llvm_release ./...
+vet:
+	go vet ./...
+bench:
+	go test -run '^$$' -bench . -benchmem ./...
+bench-release:
+	go test -tags=llvm_release -run '^$$' -bench . -benchmem ./...
 config:
 	@test -n "$(LLVM_MAJOR)" || { echo "llvm-config not found: $(LLVM_CONFIG_BIN)" >&2; exit 1; }
 	@printf 'package binding\n\n/*\n' > $(CGO_FILE)

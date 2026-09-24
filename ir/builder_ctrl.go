@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 // Switch switch 终结指令角色（内嵌 Value[IntT]）
@@ -16,14 +17,14 @@ func (s Switch) CondType() llvm.Type[llvm.IntT] {
 	return llvm.NewType[llvm.IntT](s.Context(), binding.LLVMTypeOf(binding.LLVMGetOperand(s.Ref(), 0)))
 }
 
-// AddCase 追加 case；条件类型不符 panic
+// AddCase 追加 case；条件类型不符 panic（语义契约，仅调试层）
 func (s Switch) AddCase(cond llvm.ValueRef[llvm.IntT], blk Block) {
 	const op = "ir.Switch.AddCase"
 	s.Check(op)
 	cv := cond.AsValue()
 	cv.Check(op)
 	blk.Check(op)
-	if !cv.Type().Equal(s.CondType()) {
+	if checks.Debug && !cv.Type().Equal(s.CondType()) {
 		llvm.Panicf(llvm.ErrTypeMismatch, op, "case type %s differs from switch type %s", cv.Type(), s.CondType())
 	}
 	binding.LLVMAddCase(s.Ref(), cv.Ref(), blk.ref)
@@ -46,22 +47,22 @@ func (s Switch) DefaultBlock() Block {
 	return wrapBlock(s.Context(), s.Lifetime(), ref)
 }
 
-// CaseBlock 第 i 个 case 的目标块（i 从 0 开始）
+// CaseBlock 第 i 个 case 的目标块（i 从 0 开始）；越界校验仅调试层
 func (s Switch) CaseBlock(i uint32) Block {
 	const op = "ir.Switch.CaseBlock"
 	s.Check(op)
-	if i >= s.Count() {
+	if checks.Debug && i >= s.Count() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
 	}
 	ref := binding.LLVMGetSuccessor(s.Ref(), i+1)
 	return wrapBlock(s.Context(), s.Lifetime(), ref)
 }
 
-// CaseValue 第 i 个 case 的常量（i 从 0 开始）
+// CaseValue 第 i 个 case 的常量（i 从 0 开始）；越界校验仅调试层
 func (s Switch) CaseValue(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.Switch.CaseValue"
 	s.Check(op)
-	if i >= s.Count() {
+	if checks.Debug && i >= s.Count() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
 	}
 	ref := binding.LLVMGetSwitchCaseValue(s.Ref(), i+1)
@@ -102,8 +103,10 @@ func (b *Builder) CondBr(cond llvm.ValueRef[llvm.IntT], then, els Block) llvm.Va
 	b.pre(op, core(cv))
 	b.preBlock(op, then)
 	b.preBlock(op, els)
-	if bits := llvm.AsIntType(cv.Type()).Bits(); bits != 1 {
-		llvm.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
+	if checks.Debug {
+		if bits := llvm.AsIntType(cv.Type()).Bits(); bits != 1 {
+			llvm.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
+		}
 	}
 	ref := binding.LLVMBuildCondBr(b.ref, cv.Ref(), then.ref, els.ref)
 	return llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)

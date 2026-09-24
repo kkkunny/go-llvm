@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -136,6 +137,11 @@ func (m *TargetMachine) EmitToFile(mod *ir.Module, path string, ft FileType) err
 	const op = "target.TargetMachine.EmitToFile"
 	m.check(op)
 	mod.Check(op)
+	if checks.Debug {
+		if err := mod.Verify(); err != nil {
+			llvm.Panicf(llvm.ErrVerify, op, "module verification failed before codegen: %s", err)
+		}
+	}
 	if err := binding.LLVMTargetMachineEmitToFile(m.ref, mod.Ref(), path, binding.LLVMCodeGenFileType(ft)); err != nil {
 		return llvm.WrapError(llvm.ErrCodeGen, op, err)
 	}

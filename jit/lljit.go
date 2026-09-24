@@ -7,6 +7,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/checks"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -77,6 +78,11 @@ func (j *LLJIT) AddIRModule(mod *ir.Module) error {
 	const op = "jit.LLJIT.AddIRModule"
 	j.check(op)
 	mod.Check(op)
+	if checks.Debug {
+		if err := mod.Verify(); err != nil {
+			llvm.Panicf(llvm.ErrVerify, op, "module verification failed before JIT: %s", err)
+		}
+	}
 
 	ctx := mod.Context()
 	tsctx := binding.LLVMOrcCreateNewThreadSafeContextFromLLVMContext(ctx.Ref())
