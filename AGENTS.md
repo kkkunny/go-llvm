@@ -61,7 +61,12 @@ Add new bindings in the same `/* #include ... */` + `import "C"` style, mapping 
 C API name. Prefer wrapping the local header declaration over re-declaring it. C++ shims
 (`Core.cpp`) exist only for APIs missing from LLVM-C.
 
-All bindings now have their public API consumers. Additional P2-6 surface: `Context.SetDiagnosticHandler`/
-`ClearDiagnosticHandler` (Go callback registry + `ErrorHandling.c` trampoline; LLVM 的默认 handler 对
-error 会 `exit(1)`，装回调前不要发出未捕获诊断), `Module.Link`（同 Context 前置校验，源模块被 LLVM 消费、
-Go 侧句柄立即失效）, `Module.AppendCtor/AppendDtor`, `llvm/pass`（`RunPasses`/`AutoOpt`/`RunPassesOnFunction`）。
+As-built extras: `Context.SetDiagnosticHandler`/`ClearDiagnosticHandler` (Go callback registry +
+`ErrorHandling.c` trampoline; LLVM's default handler calls `exit(1)` on errors — never emit an
+unhandled diagnostic before installing a callback), `Module.Link` (same-context pre-check; the source
+module is consumed by LLVM and its Go handle dies immediately), `Module.AppendCtor/AppendDtor`, and
+`llvm/pass` (`RunPasses`/`AutoOpt`/`RunPassesOnFunction`, all through PassBuilder).
+
+The binding layer keeps its 1:1 LLVM-C mapping role: wrappers with no public consumer yet are allowed
+to stay, and cleanup targets only non-mapping dead code (old shims, orphan helpers) rather than the
+mapping itself; new bindings are added on demand.
