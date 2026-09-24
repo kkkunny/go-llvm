@@ -151,13 +151,8 @@ export CGO_CXXFLAGS="$(llvm-config --cxxflags)"
 export CGO_LDFLAGS="$(llvm-config --ldflags --libs)"
 ```
 
-or generate an override file in **your own** main package (never in this
-repository's root):
-
-```shell
-curl -O https://raw.githubusercontent.com/kkkunny/go-llvm/master/Makefile
-make config             # or pin the toolchain: make config MAJOR_VERSION=22
-```
+`CGO_CFLAGS`/`CGO_CXXFLAGS` are global, so they also apply to `internal/binding`'s
+own compilation; a `#cgo` file in your own main package would not.
 
 ## Development
 
@@ -176,9 +171,10 @@ go test ./ir -run TestGolden -update   # 重新生成 golden IR
 2. Cross-check every C symbol this repo references against the local headers:
    `rg -o 'C\.[A-Za-z_]\w*' --glob '*.go'`, then verify each name with
    `grep -rw NAME /usr/include/llvm-c/`.
-3. Freeze the previous line first, then bump the four version spots on master:
-   `internal/binding/cgo.go` candidate dirs, `Makefile`
-   `MIN/MAX_SUPPORT_MAJOR_VERSION`, the support table above, and this README.
+3. Freeze the previous line first, then bump the version spots on master:
+   `Makefile` `MIN/MAX_SUPPORT_MAJOR_VERSION`, the support table above, and
+   this README. Regenerate `internal/binding/cgo.go` with
+   `make config MAJOR_VERSION=NN` and review the diff.
 
    ```shell
    git branch llvm-NN master     # keep the old line reachable
