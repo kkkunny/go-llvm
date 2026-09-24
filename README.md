@@ -25,7 +25,7 @@ Notes:
 | `llvm/ir` | IR construction: `Module`, `Function`, `Block`, `Builder`, instructions, `Verify`/print/parse/bitcode |
 | `llvm/target` | Target machines and code generation (`EmitToFile`/`Emit` for OBJ/ASM) |
 | `llvm/jit` | ORC LLJIT execution engine, `Func[F]`/`MapFunc[F]`/`MapSymbol`/`RunMain` |
-| `llvm/pass` | Optimization pipelines (P2) |
+| `llvm/pass` | Optimization pipelines (`RunPasses`/`AutoOpt`) |
 
 All cgo lives in `internal/binding`.
 

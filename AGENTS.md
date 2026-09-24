@@ -26,7 +26,7 @@ sub-packages; all cgo lives in `internal/binding`.
 | `llvm/ir` | `Module`/`Function`/`Block`/`Global`/`Builder`, instruction roles, `Verify`/print/parse/bitcode | touch JIT/execution |
 | `llvm/target` | targets, target machines, codegen (`EmitToFile(m *ir.Module)`) | execute |
 | `llvm/jit` | ORC LLJIT, symbol mapping, Go interop bridge | AOT codegen |
-| `llvm/pass` (P2) | optimization pipelines | define passes |
+| `llvm/pass` | optimization pipelines | define passes |
 | `internal/binding` | 1:1 cgo wrappers over LLVM-C + C++ shims | expose high-level API |
 
 Dependency direction is strictly one-way: `llvm` ← `llvm/ir` ← `llvm/target` ← `llvm/jit`,
@@ -61,5 +61,7 @@ Add new bindings in the same `/* #include ... */` + `import "C"` style, mapping 
 C API name. Prefer wrapping the local header declaration over re-declaring it. C++ shims
 (`Core.cpp`, `PassManager.cpp`) exist only for APIs missing from LLVM-C.
 
-Some bindings are ahead of the public API and wait for their P2 consumers:
-`Linker.go` (`Module.Link`), `PassBuilder.go`/`PassManager.*`/`OptimizationLevel.go` (`llvm/pass`).
+All bindings now have their public API consumers. Additional P2-6 surface: `Context.SetDiagnosticHandler`/
+`ClearDiagnosticHandler` (Go callback registry + `ErrorHandling.c` trampoline; LLVM 的默认 handler 对
+error 会 `exit(1)`，装回调前不要发出未捕获诊断), `Module.Link`（同 Context 前置校验，源模块被 LLVM 消费、
+Go 侧句柄立即失效）, `Module.AppendCtor/AppendDtor`, `llvm/pass`（`RunPasses`/`AutoOpt`/`RunPassesOnFunction`）。
