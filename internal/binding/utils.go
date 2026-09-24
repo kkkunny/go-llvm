@@ -32,8 +32,16 @@ func slice2Ptr[T, F any](v []T) (*F, C.unsigned) {
 	return ptr, C.unsigned(len(v))
 }
 
-// string2CString passes a temporary C string to f and frees it afterwards
+// emptyCString 静态空字符串缓冲（Name 等"可为空"的 C 参数用）。
+// LLVM 对这类参数只读取不保留；用静态缓冲避免每次调用的 C 堆分配与两次额外 cgo 穿越。
+var emptyCString = C.CString("")
+
+// string2CString passes a temporary C string to f and frees it afterwards.
+// 空串直接使用静态缓冲；非空串仍走 CString/free 保证 NUL 终止与生命周期安全。
 func string2CString[T any](v string, f func(v *C.char) T) T {
+	if len(v) == 0 {
+		return f(emptyCString)
+	}
 	cstring := C.CString(v)
 	defer C.free(unsafe.Pointer(cstring))
 	return f(cstring)
