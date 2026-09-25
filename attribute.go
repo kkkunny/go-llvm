@@ -280,7 +280,7 @@ const (
 	CallConvGHC           = CallConv(binding.LLVMGHCCallConv)           // GHC 调用约定（Haskell GHC 运行时）
 	CallConvHiPE          = CallConv(binding.LLVMHiPECallConv)          // HiPE 调用约定（Erlang HiPE 运行时）
 	CallConvAnyReg        = CallConv(binding.LLVMAnyRegCallConv)        // anyregcc：允许值保存在任意寄存器中（供 patchpoint 等动态调用使用）
-	CallConvPreserveMost  = CallConv(binding.LLVMPreserveMostCallConv)  // preserve_mostcc：保留绝大多数寄存器，仅允许破坏传参与返回值所需寄存器
+	CallConvPreserveMost  = CallConv(binding.LLVMPreserveMostCallConv)  // preserve_mostcc：保留绝大多数寄存器，除少量临时寄存器（如 X86-64 的 R11）外仅允许破坏传参与返回值所需寄存器
 	CallConvPreserveAll   = CallConv(binding.LLVMPreserveAllCallConv)   // preserve_allcc：除返回值所需外保留所有寄存器
 	CallConvSwift         = CallConv(binding.LLVMSwiftCallConv)         // swiftcc：Swift 语言调用约定
 	CallConvCXXFastTLS    = CallConv(binding.LLVMCXXFASTTLSCallConv)    // cxx_fast_tlscc：C++ 快速 TLS 访问函数（如 __tls_get_addr）的调用约定

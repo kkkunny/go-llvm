@@ -6,7 +6,8 @@ import "github.com/kkkunny/go-llvm/internal/binding"
 type AtomicOrdering binding.LLVMAtomicOrdering
 
 // AtomicOrdering 取值对应 LLVM 原子内存序（binding.LLVMAtomicOrdering）。
-// AtomicNotAtomic 表示非原子访问，其余取值描述原子访问的顺序约束，强度依次递增。
+// AtomicNotAtomic 表示非原子访问，其余取值描述原子访问的顺序约束，除 Acquire 与 Release
+// 互不可比外，强度随枚举顺序递增。
 const (
 	AtomicNotAtomic              = AtomicOrdering(binding.LLVMAtomicOrderingNotAtomic)              // 非原子访问，不提供原子性
 	AtomicUnordered              = AtomicOrdering(binding.LLVMAtomicOrderingUnordered)              // 无序原子访问：保证原子性但不保证顺序，最弱的原子序
@@ -37,8 +38,8 @@ const (
 	RMWUMin     = RMWOp(binding.LLVMAtomicRMWBinOpUMin)     // 无符号最小值
 	RMWFAdd     = RMWOp(binding.LLVMAtomicRMWBinOpFAdd)     // 浮点加法
 	RMWFSub     = RMWOp(binding.LLVMAtomicRMWBinOpFSub)     // 浮点减法
-	RMWFMax     = RMWOp(binding.LLVMAtomicRMWBinOpFMax)     // 浮点最大值（maxnum 语义：NaN 操作数被忽略，不传播 NaN）
-	RMWFMin     = RMWOp(binding.LLVMAtomicRMWBinOpFMin)     // 浮点最小值（minnum 语义：NaN 操作数被忽略，不传播 NaN）
+	RMWFMax     = RMWOp(binding.LLVMAtomicRMWBinOpFMax)     // 浮点最大值（maxnum 语义：忽略单个 qNaN 操作数；两操作数均为 NaN 或存在 sNaN 时结果为 NaN）
+	RMWFMin     = RMWOp(binding.LLVMAtomicRMWBinOpFMin)     // 浮点最小值（minnum 语义：忽略单个 qNaN 操作数；两操作数均为 NaN 或存在 sNaN 时结果为 NaN）
 	RMWUIncWrap = RMWOp(binding.LLVMAtomicRMWBinOpUIncWrap) // 无符号自增一：旧值不小于操作数（视为上限）时回绕为 0
 	RMWUDecWrap = RMWOp(binding.LLVMAtomicRMWBinOpUDecWrap) // 无符号自减一：旧值为 0 或大于操作数（视为下限）时取操作数
 	RMWUSubCond = RMWOp(binding.LLVMAtomicRMWBinOpUSubCond) // 无符号条件减法：仅当不发生下溢时相减，否则保持旧值

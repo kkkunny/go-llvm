@@ -13,7 +13,7 @@ const (
 	LinkageLinkOnceAny         = Linkage(binding.LLVMLinkOnceAnyLinkage)         // 链接一次（任意）：链接时保留一份副本，可被更强定义覆盖，未被引用则丢弃
 	LinkageLinkOnceODR         = Linkage(binding.LLVMLinkOnceODRLinkage)         // 链接一次（ODR）：链接时保留一份副本，仅允许被等价定义替换
 	LinkageLinkOnceODRAutoHide = Linkage(binding.LLVMLinkOnceODRAutoHideLinkage) // 链接一次（ODR、自动隐藏）：已废弃
-	LinkageWeakAny             = Linkage(binding.LLVMWeakAnyLinkage)             // 弱链接（任意）：链接时保留一份，可被非弱定义覆盖，未被引用则丢弃
+	LinkageWeakAny             = Linkage(binding.LLVMWeakAnyLinkage)             // 弱链接（任意）：合并语义同 linkonce，可被非弱定义覆盖；未被引用时也不得丢弃
 	LinkageWeakODR             = Linkage(binding.LLVMWeakODRLinkage)             // 弱链接（ODR）：仅允许被等价定义替换
 	LinkageAppending           = Linkage(binding.LLVMAppendingLinkage)           // 追加链接：仅用于全局数组，链接时按顺序合并所有定义
 	LinkageInternal            = Linkage(binding.LLVMInternalLinkage)            // 内部链接：仅本模块可见（类似 static）
@@ -29,7 +29,7 @@ type Visibility binding.LLVMVisibility
 // 控制符号是否导出到动态符号表以及能否被其他模块覆盖。
 const (
 	VisibilityDefault   = Visibility(binding.LLVMDefaultVisibility)   // 默认：符号对外可见，可被其他模块引用
-	VisibilityHidden    = Visibility(binding.LLVMHiddenVisibility)    // 隐藏：符号不导出，仅在本模块内可见
+	VisibilityHidden    = Visibility(binding.LLVMHiddenVisibility)    // 隐藏：不导出到动态符号表，仍为外部链接，其他模块不能直接引用
 	VisibilityProtected = Visibility(binding.LLVMProtectedVisibility) // 受保护：符号对外可见但不可被覆盖，引用绑定到本模块定义
 )
 
