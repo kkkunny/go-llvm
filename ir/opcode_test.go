@@ -39,4 +39,9 @@ func TestOpOf(t *testing.T) {
 	if !got["add"] || !got["ret"] {
 		t.Fatalf("opcodes = %v, want add & ret", got)
 	}
+
+	// 未知操作码退化为 op<N>，不 panic
+	if got := Op(9999).String(); got != "op9999" {
+		t.Fatalf("unknown opcode String = %q, want op9999", got)
+	}
 }

@@ -64,6 +64,15 @@ func TestGEPNoWrap(t *testing.T) {
 	if got := GEPNoWrapOf(g); got != NoWrapInBounds|NoWrapNUSW {
 		t.Fatalf("flags after set = %v, want inbounds|nusw", got)
 	}
+	// SetInBounds 与 NoWrapInBounds 等价
+	SetInBounds(g, false)
+	if got := GEPNoWrapOf(g); got&NoWrapInBounds != 0 {
+		t.Fatalf("flags after SetInBounds(false) = %v, want no inbounds", got)
+	}
+	SetInBounds(g, true)
+	if got := GEPNoWrapOf(g); got&NoWrapInBounds == 0 {
+		t.Fatalf("flags after SetInBounds(true) = %v, want inbounds", got)
+	}
 	b.Ret(g)
 }
 
@@ -90,6 +99,15 @@ func TestInstFlagsAndTailCall(t *testing.T) {
 	SetNNeg(ext, true)
 
 	call := b.Call[llvm.IntT](callee, []llvm.AnyValue{a}, "c")
+	// 包级 SetTailCall/IsTailCall 与角色方法读写回环
+	SetTailCall(call, true)
+	if !IsTailCall(call) {
+		t.Fatal("SetTailCall(true) should mark tail")
+	}
+	SetTailCall(call, false)
+	if IsTailCall(call) {
+		t.Fatal("SetTailCall(false) should clear tail")
+	}
 	call.SetTailCallKind(TailCallMust)
 	if !call.IsTailCall() {
 		t.Fatalf("musttail should imply tail")
@@ -146,4 +164,31 @@ func TestSyncScope(t *testing.T) {
 	if out := m.String(); !strings.Contains(out, `syncscope("singlethread")`) {
 		t.Fatalf("IR missing singlethread syncscope:\n%s", out)
 	}
+}
+
+// TestFastMathPrecheck 不可携带 fast-math flags 的整数指令在调试构建下必须 panic。
+func TestFastMathPrecheck(t *testing.T) {
+	requireDebug(t)
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "t")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	blk := fn.NewBlock("entry")
+	b := NewBuilderAt(blk)
+	defer b.Close()
+
+	add := b.Add(fn.ParamAs[llvm.IntT](0), ctx.ConstInt(i32, 1), "x")
+	if CanFastMath(add) {
+		t.Fatal("integer add should not accept fast-math flags")
+	}
+	if err := llvm.Catch(func() { FastMathOf(add) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("FastMathOf on integer add should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { SetFastMath(add, FastMathNoNaNs) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("SetFastMath on integer add should panic ErrInvalidArg, got %v", err)
+	}
+	b.Ret(add)
 }
