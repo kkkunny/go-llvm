@@ -195,9 +195,9 @@ func (ctx *Context) ConstGEP(elem AnyType, base ValueRef[PtrT], inBounds bool, i
 	}
 	var ref binding.LLVMValueRef
 	if inBounds {
-		ref = binding.LLVMConstInBoundsGEP(elem.Ref(), baseV.ref, idxRefs)
+		ref = binding.LLVMConstInBoundsGEP2(elem.Ref(), baseV.ref, idxRefs)
 	} else {
-		ref = binding.LLVMConstGEP(elem.Ref(), baseV.ref, idxRefs)
+		ref = binding.LLVMConstGEP2(elem.Ref(), baseV.ref, idxRefs)
 	}
 	return newValue[PtrT](ctx, ctx.life, ref)
 }

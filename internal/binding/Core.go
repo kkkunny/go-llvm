@@ -1002,12 +1002,14 @@ func LLVMConstXor(lHSConstant, rHSConstant LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstXor(lHSConstant.c, rHSConstant.c)}
 }
 
-func LLVMConstGEP(ty LLVMTypeRef, constantVal LLVMValueRef, constantIndices []LLVMValueRef) LLVMValueRef {
+// LLVMConstGEP2 Create a constant getelementptr expression with the given element type.
+func LLVMConstGEP2(ty LLVMTypeRef, constantVal LLVMValueRef, constantIndices []LLVMValueRef) LLVMValueRef {
 	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](constantIndices)
 	return LLVMValueRef{c: C.LLVMConstGEP2(ty.c, constantVal.c, ptr, length)}
 }
 
-func LLVMConstInBoundsGEP(ty LLVMTypeRef, constantVal LLVMValueRef, constantIndices []LLVMValueRef) LLVMValueRef {
+// LLVMConstInBoundsGEP2 Create a constant inbounds getelementptr expression with the given element type.
+func LLVMConstInBoundsGEP2(ty LLVMTypeRef, constantVal LLVMValueRef, constantIndices []LLVMValueRef) LLVMValueRef {
 	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](constantIndices)
 	return LLVMValueRef{c: C.LLVMConstInBoundsGEP2(ty.c, constantVal.c, ptr, length)}
 }
