@@ -30,6 +30,15 @@ func TestModuleAccessors(t *testing.T) {
 		t.Fatalf("Builder.Context() = %v, want ctx", b.Context())
 	}
 
+	// 跨 Context 的函数类型
+	ctx2 := llvm.NewContext()
+	defer ctx2.Close()
+	if err := llvm.Catch(func() {
+		m.NewFunction("bad", ctx2.Fn(ctx2.Void(), nil, false))
+	}); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign function type should panic ErrCrossContext, got %v", err)
+	}
+
 	// Context 关闭后不得再创建模块/构建器（崩溃类地板：始终校验）
 	dead := llvm.NewContext()
 	if err := dead.Close(); err != nil {
@@ -237,6 +246,7 @@ func TestModuleDisown(t *testing.T) {
 	v := g
 
 	m.Disown()
+	m.Disown() // 二次 Disown 幂等
 	if v.Alive() {
 		t.Fatal("value should be dead immediately after disown")
 	}

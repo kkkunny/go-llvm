@@ -86,6 +86,14 @@ func TestBuilderVectorPrecheck(t *testing.T) {
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("shuffle type mismatch should panic ErrTypeMismatch, got %v", err)
 	}
+	// mask 元素必须是 i32
+	i64 := ctx.Int(64)
+	mask64 := ctx.ConstVector(i64, ctx.ConstInt(i64, 0).Value, ctx.ConstInt(i64, 0).Value)
+	if err := llvm.Catch(func() {
+		b.ShuffleVector(zero, zero, mask64, "")
+	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
+		t.Fatalf("non-i32 mask should panic ErrTypeMismatch, got %v", err)
+	}
 	b.RetVoid()
 }
 

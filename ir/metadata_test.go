@@ -36,6 +36,9 @@ func TestMetadata(t *testing.T) {
 	if m.NamedMetadataCount("no.such.md") != 0 {
 		t.Fatal("missing named md should have 0 operands")
 	}
+	if ops := m.NamedMetadataOperands("no.such.md"); ops != nil {
+		t.Fatalf("missing named md operands = %v, want nil", ops)
+	}
 
 	m.AddModuleFlag(llvm.ModuleFlagOverride, "my.flag", ctx.MDString("v"))
 	flag, ok := m.ModuleFlag("my.flag")
@@ -66,6 +69,16 @@ func TestMetadata(t *testing.T) {
 	defer ctx2.Close()
 	if err := llvm.Catch(func() { ctx.MDNode(ctx2.MDString("x")) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context MDNode should panic ErrCrossContext, got %v", err)
+	}
+	if err := llvm.Catch(func() {
+		m.AddNamedMetadataOperand("my.md", ctx2.MDNode(ctx2.MDString("x")))
+	}); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("cross-context named md should panic ErrCrossContext, got %v", err)
+	}
+	if err := llvm.Catch(func() {
+		m.AddModuleFlag(llvm.ModuleFlagOverride, "other.flag", ctx2.MDString("v"))
+	}); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("cross-context module flag should panic ErrCrossContext, got %v", err)
 	}
 }
 
@@ -252,5 +265,16 @@ func TestComdat(t *testing.T) {
 	}
 	if err := llvm.Catch(func() { Comdat{}.SetSelectionKind(llvm.ComdatAny) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("zero comdat SetSelectionKind should panic ErrInvalidArg, got %v", err)
+	}
+
+	// 跨 Context 的 comdat（崩溃类地板：始终校验）
+	ctx2 := llvm.NewContext()
+	defer ctx2.Close()
+	m2 := NewModule(ctx2, "comdat2")
+	defer m2.Close()
+	foreign := m2.GetOrInsertComdat("foreign")
+	g2 := m.NewGlobal("g2", i32)
+	if err := llvm.Catch(func() { g2.SetComdat(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign comdat should panic ErrCrossContext, got %v", err)
 	}
 }

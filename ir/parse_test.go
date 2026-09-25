@@ -84,6 +84,9 @@ func TestBitcodeRoundTrip(t *testing.T) {
 	if err := m.WriteBitcode(path); err != nil {
 		t.Fatal(err)
 	}
+	if err := m.WriteBitcode(filepath.Join(t.TempDir(), "no/such/dir/m.bc")); err == nil || err.(*llvm.Error).Reason != llvm.ErrIO {
+		t.Fatalf("bad path should return ErrIO, got %v", err)
+	}
 	buf, err := llvm.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

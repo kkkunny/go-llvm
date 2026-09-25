@@ -78,6 +78,13 @@ func TestBuilderCallChecks(t *testing.T) {
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("arg type mismatch should panic ErrTypeMismatch, got %v", err)
 	}
+
+	err = llvm.Catch(func() {
+		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i32, 1), ctx.ConstInt(i32, 2), ctx.ConstInt(i32, 3)}, "tooMany")
+	})
+	if err == nil || err.Reason != llvm.ErrTypeMismatch {
+		t.Fatalf("too many args should panic ErrTypeMismatch, got %v", err)
+	}
 }
 
 func TestBuilderCallVoid(t *testing.T) {
@@ -152,6 +159,9 @@ func TestBuilderPHI(t *testing.T) {
 		if err == nil || err.Reason != llvm.ErrTypeMismatch {
 			t.Fatalf("phi type mismatch should panic ErrTypeMismatch, got %v", err)
 		}
+		if err := llvm.Catch(func() { phi.IncomingAt(9) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+			t.Fatalf("phi incoming out of range should panic ErrInvalidArg, got %v", err)
+		}
 	}
 }
 
@@ -200,6 +210,10 @@ func TestBuilderKindChecks(t *testing.T) {
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("indexing scalar should panic ErrInvalidArg, got %v", err)
 	}
+	err = llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, nil, "") })
+	if err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("empty extract index path should panic ErrInvalidArg, got %v", err)
+	}
 
 	// InsertValue 负向：空索引路径 / 元素类型不符 / 索引越界
 	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), nil, "") })
@@ -224,6 +238,10 @@ func TestBuilderKindChecks(t *testing.T) {
 	})
 	if err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign signature should panic ErrCrossContext, got %v", err)
+	}
+	err = llvm.Catch(func() { b.PHI(ctx2.Int(32), "") })
+	if err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign PHI type should panic ErrCrossContext, got %v", err)
 	}
 }
 

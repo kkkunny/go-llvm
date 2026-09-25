@@ -49,6 +49,11 @@ func TestBuilderPrecheck(t *testing.T) {
 	if err := llvm.Catch(func() { b.Ret(dead) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("dead operand should panic ErrUseAfterFree, got %v", err)
 	}
+
+	// nil 操作数（崩溃类地板）
+	if err := llvm.Catch(func() { b.Ret(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil operand should panic ErrInvalidArg, got %v", err)
+	}
 }
 
 func TestBuilderMovePrecheck(t *testing.T) {
@@ -301,6 +306,12 @@ func TestBuilderUnreachableAndMoveBefore(t *testing.T) {
 
 	if cur, ok := b.CurrentBlock(); !ok || cur.Name() != "entry" {
 		t.Fatalf("CurrentBlock() = %v, %v", cur.Name(), ok)
+	}
+	// 未定位的 Builder 没有当前块
+	b2 := NewBuilder(ctx)
+	defer b2.Close()
+	if _, ok := b2.CurrentBlock(); ok {
+		t.Fatal("unpositioned builder should have no current block")
 	}
 	insts := entry.Insts()
 	if len(insts) != 3 {

@@ -86,5 +86,8 @@ func TestCallArgPrecheck(t *testing.T) {
 	if err := llvm.Catch(func() { call.SetArg(3, ctx.ConstInt(i32, 1).Value) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Call.SetArg out of range should panic ErrInvalidArg, got %v", err)
 	}
+	if err := llvm.Catch(func() { fn.Param(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("Function.Param out of range should panic ErrInvalidArg, got %v", err)
+	}
 	b.Ret(call)
 }

@@ -235,6 +235,14 @@ func TestBuilderMemTypePrecheck(t *testing.T) {
 	if err := llvm.Catch(func() { b.GEP(nil, ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil GEP element type should panic ErrInvalidArg, got %v", err)
 	}
+	if err := llvm.Catch(func() { b.Malloc(nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil malloc type should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() {
+		b.MallocArray(nil, ctx.ConstInt(ctx.Int(64), 1).Value, "")
+	}); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil malloc-array type should panic ErrInvalidArg, got %v", err)
+	}
 
 	// 跨 Context 类型
 	ctx2 := llvm.NewContext()
@@ -244,6 +252,12 @@ func TestBuilderMemTypePrecheck(t *testing.T) {
 	}
 	if err := llvm.Catch(func() { b.GEP(ctx2.Int(32), ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign GEP element type should panic ErrCrossContext, got %v", err)
+	}
+	if err := llvm.Catch(func() { b.Malloc(ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("foreign malloc type should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { b.Load(ctx.Ptr(0).Zero(), ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign load type should panic ErrCrossContext, got %v", err)
 	}
 }
 

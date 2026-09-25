@@ -24,6 +24,10 @@ func TestAttrFunctionAndParamRoles(t *testing.T) {
 	if len(fa) != 2 {
 		t.Fatalf("function attrs = %v, want 2", fa)
 	}
+	// 空位置返回 nil
+	if got := fn.Attrs(llvm.AttrReturn); got != nil {
+		t.Fatalf("empty position attrs = %v, want nil", got)
+	}
 
 	// 参数属性：添加、全量读取、按种类读取、移除
 	p := fn.Param(0)

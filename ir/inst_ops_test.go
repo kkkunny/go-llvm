@@ -122,6 +122,22 @@ func TestSetOperandAndUses(t *testing.T) {
 	if got := countSeq(Operands(sub)); got != 2 {
 		t.Fatalf("Operands(sub) = %d, want 2", got)
 	}
+	n = 0
+	for range Uses(c) {
+		n++
+		break
+	}
+	if n != 1 {
+		t.Fatalf("early break yielded %d uses", n)
+	}
+
+	// nil 替换值/操作数（崩溃类地板：始终校验）
+	if err := llvm.Catch(func() { SetOperand(sub, 0, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil operand should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { ReplaceAllUses(sub, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil replacement should panic ErrInvalidArg, got %v", err)
+	}
 }
 
 // TestOperandIndexPrecheck 越界操作数下标在调试构建下必须 panic。

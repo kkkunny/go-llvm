@@ -49,4 +49,14 @@ func TestOperandBundles(t *testing.T) {
 	if err := tag.Close(); err == nil {
 		t.Fatalf("double close should error")
 	}
+
+	// 已关闭捆绑不得再用于构建（崩溃类地板：始终校验）
+	if err := llvm.Catch(func() { _ = tag.Tag() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("Tag on closed bundle should panic ErrUseAfterFree, got %v", err)
+	}
+	if err := llvm.Catch(func() {
+		b.CallWithBundles[llvm.IntT](fn, []llvm.AnyValue{a}, []OperandBundle{tag}, "")
+	}); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("CallWithBundles with closed bundle should panic ErrUseAfterFree, got %v", err)
+	}
 }
