@@ -315,6 +315,10 @@ func TestSwitchConditionAccess(t *testing.T) {
 		if got := Condition(sw); got.String() != want.String() {
 			t.Errorf("%d case switch condition after SetCondition = %s, want %s", n, got, want)
 		}
+		// nil 条件（崩溃类地板）在两种构建模式下都必须 panic ErrInvalidArg
+		if err := llvm.Catch(func() { SetCondition(sw, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+			t.Errorf("%d case switch: SetCondition(nil) should panic ErrInvalidArg, got %v", n, err)
+		}
 	}
 
 	// 无条件 br 与 ret：Condition/SetCondition 在两种构建模式下都必须 panic ErrInvalidArg
