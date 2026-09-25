@@ -31,15 +31,13 @@ inspired by [inkwell](https://github.com/TheDan64/inkwell).
 
 | Local LLVM | How to use |
 |---|---|
-| 22 (latest, default branch) | `go get github.com/kkkunny/go-llvm` |
-| 21 | `go get github.com/kkkunny/go-llvm@llvm21` |
+| 22 | `go get github.com/kkkunny/go-llvm` |
 
 Notes:
 
 * Requires **Go 1.27+** (the API uses generic methods).
-* These are non-semver tags, so `go.mod` records them as pseudo-versions.
-* Older LLVM lines (20 and earlier) are no longer provided; they can be pinned to
-  historic commits if needed.
+* Only LLVM 22 is supported; LLVM 21 and earlier are no longer provided. They can be
+  pinned to historic commits if needed.
 
 ## Packages
 

@@ -30,14 +30,12 @@
 
 | 本地 LLVM | 使用方式 |
 |---|---|
-| 22（最新，默认分支） | `go get github.com/kkkunny/go-llvm` |
-| 21 | `go get github.com/kkkunny/go-llvm@llvm21` |
+| 22 | `go get github.com/kkkunny/go-llvm` |
 
 注意：
 
 * 需要 **Go 1.27+**（API 使用了泛型方法）。
-* 这些 tag 不是语义化版本，`go.mod` 会将其记录为伪版本（pseudo-version）。
-* 不再提供更早的 LLVM 版本线（20 及以前）；如有需要可固定到历史提交。
+* 仅支持 LLVM 22；不再提供 LLVM 21 及更早的版本线，如有需要可固定到历史提交。
 
 ## 包结构
 
