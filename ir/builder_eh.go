@@ -198,6 +198,22 @@ func (b *Builder) Invoke[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.An
 	return Invoke[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
 }
 
+// InvokeWithBundles 带操作数捆绑的 invoke；捆绑由调用方持有并负责 Close
+func (b *Builder) InvokeWithBundles[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyValue, bundles []OperandBundle, then, unwind Block, name string) Invoke[U] {
+	const op = "ir.Builder.InvokeWithBundles"
+	fv := fn.AsValue()
+	b.pre(op, core(fv))
+	b.preBlockOwn(op, then)
+	b.preBlockOwn(op, unwind)
+	sig := callSig(b.ctx, fv.Ref(), fv.RawType())
+	if checks.Debug {
+		checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
+	}
+	b.checkCallArgs(op, sig, args)
+	ref := binding.LLVMBuildInvokeWithOperandBundles(b.ref, sig.Ref(), fv.Ref(), b.valueRefs(args), then.ref, unwind.ref, bundlesToRefs(bundles), name)
+	return Invoke[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
+}
+
 // InvokeIndirect 通过函数指针 invoke（不透明指针 + 签名）；返回种类 U 与签名返回类型比对
 func (b *Builder) InvokeIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], sig llvm.FnType, args []llvm.AnyValue, then, unwind Block, name string) Invoke[U] {
 	const op = "ir.Builder.InvokeIndirect"

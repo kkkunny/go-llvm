@@ -58,6 +58,21 @@ func (b *Builder) call(op string, callee binding.LLVMValueRef, sig llvm.FnType, 
 	return binding.LLVMBuildCall(b.ref, sig.Ref(), callee, b.valueRefs(args), name)
 }
 
+// CallWithBundles 带操作数捆绑的调用；捆绑由调用方持有并负责 Close
+func (b *Builder) CallWithBundles[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyValue, bundles []OperandBundle, name string) Call[U] {
+	const op = "ir.Builder.CallWithBundles"
+	fv := fn.AsValue()
+	b.pre(op, core(fv))
+	sig := callSig(b.ctx, fv.Ref(), fv.RawType())
+	if checks.Debug {
+		checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
+	}
+	b.pre(op)
+	b.checkCallArgs(op, sig, args)
+	ref := binding.LLVMBuildCallWithOperandBundles(b.ref, sig.Ref(), fv.Ref(), b.valueRefs(args), bundlesToRefs(bundles), name)
+	return Call[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
+}
+
 // checkCallArgs 调用类指令（call/invoke）公共实参预检：崩溃类地板常开；个数/类型为语义契约，仅调试层
 func (b *Builder) checkCallArgs(op string, sig llvm.FnType, args []llvm.AnyValue) {
 	for _, a := range args {

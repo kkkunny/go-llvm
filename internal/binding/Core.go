@@ -2584,3 +2584,41 @@ func LLVMBuildAtomicRMWSyncScope(b LLVMBuilderRef, op LLVMAtomicRMWBinOp, ptr, v
 func LLVMBuildAtomicCmpXchgSyncScope(b LLVMBuilderRef, ptr, cmp, newVal LLVMValueRef, successOrder, failureOrder LLVMAtomicOrdering, ssid uint32) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMBuildAtomicCmpXchgSyncScope(b.c, ptr.c, cmp.c, newVal.c, C.LLVMAtomicOrdering(successOrder), C.LLVMAtomicOrdering(failureOrder), C.unsigned(ssid))}
 }
+
+// LLVMCreateOperandBundle Create an operand bundle with the given tag and inputs.
+func LLVMCreateOperandBundle(tag string, inputs []LLVMValueRef) LLVMOperandBundleRef {
+	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](inputs)
+	return string2CString(tag, func(cs *C.char) LLVMOperandBundleRef {
+		return LLVMOperandBundleRef{c: C.LLVMCreateOperandBundle(cs, C.size_t(len(tag)), ptr, C.unsigned(length))}
+	})
+}
+
+// LLVMDisposeOperandBundle Dispose an operand bundle.
+func LLVMDisposeOperandBundle(b LLVMOperandBundleRef) {
+	C.LLVMDisposeOperandBundle(b.c)
+}
+
+// LLVMGetOperandBundleTag Get the tag of an operand bundle.
+func LLVMGetOperandBundleTag(b LLVMOperandBundleRef) string {
+	var length C.size_t
+	s := C.LLVMGetOperandBundleTag(b.c, &length)
+	return C.GoStringN(s, C.int(length))
+}
+
+// LLVMBuildCallWithOperandBundles Create a call instruction with operand bundles.
+func LLVMBuildCallWithOperandBundles(b LLVMBuilderRef, ty LLVMTypeRef, fn LLVMValueRef, args []LLVMValueRef, bundles []LLVMOperandBundleRef, name string) LLVMValueRef {
+	aptr, alen := slice2Ptr[LLVMValueRef, C.LLVMValueRef](args)
+	bptr, blen := slice2Ptr[LLVMOperandBundleRef, C.LLVMOperandBundleRef](bundles)
+	return string2CString(name, func(cs *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildCallWithOperandBundles(b.c, ty.c, fn.c, aptr, C.unsigned(alen), bptr, C.unsigned(blen), cs)}
+	})
+}
+
+// LLVMBuildInvokeWithOperandBundles Create an invoke instruction with operand bundles.
+func LLVMBuildInvokeWithOperandBundles(b LLVMBuilderRef, ty LLVMTypeRef, fn LLVMValueRef, args []LLVMValueRef, then, catch LLVMBasicBlockRef, bundles []LLVMOperandBundleRef, name string) LLVMValueRef {
+	aptr, alen := slice2Ptr[LLVMValueRef, C.LLVMValueRef](args)
+	bptr, blen := slice2Ptr[LLVMOperandBundleRef, C.LLVMOperandBundleRef](bundles)
+	return string2CString(name, func(cs *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildInvokeWithOperandBundles(b.c, ty.c, fn.c, aptr, C.unsigned(alen), then.c, catch.c, bptr, C.unsigned(blen), cs)}
+	})
+}
