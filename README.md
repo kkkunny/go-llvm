@@ -1,9 +1,33 @@
 # go-llvm
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/kkkunny/go-llvm.svg)](https://pkg.go.dev/github.com/kkkunny/go-llvm)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kkkunny/go-llvm)](https://goreportcard.com/report/github.com/kkkunny/go-llvm)
+[![CI](https://github.com/kkkunny/go-llvm/actions/workflows/ci.yml/badge.svg)](https://github.com/kkkunny/go-llvm/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Go 1.27+](https://img.shields.io/badge/Go-1.27%2B-00ADD8.svg?logo=go)](https://go.dev/)
+
+English | [简体中文](README.zh-CN.md)
+
 Go bindings to a **system-installed LLVM**, with a type-safe, highly-encapsulated API
 inspired by [inkwell](https://github.com/TheDan64/inkwell).
 
-Currently supported:
+## Table of contents
+
+- [Supported LLVM versions](#supported-llvm-versions)
+- [Packages](#packages)
+- [Usage](#usage)
+  - [Type safety and errors](#type-safety-and-errors)
+  - [Code generation](#code-generation)
+  - [JIT execution](#jit-execution)
+  - [Kaleidoscope example](#kaleidoscope-example)
+  - [Non-standard LLVM prefixes](#non-standard-llvm-prefixes)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [Development](#development)
+- [Updating for a new LLVM release](#updating-for-a-new-llvm-release)
+- [License](#license)
+
+## Supported LLVM versions
 
 | Local LLVM | How to use |
 |---|---|
@@ -55,7 +79,7 @@ func main() {
 	module := ir.NewModule(ctx, "main")
 	defer module.Close()
 
-	// Go 签名直接映射为 LLVM 函数类型
+	// The Go signature maps directly to an LLVM function type.
 	mainFn, err := module.NewFunc[func() int32]("main")
 	if err != nil {
 		panic(err)
@@ -65,7 +89,8 @@ func main() {
 	defer builder.Close()
 	builder.MoveToEnd(mainFn.Function().NewBlock("entry"))
 
-	// 类型安全：Add 只接受 i32 值，ICmp 返回 i1，Select 要求分支同类型
+	// Type safety: Add only accepts i32 values, ICmp returns i1, and Select
+	// requires both arms to have the same type.
 	i32 := ctx.Int(32)
 	sum := builder.Add(i32.Const(1), i32.Const(2), "sum")
 	ok := builder.ICmp(llvm.IntEQ, sum, i32.Const(3), "ok")
@@ -73,7 +98,7 @@ func main() {
 	builder.Ret(result)
 
 	if err := module.Verify(); err != nil {
-		panic(err) // 结构化 *llvm.Error，含完整诊断
+		panic(err) // structured *llvm.Error with full diagnostics
 	}
 	fmt.Println(module)
 }
@@ -91,15 +116,18 @@ func main() {
   the generic method `As[U]()` / `MustAs[U]()`.
 * Recoverable failures return `error`; programmer errors `panic(*llvm.Error)`, which `llvm.Catch` converts
   back to an error and `llvm.Try` converts while also returning a value. Checks are layered:
-  * **崩溃类地板（任何构建都开，纯 Go）**：nil 句柄、已释放（`ErrUseAfterFree`）、跨 `Context`、
-    已关闭的 Context/Module/Builder。缺少它们时 cgo 内的非法句柄是 SIGSEGV —— `recover` 接不住、
-    进程直接死且没有 Go 堆栈；有了它们，所有误用都退化为可 `Catch` 的 Go panic。
-  * **语义契约（仅调试构建）**：操作数类型一致、对齐为 2 的幂、索引越界、原子序合法性、
-    调用实参数量/类型、结果种类。这些在 `-tags=llvm_release` 信任构建下**编译期整体消除**，
-    误用交由 LLVM assert + `Module.Verify()` 兜底（与 C/Rust/inkwell 的 release 语义一致）。
-  * 调试构建另含：单 goroutine 契约采样检查、链接/代码生成/JIT 边界自动 `Verify`、
-    `panic` 消息附带最近操作现场、Context 关闭时的未释放资源报告、LLVM 诊断回调默认安装
-    （把默认 handler 的进程退出变为日志）。
+  * **Crash-class floor (always on, pure Go)**: nil handles, freed handles (`ErrUseAfterFree`),
+    cross-`Context` use, and closed `Context`/`Module`/`Builder` handles. Without it, an invalid handle
+    inside cgo is a SIGSEGV — `recover` cannot catch it, the process dies without a Go stack. With it,
+    every misuse degrades to a catchable Go panic.
+  * **Semantic contracts (debug builds only)**: operand type agreement, power-of-two alignment,
+    index bounds, atomic orderings, call arity/types, result kinds. Under `-tags=llvm_release` these are
+    **compiled out entirely**; misuse falls back to LLVM asserts + `Module.Verify()` — the same contract
+    as C/Rust/inkwell release builds.
+  * Debug builds additionally provide: single-goroutine contract sampling, automatic `Verify` at
+    link/codegen/JIT boundaries, `panic` messages carrying the recent operation context, an
+    unreleased-resource report when a `Context` is closed, and a default LLVM diagnostic handler
+    (turning the default handler's process exit into a log).
 * `Context`/`Module`/`Builder` implement `io.Closer`. Values are owned by their context/module;
   value/type role methods deliver handles through the `Value.Ref()`/`Type.Ref()` choke point, which
   enforces the crash-class floor in one place (no per-method `Check` duplication; `RawRef()` is the
@@ -121,9 +149,9 @@ tm, _ := target.NewTargetMachine(native, target.DefaultTriple(), target.HostCPUN
 	target.OptDefault, target.RelocPIC, target.CodeModelDefault)
 defer tm.Close()
 
-tm.ApplyTo(module)                                   // 写入 triple + data layout
+tm.ApplyTo(module)                                 // write triple + data layout
 _ = tm.EmitToFile(module, "main.o", target.ObjectFile)
-asm, _ := tm.Emit(module, target.AsmFile)          // 或产出到内存缓冲
+asm, _ := tm.Emit(module, target.AsmFile)          // or emit into an in-memory buffer
 defer asm.Close()
 ```
 
@@ -134,14 +162,14 @@ target.InitNative()
 j, _ := jit.NewLLJIT()
 defer j.Close()
 
-_ = j.AddProcessSymbols()                          // 进程符号（libc/libm 等）可被 JIT 内 extern 声明解析
-_ = j.AddIRModule(module)                          // 模块与 Context 所有权移交 JIT
-fib, _ := j.Func[func(int32) int32]("fib")         // 真实 Go 函数值
+_ = j.AddProcessSymbols()                          // process symbols (libc/libm, ...) resolve extern declarations in JIT code
+_ = j.AddIRModule(module)                          // ownership of the module and its Context moves to the JIT
+fib, _ := j.Func[func(int32) int32]("fib")         // a real Go function value
 fmt.Println(fib(10))
 
-_ = j.MapFunc("host_cb", func(x int32) int32 { return x * 2 })  // 宿主函数注册为 JIT 符号
-p, _ := j.Lookup("some_symbol")                    // unsafe.Pointer 低层入口
-code, _ := j.RunMain([]string{"prog"})             // 按 main(argc, argv, envp) 调用
+_ = j.MapFunc("host_cb", func(x int32) int32 { return x * 2 })  // register a host function as a JIT symbol
+p, _ := j.Lookup("some_symbol")                    // low-level unsafe.Pointer entry point
+code, _ := j.RunMain([]string{"prog"})             // called as main(argc, argv, envp)
 ```
 
 `Func[F]` / `MapFunc[F]` calls go through `reflect` + a fixed-signature C channel, so each call costs
@@ -186,19 +214,43 @@ export CGO_LDFLAGS="$(llvm-config --ldflags --libs)"
 `CGO_CFLAGS`/`CGO_CXXFLAGS` are global, so they also apply to `internal/binding`'s
 own compilation; a `#cgo` file in your own main package would not.
 
+## Examples
+
+Runnable examples live in [`examples/`](examples); see
+[`examples/README.md`](examples/README.md) for the exact commands and expected output:
+
+| Example | Description |
+|---|---|
+| [hello](examples/hello/) | Build, verify, and print the IR of the smallest module (`1 + 2`). |
+| [jit-fib](examples/jit-fib/) | Build a recursive `fib` in IR, JIT it, and call it from Go; also register a host Go callback with `MapFunc`. |
+| [codegen](examples/codegen/) | AOT-compile a module to an object file (`.o`) and assembly text (`.s`) with `EmitToFile`. |
+| [opt](examples/opt/) | Run the `default<O2>` pipeline with `pass.AutoOpt` and print the instruction count before and after. |
+| [kaleidoscope](examples/kaleidoscope/) | A full Kaleidoscope language front-end (tutorial chapters 1–7) on top of go-llvm's JIT. |
+
+## Documentation
+
+* API reference: [pkg.go.dev/github.com/kkkunny/go-llvm](https://pkg.go.dev/github.com/kkkunny/go-llvm)
+* Contributor and architecture notes: [`AGENTS.md`](AGENTS.md)
+
 ## Development
 
 ```shell
 go build ./...
 go vet ./...
-go test ./...                            # 调试构建（默认）：三层校验全开
-go test -tags=llvm_release ./...         # 信任构建：语义契约/调试增强编译期消除
-go test ./ir -run TestGolden -update     # 重新生成 golden IR（两种构建下结果必须一致）
+go test ./...                            # debug build (default): full check stack
+go test -tags=llvm_release ./...         # trust build: semantic checks compiled out
+go test ./ir -run TestGolden -update     # regenerate golden IR (must match in both builds)
 make test test-release bench bench-release
 ```
 
-语义契约类负向测试（期望 panic 的误用测试）通过 `requireDebug(t)` 挂在调试构建，
-`llvm_release` 矩阵下自动跳过；崩溃类地板测试两种构建都必须通过。
+CI runs on every push and pull request via
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `gofmt` lint check plus a
+`default`/`release` test matrix on `ubuntu-24.04`, with LLVM 22 installed from
+apt.llvm.org.
+
+Negative tests for semantic-contract misuse are gated by `requireDebug(t)` and run in
+debug builds only (skipped under the `llvm_release` matrix); crash-class floor tests
+must pass in both builds.
 
 ## Updating for a new LLVM release
 
@@ -221,3 +273,7 @@ make test test-release bench bench-release
    whatever the local headers define. Unknown value kinds / opcodes degrade to
    generic fallback wrappers instead of panicking.
 5. Bind newly added C APIs only when needed.
+
+## License
+
+Licensed under the Apache License, Version 2.0 — see [`LICENSE`](LICENSE).
