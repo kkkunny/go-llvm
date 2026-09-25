@@ -265,3 +265,37 @@ func (b *Builder) CmpXchg(ptr llvm.ValueRef[llvm.PtrT], cmp, new llvm.AnyValue, 
 	binding.LLVMSetValueName(ref, name)
 	return CmpXchg{Value: llvm.NewValue[llvm.StructT](b.ctx, b.inserted.life, ref)}
 }
+
+// FenceWithScope 插入带 sync scope 的 fence（void 值指令不可命名）
+func (b *Builder) FenceWithScope(order llvm.AtomicOrdering, ssid uint32) Fence {
+	const op = "ir.Builder.FenceWithScope"
+	b.pre(op)
+	preOrderingFence(op, order)
+	ref := binding.LLVMBuildFenceSyncScope(b.ref, binding.LLVMAtomicOrdering(order), ssid, "")
+	return Fence{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
+}
+
+// AtomicRMWWithScope 插入带 sync scope 的 atomicrmw，返回旧值（种类 T 与 val 一致）；
+// C 构建 API 无 name，构建后经 SetValueName 命名
+func (b *Builder) AtomicRMWWithScope[T llvm.Kind](op llvm.RMWOp, ptr llvm.ValueRef[llvm.PtrT], val llvm.ValueRef[T], order llvm.AtomicOrdering, ssid uint32, name string) AtomicRMW[T] {
+	const opr = "ir.Builder.AtomicRMWWithScope"
+	pv, vv := ptr.AsValue(), val.AsValue()
+	b.pre(opr, core(pv), core(vv))
+	preOrderingRMW(opr, order)
+	ref := binding.LLVMBuildAtomicRMWSyncScope(b.ref, binding.LLVMAtomicRMWBinOp(op), pv.Ref(), vv.Ref(), binding.LLVMAtomicOrdering(order), ssid)
+	binding.LLVMSetValueName(ref, name)
+	return AtomicRMW[T]{Value: llvm.NewValue[T](b.ctx, b.inserted.life, ref)}
+}
+
+// CmpXchgWithScope 插入带 sync scope 的原子比较交换，返回 {旧值, i1 成功标志}；cmp/new 须同类型
+func (b *Builder) CmpXchgWithScope(ptr llvm.ValueRef[llvm.PtrT], cmp, new llvm.AnyValue, success, failure llvm.AtomicOrdering, ssid uint32, name string) CmpXchg {
+	const op = "ir.Builder.CmpXchgWithScope"
+	pv := ptr.AsValue()
+	b.pre(op, core(pv), coreAny(cmp), coreAny(new))
+	b.preSameType(op, coreAny(cmp), coreAny(new))
+	preOrderingCmpXchg(op, success, failure)
+	ref := binding.LLVMBuildAtomicCmpXchgSyncScope(b.ref, pv.Ref(), cmp.Ref(), new.Ref(),
+		binding.LLVMAtomicOrdering(success), binding.LLVMAtomicOrdering(failure), ssid)
+	binding.LLVMSetValueName(ref, name)
+	return CmpXchg{Value: llvm.NewValue[llvm.StructT](b.ctx, b.inserted.life, ref)}
+}

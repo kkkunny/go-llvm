@@ -2550,3 +2550,37 @@ func LLVMSetTailCallKind(v LLVMValueRef, k LLVMTailCallKind) {
 func LLVMSetInstrParamAlignment(v LLVMValueRef, index uint32, align uint32) {
 	C.LLVMSetInstrParamAlignment(v.c, C.LLVMAttributeIndex(index), C.unsigned(align))
 }
+
+// LLVMGetSyncScopeID Get the sync scope ID for the given name (0 = system).
+func LLVMGetSyncScopeID(c LLVMContextRef, name string) uint32 {
+	return string2CString(name, func(cs *C.char) uint32 {
+		return uint32(C.LLVMGetSyncScopeID(c.c, cs, C.size_t(len(name))))
+	})
+}
+
+// LLVMGetAtomicSyncScopeID Get the sync scope ID of an atomic instruction.
+func LLVMGetAtomicSyncScopeID(v LLVMValueRef) uint32 {
+	return uint32(C.LLVMGetAtomicSyncScopeID(v.c))
+}
+
+// LLVMSetAtomicSyncScopeID Set the sync scope ID of an atomic instruction.
+func LLVMSetAtomicSyncScopeID(v LLVMValueRef, ssid uint32) {
+	C.LLVMSetAtomicSyncScopeID(v.c, C.unsigned(ssid))
+}
+
+// LLVMBuildFenceSyncScope Create a fence instruction with a sync scope.
+func LLVMBuildFenceSyncScope(b LLVMBuilderRef, order LLVMAtomicOrdering, ssid uint32, name string) LLVMValueRef {
+	return string2CString(name, func(cs *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildFenceSyncScope(b.c, C.LLVMAtomicOrdering(order), C.unsigned(ssid), cs)}
+	})
+}
+
+// LLVMBuildAtomicRMWSyncScope Create an atomicrmw instruction with a sync scope.
+func LLVMBuildAtomicRMWSyncScope(b LLVMBuilderRef, op LLVMAtomicRMWBinOp, ptr, val LLVMValueRef, order LLVMAtomicOrdering, ssid uint32) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMBuildAtomicRMWSyncScope(b.c, C.LLVMAtomicRMWBinOp(op), ptr.c, val.c, C.LLVMAtomicOrdering(order), C.unsigned(ssid))}
+}
+
+// LLVMBuildAtomicCmpXchgSyncScope Create a cmpxchg instruction with a sync scope.
+func LLVMBuildAtomicCmpXchgSyncScope(b LLVMBuilderRef, ptr, cmp, newVal LLVMValueRef, successOrder, failureOrder LLVMAtomicOrdering, ssid uint32) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMBuildAtomicCmpXchgSyncScope(b.c, ptr.c, cmp.c, newVal.c, C.LLVMAtomicOrdering(successOrder), C.LLVMAtomicOrdering(failureOrder), C.unsigned(ssid))}
+}

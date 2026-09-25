@@ -104,3 +104,46 @@ func TestInstFlagsAndTailCall(t *testing.T) {
 		}
 	}
 }
+
+func TestSyncScope(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "t")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(ctx.Void(), []llvm.AnyType{ctx.Ptr(0)}, false))
+	blk := fn.NewBlock("entry")
+	b := NewBuilderAt(blk)
+	defer b.Close()
+
+	// LLVM 22：singlethread 固定为保留 ID 0；其余名字按需分配非 0 ID
+	if got := ctx.SyncScopeID("singlethread"); got != 0 {
+		t.Fatalf("singlethread scope id = %d, want 0", got)
+	}
+	ssid := ctx.SyncScopeID("agent")
+	if ssid == 0 {
+		t.Fatalf("named scope id should be non-zero")
+	}
+	p := fn.ParamAs[llvm.PtrT](0)
+	v := ctx.ConstInt(i32, 1)
+	rmw := b.AtomicRMWWithScope[llvm.IntT](llvm.RMWAdd, p, v, llvm.AtomicMonotonic, ssid, "r")
+	if got := SyncScopeOf(rmw); got != ssid {
+		t.Fatalf("ssid = %d, want %d", got, ssid)
+	}
+	// 0 = singlethread：读写回环并与 IR 文本互证
+	SetSyncScope(rmw, 0)
+	if got := SyncScopeOf(rmw); got != 0 {
+		t.Fatalf("ssid after set = %d, want 0", got)
+	}
+	fence := b.FenceWithScope(llvm.AtomicSequentiallyConsistent, ssid)
+	if got := SyncScopeOf(fence); got != ssid {
+		t.Fatalf("fence ssid = %d, want %d", got, ssid)
+	}
+	_ = b.CmpXchgWithScope(p, v, v, llvm.AtomicSequentiallyConsistent, llvm.AtomicMonotonic, ssid, "cx")
+	b.RetVoid()
+
+	if out := m.String(); !strings.Contains(out, `syncscope("singlethread")`) {
+		t.Fatalf("IR missing singlethread syncscope:\n%s", out)
+	}
+}

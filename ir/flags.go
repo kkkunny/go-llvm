@@ -177,3 +177,21 @@ func SetParamAlign(inst llvm.AnyValue, i uint32, align uint32) {
 	}
 	binding.LLVMSetInstrParamAlignment(inst.Ref(), i+1, align) // LLVM-C 索引 1-based，0 为返回值
 }
+
+// SyncScopeOf 读取原子指令的 sync scope ID（0 = system）
+func SyncScopeOf(inst llvm.AnyValue) uint32 {
+	const op = "ir.SyncScopeOf"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	return binding.LLVMGetAtomicSyncScopeID(inst.Ref())
+}
+
+// SetSyncScope 设置原子指令的 sync scope ID
+func SetSyncScope(inst llvm.AnyValue, ssid uint32) {
+	const op = "ir.SetSyncScope"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMSetAtomicSyncScopeID(inst.Ref(), ssid)
+}
