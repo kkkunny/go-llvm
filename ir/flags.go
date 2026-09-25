@@ -9,16 +9,19 @@ import (
 // FastMath 浮点指令 fast-math flags 位掩码
 type FastMath binding.LLVMFastMathFlags
 
+// FastMath 取值对应 LLVM fast-math flags（binding.LLVMFastMathFlags），可按位或组合，
+// 用于浮点算术、比较与转换等指令（见 CanFastMath）。各标志放松浮点语义假设以启用更多
+// 优化，违反假设时结果可能是 poison，如 FastMathNoNaNs/FastMathNoInfs。
 const (
-	FastMathNone            = FastMath(binding.LLVMFastMathNone)
-	FastMathAllowReassoc    = FastMath(binding.LLVMFastMathAllowReassoc)
-	FastMathNoNaNs          = FastMath(binding.LLVMFastMathNoNaNs)
-	FastMathNoInfs          = FastMath(binding.LLVMFastMathNoInfs)
-	FastMathNoSignedZeros   = FastMath(binding.LLVMFastMathNoSignedZeros)
-	FastMathAllowReciprocal = FastMath(binding.LLVMFastMathAllowReciprocal)
-	FastMathAllowContract   = FastMath(binding.LLVMFastMathAllowContract)
-	FastMathApproxFunc      = FastMath(binding.LLVMFastMathApproxFunc)
-	FastMathAll             = FastMath(binding.LLVMFastMathAll)
+	FastMathNone            = FastMath(binding.LLVMFastMathNone)            // 无标志：不放松任何浮点语义
+	FastMathAllowReassoc    = FastMath(binding.LLVMFastMathAllowReassoc)    // 允许重结合：浮点运算可按代数等价的方式重新结合
+	FastMathNoNaNs          = FastMath(binding.LLVMFastMathNoNaNs)          // 假设无 NaN：操作数为 NaN 或结果本应为 NaN 时得到 poison
+	FastMathNoInfs          = FastMath(binding.LLVMFastMathNoInfs)          // 假设无无穷大：操作数为 ±Inf 或结果本应为 ±Inf 时得到 poison
+	FastMathNoSignedZeros   = FastMath(binding.LLVMFastMathNoSignedZeros)   // 忽略零的符号：±0.0 的符号位可被非确定地翻转
+	FastMathAllowReciprocal = FastMath(binding.LLVMFastMathAllowReciprocal) // 允许用倒数近似除法：a/b 可改写为 a*(1/b)
+	FastMathAllowContract   = FastMath(binding.LLVMFastMathAllowContract)   // 允许收缩：乘法与加法可融合为乘加（FMA），但不做重结合
+	FastMathApproxFunc      = FastMath(binding.LLVMFastMathApproxFunc)      // 允许近似函数：sin/log/sqrt 等可替换为近似计算
+	FastMathAll             = FastMath(binding.LLVMFastMathAll)             // 以上所有标志的组合（等价于 fast）
 )
 
 // CanFastMath 该指令是否可携带 fast-math flags（浮点算术/转换等）
@@ -57,11 +60,13 @@ func SetFastMath(inst llvm.AnyValue, f FastMath) {
 // NoWrap GEP 无回绕 flags 位掩码
 type NoWrap binding.LLVMGEPNoWrapFlags
 
+// NoWrap 取值对应 LLVM GEP no-wrap flags（binding.LLVMGEPNoWrapFlags），可按位或组合。
+// 违反任一保证时 GEP 的结果为 poison。
 const (
-	NoWrapNone     = NoWrap(0)
-	NoWrapInBounds = NoWrap(binding.LLVMGEPFlagInBounds)
-	NoWrapNUSW     = NoWrap(binding.LLVMGEPFlagNUSW)
-	NoWrapNUW      = NoWrap(binding.LLVMGEPFlagNUW)
+	NoWrapNone     = NoWrap(0)                           // 无额外保证
+	NoWrapInBounds = NoWrap(binding.LLVMGEPFlagInBounds) // inbounds：基址与所有中间地址都位于同一已分配对象内（蕴含 nusw 规则）
+	NoWrapNUSW     = NoWrap(binding.LLVMGEPFlagNUSW)     // nusw（no unsigned signed wrap）：索引按有符号解释时截断/乘加不回绕
+	NoWrapNUW      = NoWrap(binding.LLVMGEPFlagNUW)      // nuw（no unsigned wrap）：索引按无符号解释时截断/乘加不回绕
 )
 
 // GEPNoWrapOf 读取 GEP no-wrap flags
@@ -130,11 +135,12 @@ func SetInBounds(inst llvm.AnyValue, v bool) {
 // TailCallKind tail-call 种类
 type TailCallKind binding.LLVMTailCallKind
 
+// TailCallKind 取值对应 LLVM tail-call 种类（binding.LLVMTailCallKind）。
 const (
-	TailCallNone = TailCallKind(binding.LLVMTailCallKindNone)
-	TailCallTail = TailCallKind(binding.LLVMTailCallKindTail)
-	TailCallMust = TailCallKind(binding.LLVMTailCallKindMustTail)
-	TailCallNo   = TailCallKind(binding.LLVMTailCallKindNoTail)
+	TailCallNone = TailCallKind(binding.LLVMTailCallKindNone)     // 未指定：由后端自行决定是否做尾调用
+	TailCallTail = TailCallKind(binding.LLVMTailCallKindTail)     // tail：提示后端做尾调用，但不保证
+	TailCallMust = TailCallKind(binding.LLVMTailCallKindMustTail) // musttail：强制尾调用，不满足结构约束即为非法 IR
+	TailCallNo   = TailCallKind(binding.LLVMTailCallKindNoTail)   // notail：禁止把该调用优化为尾调用
 )
 
 // SetTailCall 设置调用指令的 tail 标志
