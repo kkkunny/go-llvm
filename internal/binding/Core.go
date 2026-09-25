@@ -2500,3 +2500,53 @@ func LLVMBuildGEPWithNoWrapFlags(b LLVMBuilderRef, ty LLVMTypeRef, p LLVMValueRe
 		return LLVMValueRef{c: C.LLVMBuildGEPWithNoWrapFlags(b.c, ty.c, p.c, ptr, C.unsigned(length), cs, C.LLVMGEPNoWrapFlags(f))}
 	})
 }
+
+// LLVMSetNSW Set the no-signed-wrap flag of an arithmetic instruction.
+func LLVMSetNSW(v LLVMValueRef, hasNSW bool) {
+	C.LLVMSetNSW(v.c, bool2LLVMBool(hasNSW))
+}
+
+// LLVMSetExact Set the exact flag of a div/rem/shift instruction.
+func LLVMSetExact(v LLVMValueRef, isExact bool) {
+	C.LLVMSetExact(v.c, bool2LLVMBool(isExact))
+}
+
+// LLVMSetNNeg Set the non-negative flag of a sign-extending instruction.
+func LLVMSetNNeg(v LLVMValueRef, isNonNeg bool) {
+	C.LLVMSetNNeg(v.c, bool2LLVMBool(isNonNeg))
+}
+
+// LLVMSetIsInBounds Set the inbounds flag of a GEP instruction.
+func LLVMSetIsInBounds(v LLVMValueRef, inBounds bool) {
+	C.LLVMSetIsInBounds(v.c, bool2LLVMBool(inBounds))
+}
+
+// LLVMTailCallKind Tail call kind.
+type LLVMTailCallKind int32
+
+const (
+	LLVMTailCallKindNone     LLVMTailCallKind = C.LLVMTailCallKindNone
+	LLVMTailCallKindTail     LLVMTailCallKind = C.LLVMTailCallKindTail
+	LLVMTailCallKindMustTail LLVMTailCallKind = C.LLVMTailCallKindMustTail
+	LLVMTailCallKindNoTail   LLVMTailCallKind = C.LLVMTailCallKindNoTail
+)
+
+// LLVMSetTailCall Set whether the call is a tail call.
+func LLVMSetTailCall(v LLVMValueRef, isTailCall bool) {
+	C.LLVMSetTailCall(v.c, bool2LLVMBool(isTailCall))
+}
+
+// LLVMIsTailCall Whether the call is a tail call.
+func LLVMIsTailCall(v LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsTailCall(v.c))
+}
+
+// LLVMSetTailCallKind Set the tail call kind of the call.
+func LLVMSetTailCallKind(v LLVMValueRef, k LLVMTailCallKind) {
+	C.LLVMSetTailCallKind(v.c, C.LLVMTailCallKind(k))
+}
+
+// LLVMSetInstrParamAlignment Set the alignment attribute of the call's parameter (1-based, 0 = return).
+func LLVMSetInstrParamAlignment(v LLVMValueRef, index uint32, align uint32) {
+	C.LLVMSetInstrParamAlignment(v.c, C.LLVMAttributeIndex(index), C.unsigned(align))
+}

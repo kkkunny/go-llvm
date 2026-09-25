@@ -66,3 +66,41 @@ func TestGEPNoWrap(t *testing.T) {
 	}
 	b.Ret(g)
 }
+
+func TestInstFlagsAndTailCall(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "t")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	callee := m.NewFunction("callee", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	caller := m.NewFunction("caller", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	blk := caller.NewBlock("entry")
+	b := NewBuilderAt(blk)
+	defer b.Close()
+
+	a := caller.ParamAs[llvm.IntT](0)
+	add := b.Add(a, a, "x")
+	SetNSW(add, true)
+	SetNUW(add, true)
+	sd := b.SDiv(a, a, "q")
+	SetExact(sd, true)
+	ext := b.ZExt(a, ctx.Int(64), "e")
+	SetNNeg(ext, true)
+
+	call := b.Call[llvm.IntT](callee, []llvm.AnyValue{a}, "c")
+	call.SetTailCallKind(TailCallMust)
+	if !call.IsTailCall() {
+		t.Fatalf("musttail should imply tail")
+	}
+	call.SetParamAlign(0, 16)
+	b.Ret(call)
+
+	out := m.String()
+	for _, want := range []string{"nuw", "nsw", "exact", "nneg", "musttail", "align 16"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("IR missing %q:\n%s", want, out)
+		}
+	}
+}

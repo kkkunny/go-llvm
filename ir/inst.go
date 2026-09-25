@@ -45,6 +45,30 @@ func (c Call[T]) CalledFunction() (llvm.Value[llvm.FnT], bool) {
 	return llvm.NewValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
 }
 
+// SetTailCall 设置 tail 标志
+func (c Call[T]) SetTailCall(v bool) {
+	c.Check("ir.Call.SetTailCall")
+	SetTailCall(c, v)
+}
+
+// IsTailCall 是否 tail 调用
+func (c Call[T]) IsTailCall() bool {
+	c.Check("ir.Call.IsTailCall")
+	return IsTailCall(c)
+}
+
+// SetTailCallKind 设置 tail-call 种类
+func (c Call[T]) SetTailCallKind(k TailCallKind) {
+	c.Check("ir.Call.SetTailCallKind")
+	SetTailCallKind(c, k)
+}
+
+// SetParamAlign 设置第 i 个实参的对齐（i 从 0 起）
+func (c Call[T]) SetParamAlign(i uint32, align uint32) {
+	c.Check("ir.Call.SetParamAlign")
+	SetParamAlign(c, i, align)
+}
+
 // Phi PHI 节点角色（内嵌 Value[T]）
 type Phi[T llvm.Kind] struct {
 	llvm.Value[T]

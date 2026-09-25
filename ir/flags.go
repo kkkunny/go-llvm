@@ -81,3 +81,99 @@ func SetGEPNoWrap(v llvm.AnyValue, f NoWrap) {
 	}
 	binding.LLVMGEPSetNoWrapFlags(v.Ref(), binding.LLVMGEPNoWrapFlags(f))
 }
+
+// SetNSW 设置算术指令 no-signed-wrap 标志
+func SetNSW(inst llvm.AnyValue, v bool) {
+	const op = "ir.SetNSW"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMSetNSW(inst.Ref(), v)
+}
+
+// SetNUW 设置算术指令 no-unsigned-wrap 标志
+func SetNUW(inst llvm.AnyValue, v bool) {
+	const op = "ir.SetNUW"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMSetNUW(inst.Ref(), v)
+}
+
+// SetExact 设置 div/rem/shift 的 exact 标志
+func SetExact(inst llvm.AnyValue, v bool) {
+	const op = "ir.SetExact"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMSetExact(inst.Ref(), v)
+}
+
+// SetNNeg 设置 sext 类指令 non-negative 标志
+func SetNNeg(inst llvm.AnyValue, v bool) {
+	const op = "ir.SetNNeg"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMSetNNeg(inst.Ref(), v)
+}
+
+// SetInBounds 设置 GEP inbounds 标志（与 SetGEPNoWrap 的 NoWrapInBounds 等价）
+func SetInBounds(inst llvm.AnyValue, v bool) {
+	const op = "ir.SetInBounds"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMSetIsInBounds(inst.Ref(), v)
+}
+
+// TailCallKind tail-call 种类
+type TailCallKind binding.LLVMTailCallKind
+
+const (
+	TailCallNone = TailCallKind(binding.LLVMTailCallKindNone)
+	TailCallTail = TailCallKind(binding.LLVMTailCallKindTail)
+	TailCallMust = TailCallKind(binding.LLVMTailCallKindMustTail)
+	TailCallNo   = TailCallKind(binding.LLVMTailCallKindNoTail)
+)
+
+// SetTailCall 设置调用指令的 tail 标志
+func SetTailCall(inst llvm.AnyValue, v bool) {
+	const op = "ir.SetTailCall"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMSetTailCall(inst.Ref(), v)
+}
+
+// IsTailCall 调用指令是否 tail 调用
+func IsTailCall(inst llvm.AnyValue) bool {
+	const op = "ir.IsTailCall"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	return binding.LLVMIsTailCall(inst.Ref())
+}
+
+// SetTailCallKind 设置 tail-call 种类。
+// LLVM-C 无种类 getter（musttail/nottail 无法读回），需要精确值请解析 IR 文本。
+func SetTailCallKind(inst llvm.AnyValue, k TailCallKind) {
+	const op = "ir.SetTailCallKind"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMSetTailCallKind(inst.Ref(), binding.LLVMTailCallKind(k))
+}
+
+// SetParamAlign 设置调用指令第 i 个实参的对齐（i 从 0 起）
+func SetParamAlign(inst llvm.AnyValue, i uint32, align uint32) {
+	const op = "ir.SetParamAlign"
+	if inst == nil || !inst.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	preAlign(op, align)
+	if checks.Debug && i >= uint32(binding.LLVMGetNumArgOperands(inst.Ref())) {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+	}
+	binding.LLVMSetInstrParamAlignment(inst.Ref(), i+1, align) // LLVM-C 索引 1-based，0 为返回值
+}

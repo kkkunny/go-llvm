@@ -55,6 +55,30 @@ func (c Invoke[T]) CalledFunction() (llvm.Value[llvm.FnT], bool) {
 	return llvm.NewValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
 }
 
+// SetTailCall 设置 tail 标志
+func (c Invoke[T]) SetTailCall(v bool) {
+	c.Check("ir.Invoke.SetTailCall")
+	SetTailCall(c, v)
+}
+
+// IsTailCall 是否 tail 调用
+func (c Invoke[T]) IsTailCall() bool {
+	c.Check("ir.Invoke.IsTailCall")
+	return IsTailCall(c)
+}
+
+// SetTailCallKind 设置 tail-call 种类
+func (c Invoke[T]) SetTailCallKind(k TailCallKind) {
+	c.Check("ir.Invoke.SetTailCallKind")
+	SetTailCallKind(c, k)
+}
+
+// SetParamAlign 设置第 i 个实参的对齐（i 从 0 起）
+func (c Invoke[T]) SetParamAlign(i uint32, align uint32) {
+	c.Check("ir.Invoke.SetParamAlign")
+	SetParamAlign(c, i, align)
+}
+
 // LandingPad landingpad 指令角色（内嵌 Value[T]，T 通常为 StructT）
 type LandingPad[T llvm.Kind] struct {
 	llvm.Value[T]
