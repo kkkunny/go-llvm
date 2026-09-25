@@ -101,20 +101,23 @@ func (s *Session) Eval(input string) (val float64, isExpr bool, err error) {
 		s.display(def)
 	}
 
-	// 每个求值单元独立 Context/Module：JIT 路径会消费两者，非 JIT 路径由 Close 级联释放。
+	// 每个求值单元独立 Context/Module：JIT 路径会消费两者（Disown），非 JIT 路径由 defer 释放。
 	// 历史定义整体重编译进当前模块（对齐 inkwell），因此重定义天然生效、无跨模块符号冲突。
 	ctx := llvm.NewContext()
 	m := ir.NewModule(ctx, "kaleidoscope")
 	b := ir.NewBuilder(ctx)
-	// 非 JIT 路径的显式释放（builder 先于 module），避免调试层资源审计告警
-	discard := func() {
+	consumed := false // JIT 路径把 module/context 所有权移交 ORC，跳过释放
+	defer func() {
+		if consumed {
+			return
+		}
+		// builder 先于 module，避免调试层资源审计告警
 		_ = b.Close()
 		_ = m.Close()
 		_ = ctx.Close()
-	}
+	}()
 	for _, prev := range s.defs {
 		if _, err := Compile(ctx, m, b, prev); err != nil {
-			discard()
 			return 0, false, fmt.Errorf("recompiling %q: %w", prev.Proto.Name, err)
 		}
 	}
@@ -131,15 +134,12 @@ func (s *Session) Eval(input string) (val float64, isExpr bool, err error) {
 	}
 	fn, err := Compile(ctx, m, b, cur)
 	if err != nil {
-		discard()
 		return 0, false, err
 	}
 	if err := m.Verify(); err != nil {
-		discard()
 		return 0, false, err
 	}
 	if err := pass.RunPasses(m, optPipeline); err != nil {
-		discard()
 		return 0, false, err
 	}
 	if s.opts.DisplayCompiler {
@@ -148,13 +148,16 @@ func (s *Session) Eval(input string) (val float64, isExpr bool, err error) {
 
 	if !def.IsAnon {
 		s.remember(def)
-		discard()
 		return 0, false, nil
 	}
 
-	// 只把本次求值的模块加入 JIT，求值完立即卸载（对应教程的 addModule/removeModule）
+	// 只把本次求值的模块加入 JIT，求值完立即卸载（对应教程的 addModule/removeModule）。
+	// AddIRModule 无条件消费 module/context（失败路径同样移交），返回后标记 consumed；
+	// 调试层 Verify panic 发生在移交之前，此时 consumed 仍为 false，由 defer 正常释放。
 	rt := s.jit.NewResourceTracker()
-	if err := rt.AddIRModule(m); err != nil {
+	err = rt.AddIRModule(m)
+	consumed = true
+	if err != nil {
 		_ = rt.Remove()
 		return 0, false, err
 	}
