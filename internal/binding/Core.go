@@ -841,6 +841,11 @@ func LLVMConstPointerNull(ty LLVMTypeRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstPointerNull(ty.c)}
 }
 
+// LLVMConstAllOnes Obtain a constant value for an integer type with all bits set.
+func LLVMConstAllOnes(ty LLVMTypeRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMConstAllOnes(ty.c)}
+}
+
 // LLVMConstInt Obtain a constant value for an integer type.
 // The returned value corresponds to a llvm::ConstantInt.
 // @see llvm::ConstantInt::get()
@@ -2279,8 +2284,9 @@ func LLVMBuildNUWNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMVa
 	return ref
 }
 
+// LLVMConstNUWNeg Obtain a constant value referring to the negation of a constant (no unsigned wrap).
 func LLVMConstNUWNeg(constantVal LLVMValueRef) LLVMValueRef {
-	return LLVMConstNull(LLVMGlobalGetValueType(constantVal))
+	return LLVMValueRef{c: C.LLVMConstNUWNeg(constantVal.c)}
 }
 
 // LLVMCreateMemoryBufferWithContentsOfFile Read a file into a memory buffer.
