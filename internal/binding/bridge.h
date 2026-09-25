@@ -7,21 +7,22 @@
 extern "C" {
 #endif
 
-// goLLVMBridgeDispatch 是 //export 导出的 Go 函数，由 C 侧通道转发
+// goLLVMBridgeDispatch is the Go function exported via //export; the C-side channel forwards to it.
 extern uint64_t goLLVMBridgeDispatch(int64_t idx, uint64_t *slots);
 
-// llvmBridgeCall 以固定 C ABI 调用 JIT 生成的适配器：
+// llvmBridgeCall calls a JIT-generated adapter with the fixed C ABI:
 //   uint64_t adapter(void *fn, uint64_t *slots)
-// fn 为目标函数地址，slots[0..] 为实参槽，返回值即适配器返回
+// fn is the target function address, slots[0..] are the argument slots, and the
+// returned value is the adapter's return value.
 uint64_t llvmBridgeCall(void *adapter, void *fn, uint64_t *slots);
 
-// llvmBridgeGoChannel 是 JIT 代码调用的固定签名通道：
+// llvmBridgeGoChannel is the fixed-signature channel called by JIT code:
 //   uint64_t callGoChannel(int64_t idx, uint64_t *slots)
-// 转发到 goLLVMBridgeDispatch
+// It forwards to goLLVMBridgeDispatch.
 uint64_t llvmBridgeGoChannel(int64_t idx, uint64_t *slots);
 
-// llvmBridgeGoChannelAddr 返回 llvmBridgeGoChannel 的函数地址，
-// 供 ORC DefineAbsoluteSymbols 挂接 callGoChannel 符号
+// llvmBridgeGoChannelAddr returns the function address of llvmBridgeGoChannel,
+// for ORC DefineAbsoluteSymbols to hook up the callGoChannel symbol.
 void *llvmBridgeGoChannelAddr(void);
 
 #ifdef __cplusplus

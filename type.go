@@ -18,7 +18,7 @@ const (
 	FloatDouble   = FloatKind(binding.LLVMDoubleTypeKind)    // 64 位 IEEE 754 双精度浮点（binary64）
 	FloatX86FP80  = FloatKind(binding.LLVMX86_FP80TypeKind)  // x87 80 位扩展精度浮点
 	FloatFP128    = FloatKind(binding.LLVMFP128TypeKind)     // 128 位 IEEE 754 四精度浮点（binary128，112 位尾数）
-	FloatPPCFP128 = FloatKind(binding.LLVMPPC_FP128TypeKind) // PowerPC 128 位浮点：由两个 64 位双精度数组成的双-双精度格式
+	FloatPPCFP128 = FloatKind(binding.LLVMPPC_FP128TypeKind) // PowerPC 128 位浮点：双倍精度（double-double）格式，由两个 64 位双精度数组成
 )
 
 // AnyType 类型句柄的非泛型视图

@@ -221,7 +221,7 @@ func TestBuilderAlignPrecheck(t *testing.T) {
 	}
 }
 
-// TestBuilderMemTypePrecheck 覆盖 Alloca/GEP 的类型前置校验（nil/跨 Context）。
+// TestBuilderMemTypePrecheck 覆盖 Alloca/GEP/Malloc/MallocArray/Load 的类型前置校验（nil/跨 Context）。
 func TestBuilderMemTypePrecheck(t *testing.T) {
 	ctx, m, b, _ := memModule(t)
 	defer ctx.Close()
