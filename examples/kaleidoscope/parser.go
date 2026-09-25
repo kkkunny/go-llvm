@@ -13,11 +13,13 @@ type Expr interface {
 // NumberExpr 数字字面量
 type NumberExpr struct{ Value float64 }
 
+// String 返回数字字面量的文本形式（float64 的默认格式）。
 func (e *NumberExpr) String() string { return fmt.Sprintf("%v", e.Value) }
 
 // VariableExpr 变量引用
 type VariableExpr struct{ Name string }
 
+// String 返回被引用变量的名字。
 func (e *VariableExpr) String() string { return e.Name }
 
 // BinaryExpr 二元表达式（含赋值 = 与自定义算符）
@@ -26,6 +28,7 @@ type BinaryExpr struct {
 	Left, Right Expr
 }
 
+// String 返回括号化的中缀形式，如 (1 + (2 * 3))。
 func (e *BinaryExpr) String() string { return fmt.Sprintf("(%s %c %s)", e.Left, e.Op, e.Right) }
 
 // CallExpr 函数调用
@@ -34,6 +37,7 @@ type CallExpr struct {
 	Args   []Expr
 }
 
+// String 返回调用形式，实参以 ", " 连接，如 foo(1, 2.5)；无参时形如 foo()。
 func (e *CallExpr) String() string {
 	args := make([]string, len(e.Args))
 	for i, arg := range e.Args {
@@ -47,6 +51,7 @@ type ConditionalExpr struct {
 	Cond, Then, Else Expr
 }
 
+// String 返回括号化的条件表达式，如 (if a then b else c)。
 func (e *ConditionalExpr) String() string {
 	return fmt.Sprintf("(if %s then %s else %s)", e.Cond, e.Then, e.Else)
 }
@@ -59,6 +64,8 @@ type ForExpr struct {
 	Body       Expr
 }
 
+// String 返回括号化的 for 表达式：Step 非 nil 时为
+// (for i = 1, (i < 5), 2 in body)，否则省略步长部分。
 func (e *ForExpr) String() string {
 	if e.Step != nil {
 		return fmt.Sprintf("(for %s = %s, %s, %s in %s)", e.Var, e.Start, e.End, e.Step, e.Body)
@@ -78,6 +85,8 @@ type VarInExpr struct {
 	Body Expr
 }
 
+// String 返回括号化的 var..in 表达式；每个绑定有初值时为 "name = init"，
+// 否则只有 "name"，如 (var a = 5, b in (a * b))。
 func (e *VarInExpr) String() string {
 	defs := make([]string, len(e.Vars))
 	for i, def := range e.Vars {
@@ -116,6 +125,7 @@ type ParseError struct {
 	Pos int
 }
 
+// Error 返回语法错误消息，格式为 "<Msg> (at token <Pos>)"，Pos 为出错 token 在 token 流中的下标。
 func (e *ParseError) Error() string { return fmt.Sprintf("%s (at token %d)", e.Msg, e.Pos) }
 
 // Parser 递归下降 + 优先级爬升解析器

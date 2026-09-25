@@ -8,25 +8,26 @@ import (
 // TokenKind 词法单元种类
 type TokenKind int
 
+// TokenKind 的取值：教程语言的关键字、字面量、算符、标点与注释各占一种。
 const (
-	TokEOF TokenKind = iota
-	TokDef
-	TokExtern
-	TokIf
-	TokThen
-	TokElse
-	TokFor
-	TokIn
-	TokUnary
-	TokBinary
-	TokVar
-	TokIdent
-	TokNumber
-	TokOp
-	TokLParen
-	TokRParen
-	TokComma
-	TokComment
+	TokEOF     TokenKind = iota // 输入结束（token 流末尾的哨兵）
+	TokDef                      // 关键字 def
+	TokExtern                   // 关键字 extern
+	TokIf                       // 关键字 if
+	TokThen                     // 关键字 then
+	TokElse                     // 关键字 else
+	TokFor                      // 关键字 for
+	TokIn                       // 关键字 in
+	TokUnary                    // 关键字 unary（自定义一元算符声明）
+	TokBinary                   // 关键字 binary（自定义二元算符声明）
+	TokVar                      // 关键字 var
+	TokIdent                    // 标识符
+	TokNumber                   // 数字字面量（float64）
+	TokOp                       // 单字符算符
+	TokLParen                   // 左括号 (
+	TokRParen                   // 右括号 )
+	TokComma                    // 逗号 ,
+	TokComment                  // 注释（# 至行尾；解析前剔除）
 )
 
 // tokenKindNames TokenKind 的展示名（索引与常量一一对应）
@@ -59,6 +60,8 @@ type Token struct {
 	Op    rune    // TokOp 的算符字符
 }
 
+// String 返回 token 的文本表示：数字、标识符与算符分别渲染为 Number(1.5)、
+// Ident("foo") 与 Op('+') 这类形式，其余种类返回其展示名。
 func (t Token) String() string {
 	switch t.Kind {
 	case TokNumber:
@@ -78,6 +81,7 @@ type LexError struct {
 	Index int
 }
 
+// Error 返回词法错误消息，格式为 "<Msg> (at index <Index>)"，Index 为出错处的字节偏移。
 func (e *LexError) Error() string {
 	return fmt.Sprintf("%s (at index %d)", e.Msg, e.Index)
 }
