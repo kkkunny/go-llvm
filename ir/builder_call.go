@@ -111,7 +111,7 @@ func checkKind[U llvm.Kind](op string, ctx *llvm.Context, ref binding.LLVMTypeRe
 	}
 }
 
-// elementTypeAt 沿 indices 路径求聚合值的元素类型；越界或不可索引 panic
+// elementTypeAt 沿 indices 路径求聚合值的元素类型；越界、向量或不可索引 panic
 func elementTypeAt(op string, ctx *llvm.Context, agg binding.LLVMTypeRef, indices []uint32) binding.LLVMTypeRef {
 	cur := agg
 	for depth, idx := range indices {
@@ -127,10 +127,8 @@ func elementTypeAt(op string, ctx *llvm.Context, agg binding.LLVMTypeRef, indice
 			}
 			cur = binding.LLVMGetElementType(cur)
 		case binding.LLVMVectorTypeKind, binding.LLVMScalableVectorTypeKind:
-			if idx >= binding.LLVMGetVectorSize(cur) {
-				llvm.Panicf(llvm.ErrInvalidArg, op, "index %d out of range at depth %d", idx, depth)
-			}
-			cur = binding.LLVMGetElementType(cur)
+			// extractvalue/insertvalue 只接受 struct/array；向量元素路径会让 libLLVM 崩溃
+			llvm.Panicf(llvm.ErrInvalidArg, op, "vector is not an aggregate type at depth %d, use ExtractElement/InsertElement instead", depth)
 		default:
 			llvm.Panicf(llvm.ErrInvalidArg, op, "cannot index into %s at depth %d", typeRefString(ctx, cur), depth)
 		}
@@ -168,7 +166,7 @@ func (b *Builder) ExtractValue[U llvm.Kind](agg llvm.AnyValue, indices []uint32,
 	return llvm.NewValue[U](b.ctx, b.inserted.life, ref)
 }
 
-// InsertValue 将值插入聚合值的第 indices 路径；索引路径与元素类型校验仅调试层
+// InsertValue 将值插入聚合值的第 indices 路径；多层路径自底向上重建各层聚合，索引路径与元素类型校验仅调试层
 func (b *Builder) InsertValue[T llvm.Kind](agg llvm.ValueRef[T], v llvm.AnyValue, indices []uint32, name string) llvm.Value[T] {
 	const op = "ir.Builder.InsertValue"
 	av := agg.AsValue()
@@ -183,9 +181,17 @@ func (b *Builder) InsertValue[T llvm.Kind](agg llvm.ValueRef[T], v llvm.AnyValue
 				typeString(b.ctx, v.Ref()), typeRefString(b.ctx, elemTy), indices)
 		}
 	}
-	ref := binding.LLVMBuildInsertValue(b.ref, av.Ref(), v.Ref(), indices[0], name)
-	for _, idx := range indices[1:] {
-		ref = binding.LLVMBuildInsertValue(b.ref, ref, v.Ref(), idx, name)
-	}
+	ref := b.insertValuePath(av.Ref(), v.Ref(), indices, name)
 	return llvm.NewValue[T](b.ctx, b.inserted.life, ref)
+}
+
+// insertValuePath 沿 indices 自底向上构造新聚合值：单层直接插入叶子值；
+// 多层先取出 [i0] 子聚合、递归替换其 [i1..ik] 路径，再把新子聚合插回父聚合。
+func (b *Builder) insertValuePath(agg, v binding.LLVMValueRef, indices []uint32, name string) binding.LLVMValueRef {
+	if len(indices) == 1 {
+		return binding.LLVMBuildInsertValue(b.ref, agg, v, indices[0], name)
+	}
+	sub := binding.LLVMBuildExtractValue(b.ref, agg, indices[0], name)
+	newSub := b.insertValuePath(sub, v, indices[1:], name)
+	return binding.LLVMBuildInsertValue(b.ref, agg, newSub, indices[0], name)
 }

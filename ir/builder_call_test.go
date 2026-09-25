@@ -294,9 +294,47 @@ func TestBuilderAggregateIndexPaths(t *testing.T) {
 	}
 }
 
-// TestAggregateVectorPathPrecheck 覆盖 elementTypeAt 的向量下标越界拒绝。
-// 注：LLVM 的 extractvalue/insertvalue 不接受向量聚合（langref：operand must be aggregate type），
-// 合法向量下标会让底层 LLVM 崩溃，故这里只验证越界路径在调试层被拦下。
+// TestBuilderInsertValueNested 覆盖多层 InsertValue 的自底向上构造：
+// 路径 [1,1] 须先取出 i0=1 的子聚合、在其内部插入，再把新子聚合插回父聚合。
+func TestBuilderInsertValueNested(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "aggins")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	arr := ctx.Array(i32, 4)
+	inner := ctx.Struct([]llvm.AnyType{i32, i32}, false)
+	st := ctx.Struct([]llvm.AnyType{arr, inner}, false)
+
+	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{st}, false))
+	b := NewBuilderAt(fn.NewBlock("entry"))
+	defer b.Close()
+	agg := fn.ParamAs[llvm.StructT](0)
+
+	ins := b.InsertValue(agg, ctx.ConstInt(i32, 9), []uint32{1, 1}, "ins")
+	got := b.ExtractValue[llvm.IntT](ins, []uint32{1, 1}, "got")
+	b.Ret(got)
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	out := m.String()
+	for _, want := range []string{
+		// 子聚合：extractvalue 取出字段 1，其内部插入后再插回父聚合
+		"%ins = extractvalue { [4 x i32], { i32, i32 } } %0, 1",
+		"%ins1 = insertvalue { i32, i32 } %ins, i32 9, 1",
+		"%ins2 = insertvalue { [4 x i32], { i32, i32 } } %0, { i32, i32 } %ins1, 1",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("module output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// TestAggregateVectorPathPrecheck 覆盖 elementTypeAt 对向量聚合路径的拒绝：
+// extractvalue/insertvalue 只接受 struct/array，任何向量下标都必须 panic，
+// 而不是把非法路径交给 libLLVM。
 func TestAggregateVectorPathPrecheck(t *testing.T) {
 	requireDebug(t)
 	ctx := llvm.NewContext()
@@ -311,6 +349,17 @@ func TestAggregateVectorPathPrecheck(t *testing.T) {
 	defer b.Close()
 	agg := fn.ParamAs[llvm.StructT](0)
 
+	// 合法向量下标（0）也不是聚合路径：报错应提示改用 ExtractElement/InsertElement
+	err := llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{1, 0}, "") })
+	if err == nil || err.Reason != llvm.ErrInvalidArg || !strings.Contains(err.Msg, "ExtractElement/InsertElement") {
+		t.Fatalf("vector extract path should panic ErrInvalidArg mentioning ExtractElement/InsertElement, got %v", err)
+	}
+	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), []uint32{1, 0}, "") })
+	if err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("vector insert path should panic ErrInvalidArg, got %v", err)
+	}
+
+	// 越界索引同样在调试层被拦下
 	if err := llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{1, 9}, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("vector index out of range should panic ErrInvalidArg, got %v", err)
 	}
