@@ -8,7 +8,7 @@ sub-packages; all cgo lives in `internal/binding`.
 - **This ref targets LLVM 22** (`MIN/MAX_SUPPORT_MAJOR_VERSION = 22` in the Makefile); older majors are out of scope here (see the README support table). If `go build ./...` fails with cgo errors like `could not determine what C.X refers to`, you are compiling against the wrong LLVM major — check `llvm-config --version`.
 - **Go 1.27+** is required: the public API uses generic methods (`func (v Value[T]) As[U Kind]()`), which are only available on concrete types. Do not move generic methods into interfaces — Go does not allow it, and interfaces cannot be satisfied by generic methods.
 - `#cgo` flags are checked in at `internal/binding/cgo.go`: static multi-candidate `-I`/`-L` dirs (`/usr/lib/llvm-NN` first, then `/usr`, `/usr/local`, `/usr/lib64`) with an unversioned `-lLLVM`. Consumers need no extra setup for standard layouts; this line lists `llvm-22`, and `make config` regenerates the flags when bumping the LLVM line.
-- There is no CI; run verification locally: `go build ./...`, `go vet ./...`, `go test ./...` **and `go test -tags=llvm_release ./...`** (`make test` / `make test-release` wrap the last two). Default builds run the full check stack, `llvm_release` is the trust build (see *Checks and build modes* below). Golden IR tests are regenerated with `go test ./ir -run TestGolden -update` and must match in both modes. Benchmarks: `make bench` / `make bench-release`, or `go test -run '^$' -bench . -benchmem ./...` (see `bench_test.go`, `ir/bench_test.go`, `jit/bench_test.go`).
+- CI runs on every push and pull request via `.github/workflows/ci.yml`: a `gofmt` lint check plus a `default`/`release` test matrix on `ubuntu-24.04`, with LLVM 22 installed from apt.llvm.org. Reproduce the checks locally: `go build ./...`, `go vet ./...`, `go test ./...` **and `go test -tags=llvm_release ./...`** (`make test` / `make test-release` wrap the last two). Default builds run the full check stack, `llvm_release` is the trust build (see *Checks and build modes* below). Golden IR tests are regenerated with `go test ./ir -run TestGolden -update` and must match in both modes. Benchmarks: `make bench` / `make bench-release`, or `go test -run '^$' -bench . -benchmem ./...` (see `bench_test.go`, `ir/bench_test.go`, `jit/bench_test.go`).
 - Panic-expected misuse tests are gated by `requireDebug(t)` and skip under `llvm_release`; crash-class floor tests must pass in both modes.
 
 ## cgo / Makefile quirks
@@ -58,8 +58,31 @@ and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codege
 - **Builder return types**: return a role wrapper only when the instruction has role-specific operations (`Alloca`/`Load`/`Store`/`Call`/`Invoke`/`Phi`/`Switch`/`LandingPad`/`CatchSwitch`/`FuncletPad`/`Fence`/`AtomicRMW`/`CmpXchg`); everything else returns the plain `Value[T]`.
 - **Concurrency**: `Context` (ownership registry), `Lifetime` (atomic), the `LLJIT` adapter cache and the bridge registry are lock-protected; all other handles (`Module`/`Builder`/`Value`/`Type`/`Block`/`TargetMachine`/`DataLayout`/`MemoryBuffer`) are not goroutine-safe and must be used from a single goroutine. Debug builds sample the owning goroutine in `Builder`/`Module` operations and panic on cross-goroutine use (the race detector cannot see C-side state). `LLJIT.Func`/`MapFunc`/`Lookup` may be called concurrently, but `Close` must be serialized by the caller.
 - **Lifetime**: `Context` is the ownership root (`Own` returns an unregister func, `Close` cascades in reverse). `Module`/`Builder` implement `io.Closer`; `Value`/`Type`/`Block`/`GoFunc` never expose `Free` — they carry a `Lifetime` token and are checked on every operation. Second `Close` returns `ErrClosed`. `Module.Disown()`/`Context.Disown()`/`MemoryBuffer.Disown()` transfer ownership to an external owner (JIT) and **immediately** invalidate Go-side handles (no return value); `Context`-independent resources (`TargetMachine`, `MemoryBuffer`, `LLJIT`) are their own roots and are not registered via `Own`. `MemoryBuffer`/`DataLayout` carry a GC finalizer as a leak safety net — `Close`/`Disown` must clear it (`runtime.SetFinalizer(x, nil)`) before releasing the handle.
-- **Comments**: `internal/binding` in English, root and sub-packages in Chinese; match the file you edit.
+- **Comments**: Package docs in English; symbol comments in Chinese for the root and sub-packages; `internal/binding` in English.
 - Commits use Conventional Commits, commonly with Chinese descriptions.
+
+## Doc comments
+
+Doc-comment language follows the *Comments* rule in *Core conventions*: package docs in English,
+symbol comments in Chinese for the root and sub-packages, `internal/binding` in English. The
+rules below apply to both languages.
+
+- The first sentence begins with the symbol name and ends with a period (`。` in Chinese symbol
+  comments): `NewModule 创建模块并登记到 Context 生命周期。`.
+- Cross-reference symbols as `[Symbol]` / `[Type.Method]`, and packages by full import path
+  (`[github.com/kkkunny/go-llvm/ir.Module]`). Keep links few and resolvable — an unresolvable
+  reference does not error, but it carries no information either.
+- Document a `const (...)` block with one block-level comment describing the value domain and
+  the LLVM mapping, plus a short inline comment per constant (the `error.go` style); do not give
+  every constant its own doc paragraph.
+- Method/function docs state semantics, units, ownership, and error/panic conditions
+  (`panic(*llvm.Error)`, `[ErrUseAfterFree]`, ...). Do not write filler that merely restates the
+  name (`Name 返回名字` is wrong).
+- Name godoc examples `Example` (package overview), `ExampleContext` (function),
+  `ExampleBuilder_Add` (method); a second example for the same symbol takes a suffix
+  (`ExampleContext_second`). Every example needs a stable `// Output:` and must pass in both
+  build modes.
+- Normalize doc comments with `gofmt`; after touching them, `gofmt -l .` must produce no output.
 
 ## Binding additions
 
