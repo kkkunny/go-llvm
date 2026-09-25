@@ -95,21 +95,28 @@ func AsCatchSwitch(v llvm.AnyValue) (CatchSwitch, bool) {
 
 // ===== 终结指令操作 =====
 
-// SuccessorCount 终结指令的后继个数（非终结指令返回 0）
-func SuccessorCount(term llvm.AnyValue) uint32 {
-	const op = "ir.SuccessorCount"
+// requireTerminator 校验值是存活的终结指令（崩溃类地板，两种构建均生效）：
+// nil/已释放或非终结指令一律 panic ErrInvalidArg，避免 LLVM-C 对非终结指令的 UB（挂起/SIGSEGV）。
+func requireTerminator(op string, term llvm.AnyValue) {
 	if term == nil || !term.Alive() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead terminator")
 	}
+	if binding.LLVMIsATerminatorInst(term.Ref()).IsNil() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "not a terminator instruction")
+	}
+}
+
+// SuccessorCount 终结指令的后继个数；非终结指令 panic（崩溃类地板，两种构建均生效）
+func SuccessorCount(term llvm.AnyValue) uint32 {
+	const op = "ir.SuccessorCount"
+	requireTerminator(op, term)
 	return binding.LLVMGetNumSuccessors(term.Ref())
 }
 
 // Successor 第 i 个后继块；越界校验仅调试层
 func Successor(term llvm.AnyValue, i uint32) Block {
 	const op = "ir.Successor"
-	if term == nil || !term.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead terminator")
-	}
+	requireTerminator(op, term)
 	if checks.Debug && i >= SuccessorCount(term) {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "successor index %d out of range", i)
 	}
@@ -119,9 +126,7 @@ func Successor(term llvm.AnyValue, i uint32) Block {
 // SetSuccessor 替换第 i 个后继块
 func SetSuccessor(term llvm.AnyValue, i uint32, blk Block) {
 	const op = "ir.SetSuccessor"
-	if term == nil || !term.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead terminator")
-	}
+	requireTerminator(op, term)
 	blk.Check(op)
 	if term.Context() != blk.ctx {
 		llvm.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
@@ -132,21 +137,17 @@ func SetSuccessor(term llvm.AnyValue, i uint32, blk Block) {
 	binding.LLVMSetSuccessor(term.Ref(), i, blk.Ref())
 }
 
-// IsConditional 终结指令是否有条件（条件 br / switch）
+// IsConditional 终结指令是否有条件（条件 br / switch）；非终结指令 panic（崩溃类地板，两种构建均生效）
 func IsConditional(term llvm.AnyValue) bool {
 	const op = "ir.IsConditional"
-	if term == nil || !term.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead terminator")
-	}
+	requireTerminator(op, term)
 	return binding.LLVMIsConditional(term.Ref())
 }
 
 // Condition 条件值（非条件终结指令 panic，仅调试层）
 func Condition(term llvm.AnyValue) llvm.Value[llvm.DynT] {
 	const op = "ir.Condition"
-	if term == nil || !term.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead terminator")
-	}
+	requireTerminator(op, term)
 	if checks.Debug && !IsConditional(term) {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
 	}
@@ -156,9 +157,7 @@ func Condition(term llvm.AnyValue) llvm.Value[llvm.DynT] {
 // SetCondition 替换条件值
 func SetCondition(term llvm.AnyValue, cond llvm.AnyValue) {
 	const op = "ir.SetCondition"
-	if term == nil || !term.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead terminator")
-	}
+	requireTerminator(op, term)
 	if cond == nil || !cond.Alive() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead condition")
 	}

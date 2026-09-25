@@ -201,7 +201,7 @@ func TestTerminatorPrecheck(t *testing.T) {
 	if n := SuccessorCount(br); n != 1 {
 		t.Fatalf("successor count = %d, want 1", n)
 	}
-	// 注：SuccessorCount 对非终结指令是 LLVM-C 未定义行为（实测挂起），不做断言。
+	// 注：非终结指令的拒绝路径见 TestSuccessorOpsRejectNonTerminator（此处 br 是终结指令）。
 	if err := llvm.Catch(func() { Condition(br) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Condition on unconditional br should panic ErrInvalidArg, got %v", err)
 	}
@@ -218,6 +218,60 @@ func TestTerminatorPrecheck(t *testing.T) {
 	b.RetVoid()
 	b.MoveToEnd(els)
 	b.RetVoid()
+}
+
+// TestSuccessorOpsRejectNonTerminator 非终结指令传给后继访问器必须在两种构建模式下
+// panic ErrInvalidArg，而不是把 UB 交给 LLVM-C（LLVMGetNumSuccessors 对非终结指令
+// 实测挂起，LLVMGetCondition 可能 SIGSEGV）。
+func TestSuccessorOpsRejectNonTerminator(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "termguard")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(ctx.Void(), []llvm.AnyType{i32}, false))
+	entry := fn.NewBlock("entry")
+	exit := fn.NewBlock("exit")
+	b := NewBuilderAt(entry)
+	defer b.Close()
+
+	icmp := b.ICmp(llvm.IntEQ, fn.ParamAs[llvm.IntT](0), ctx.ConstInt(i32, 0), "c")
+	if err := llvm.Catch(func() { SuccessorCount(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("SuccessorCount on non-terminator should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { Successor(icmp, 0) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("Successor on non-terminator should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { SetSuccessor(icmp, 0, exit) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("SetSuccessor on non-terminator should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { IsConditional(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("IsConditional on non-terminator should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { Condition(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("Condition on non-terminator should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { SetCondition(icmp, ctx.ConstInt(i32, 1)) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("SetCondition on non-terminator should panic ErrInvalidArg, got %v", err)
+	}
+
+	// 终结指令路径保持正确：br 有 1 个后继、ret 有 0 个后继
+	br := b.Br(exit)
+	if IsConditional(br) {
+		t.Fatal("unconditional br should not be conditional")
+	}
+	if n := SuccessorCount(br); n != 1 {
+		t.Fatalf("br successor count = %d, want 1", n)
+	}
+	b.MoveToEnd(exit)
+	ret := b.RetVoid()
+	if n := SuccessorCount(ret); n != 0 {
+		t.Fatalf("ret successor count = %d, want 0", n)
+	}
+	if IsConditional(ret) {
+		t.Fatal("ret should not be conditional")
+	}
 }
 
 func TestTerminatorOps(t *testing.T) {
