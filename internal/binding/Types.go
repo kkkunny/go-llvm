@@ -33,6 +33,9 @@ type (
 
 	// LLVMMemoryBufferRef A memory buffer.
 	LLVMMemoryBufferRef struct{ c C.LLVMMemoryBufferRef }
+
+	// LLVMUseRef A reference to a use of a value.
+	LLVMUseRef struct{ c C.LLVMUseRef }
 )
 
 func (ref LLVMContextRef) IsNil() bool        { return ref.c == nil }
@@ -47,6 +50,7 @@ func (ref LLVMMetadataRef) IsNil() bool       { return ref.c == nil }
 func (ref LLVMNamedMDNodeRef) IsNil() bool    { return ref.c == nil }
 func (ref LLVMComdatRef) IsNil() bool         { return ref.c == nil }
 func (ref LLVMMemoryBufferRef) IsNil() bool   { return ref.c == nil }
+func (ref LLVMUseRef) IsNil() bool            { return ref.c == nil }
 
 // Equal 句柄等值比较
 func (ref LLVMContextRef) Equal(other LLVMContextRef) bool { return ref.c == other.c }

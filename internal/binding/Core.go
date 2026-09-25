@@ -2334,3 +2334,100 @@ func LLVMGoEmitError(c LLVMContextRef, msg string) {
 		return false
 	})
 }
+
+// LLVMGetFirstUse Obtain the first use of a value.
+func LLVMGetFirstUse(v LLVMValueRef) LLVMUseRef {
+	return LLVMUseRef{c: C.LLVMGetFirstUse(v.c)}
+}
+
+// LLVMGetNextUse Obtain the next use following a use.
+func LLVMGetNextUse(u LLVMUseRef) LLVMUseRef {
+	return LLVMUseRef{c: C.LLVMGetNextUse(u.c)}
+}
+
+// LLVMGetUser Obtain the user value for a use.
+func LLVMGetUser(u LLVMUseRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetUser(u.c)}
+}
+
+// LLVMGetUsedValue Obtain the value this use corresponds to.
+func LLVMGetUsedValue(u LLVMUseRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetUsedValue(u.c)}
+}
+
+// LLVMReplaceAllUsesWith Replace all uses of a value with another one.
+func LLVMReplaceAllUsesWith(oldVal, newVal LLVMValueRef) {
+	C.LLVMReplaceAllUsesWith(oldVal.c, newVal.c)
+}
+
+// LLVMSetSuccessor Set the specified successor of the terminator instruction.
+func LLVMSetSuccessor(term LLVMValueRef, i uint32, blk LLVMBasicBlockRef) {
+	C.LLVMSetSuccessor(term.c, C.unsigned(i), blk.c)
+}
+
+// LLVMIsConditional Determine whether a terminator instruction is conditional.
+func LLVMIsConditional(branch LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMIsConditional(branch.c))
+}
+
+// LLVMGetCondition Obtain the condition of the terminator instruction.
+func LLVMGetCondition(branch LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetCondition(branch.c)}
+}
+
+// LLVMSetCondition Set the condition of the terminator instruction.
+func LLVMSetCondition(branch, cond LLVMValueRef) {
+	C.LLVMSetCondition(branch.c, cond.c)
+}
+
+// LLVMGetUndef Create an undef value of the given type.
+func LLVMGetUndef(ty LLVMTypeRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetUndef(ty.c)}
+}
+
+// LLVMGetPoison Create a poison value of the given type.
+func LLVMGetPoison(ty LLVMTypeRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetPoison(ty.c)}
+}
+
+// LLVMBuildFreeze Freeze the given value.
+func LLVMBuildFreeze(b LLVMBuilderRef, v LLVMValueRef, name string) LLVMValueRef {
+	return string2CString(name, func(cs *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildFreeze(b.c, v.c, cs)}
+	})
+}
+
+// LLVMGetFirstGlobal Obtain the first global variable in a module.
+func LLVMGetFirstGlobal(m LLVMModuleRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetFirstGlobal(m.c)}
+}
+
+// LLVMGetNextGlobal Obtain the next global variable in a module.
+func LLVMGetNextGlobal(g LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetNextGlobal(g.c)}
+}
+
+// LLVMLookupIntrinsicID Look up the ID for the specified intrinsic name. Returns 0 when not found.
+func LLVMLookupIntrinsicID(name string) uint32 {
+	return string2CString(name, func(cs *C.char) uint32 {
+		return uint32(C.LLVMLookupIntrinsicID(cs, C.size_t(len(name))))
+	})
+}
+
+// LLVMIntrinsicGetName Get the name of the specified intrinsic.
+func LLVMIntrinsicGetName(id uint32) string {
+	var length C.size_t
+	s := C.LLVMIntrinsicGetName(C.unsigned(id), &length)
+	return C.GoStringN(s, C.int(length))
+}
+
+// LLVMIntrinsicIsOverloaded Determine whether the specified intrinsic is overloaded.
+func LLVMIntrinsicIsOverloaded(id uint32) bool {
+	return llvmBool2bool(C.LLVMIntrinsicIsOverloaded(C.unsigned(id)))
+}
+
+// LLVMGetIntrinsicDeclaration Get the declaration of the specified intrinsic in the module.
+func LLVMGetIntrinsicDeclaration(m LLVMModuleRef, id uint32, paramTypes []LLVMTypeRef) LLVMValueRef {
+	ptr, length := slice2Ptr[LLVMTypeRef, C.LLVMTypeRef](paramTypes)
+	return LLVMValueRef{c: C.LLVMGetIntrinsicDeclaration(m.c, C.unsigned(id), ptr, C.size_t(length))}
+}
