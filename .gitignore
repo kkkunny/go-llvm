@@ -18,6 +18,9 @@ test
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+# 执行计划进度账本（本地临时文件）
+.superpowers/
+
 # Go workspace file
 go.work
 
