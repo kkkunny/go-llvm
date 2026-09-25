@@ -349,7 +349,7 @@ func TestAggregateVectorPathPrecheck(t *testing.T) {
 	defer b.Close()
 	agg := fn.ParamAs[llvm.StructT](0)
 
-	// 合法向量下标（0）也不是聚合路径：报错应提示改用 ExtractElement/InsertElement
+	// 合法向量下标（0）也不是聚合路径：报错应提示改用 ExtractElement/InsertElement 系列 API
 	err := llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{1, 0}, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg || !strings.Contains(err.Msg, "ExtractElement/InsertElement") {
 		t.Fatalf("vector extract path should panic ErrInvalidArg mentioning ExtractElement/InsertElement, got %v", err)

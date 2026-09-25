@@ -128,7 +128,7 @@ func elementTypeAt(op string, ctx *llvm.Context, agg binding.LLVMTypeRef, indice
 			cur = binding.LLVMGetElementType(cur)
 		case binding.LLVMVectorTypeKind, binding.LLVMScalableVectorTypeKind:
 			// extractvalue/insertvalue 只接受 struct/array；向量元素路径会让 libLLVM 崩溃
-			llvm.Panicf(llvm.ErrInvalidArg, op, "vector is not an aggregate type at depth %d, use ExtractElement/InsertElement instead", depth)
+			llvm.Panicf(llvm.ErrInvalidArg, op, "vector is not an aggregate type at depth %d, use the ExtractElement/InsertElement family of APIs instead", depth)
 		default:
 			llvm.Panicf(llvm.ErrInvalidArg, op, "cannot index into %s at depth %d", typeRefString(ctx, cur), depth)
 		}
