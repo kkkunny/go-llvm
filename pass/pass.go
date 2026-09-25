@@ -16,13 +16,15 @@ import (
 // Level 默认管线优化级别（对应 default<O*>）
 type Level string
 
+// Level 取值对应 PassBuilder 的优化级别（default<O*> 管线），决定默认管线包含的
+// 优化 pass 及激进程度；Oz/Os 以代码体积为优先。
 const (
-	O0 Level = "O0"
-	O1 Level = "O1"
-	O2 Level = "O2"
-	O3 Level = "O3"
-	Oz Level = "Oz"
-	Os Level = "Os"
+	O0 Level = "O0" // 不优化
+	O1 Level = "O1" // 轻度优化
+	O2 Level = "O2" // 标准优化：常用的平衡级别
+	O3 Level = "O3" // 激进优化
+	Oz Level = "Oz" // 体积优先：以最小代码体积为目标，可能牺牲运行速度
+	Os Level = "Os" // 体积优化：在兼顾性能的前提下减小代码体积
 )
 
 // Option PassBuilder 选项

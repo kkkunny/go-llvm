@@ -12,45 +12,52 @@ import (
 // OptLevel 代码生成优化级别
 type OptLevel int32
 
+// OptLevel 取值对应 LLVM 代码生成优化级别（binding.LLVMCodeGenOptLevel），
+// 影响后端指令选择与调度等优化强度；IR 层优化由 pass 管线负责。
 const (
-	OptNone       OptLevel = OptLevel(binding.LLVMCodeGenLevelNone)
-	OptLess       OptLevel = OptLevel(binding.LLVMCodeGenLevelLess)
-	OptDefault    OptLevel = OptLevel(binding.LLVMCodeGenLevelDefault)
-	OptAggressive OptLevel = OptLevel(binding.LLVMCodeGenLevelAggressive)
+	OptNone       OptLevel = OptLevel(binding.LLVMCodeGenLevelNone)       // 不优化（-O0）
+	OptLess       OptLevel = OptLevel(binding.LLVMCodeGenLevelLess)       // 轻度优化（-O1）
+	OptDefault    OptLevel = OptLevel(binding.LLVMCodeGenLevelDefault)    // 默认优化（-O2，-Os/-Oz 亦映射到本级）
+	OptAggressive OptLevel = OptLevel(binding.LLVMCodeGenLevelAggressive) // 激进优化（-O3）
 )
 
 // RelocMode 重定位模式
 type RelocMode int32
 
+// RelocMode 取值对应 LLVM 重定位模式（binding.LLVMRelocMode），决定生成代码如何
+// 寻址全局符号与函数；ROPI/RWPI 系列主要供 ARM 目标使用。
 const (
-	RelocDefault      RelocMode = RelocMode(binding.LLVMRelocDefault)
-	RelocStatic       RelocMode = RelocMode(binding.LLVMRelocStatic)
-	RelocPIC          RelocMode = RelocMode(binding.LLVMRelocPIC)
-	RelocDynamicNoPic RelocMode = RelocMode(binding.LLVMRelocDynamicNoPic)
-	RelocROPI         RelocMode = RelocMode(binding.LLVMRelocROPI)
-	RelocRWPI         RelocMode = RelocMode(binding.LLVMRelocRWPI)
-	RelocROPI_RWPI    RelocMode = RelocMode(binding.LLVMRelocROPI_RWPI)
+	RelocDefault      RelocMode = RelocMode(binding.LLVMRelocDefault)      // 目标默认：由目标后端选择重定位模型
+	RelocStatic       RelocMode = RelocMode(binding.LLVMRelocStatic)       // 静态：地址在链接时固定，生成非位置无关代码
+	RelocPIC          RelocMode = RelocMode(binding.LLVMRelocPIC)          // 位置无关：代码可加载到任意地址（-fPIC）
+	RelocDynamicNoPic RelocMode = RelocMode(binding.LLVMRelocDynamicNoPic) // 动态非 PIC：非位置无关，但可放入动态可执行文件（Darwin 的 -mdynamic-no-pic）
+	RelocROPI         RelocMode = RelocMode(binding.LLVMRelocROPI)         // 只读位置无关（ROPI）：只读段位置无关，可写数据位于固定地址
+	RelocRWPI         RelocMode = RelocMode(binding.LLVMRelocRWPI)         // 可写位置无关（RWPI）：可写数据经静态基址寄存器寻址，只读段位于固定地址
+	RelocROPI_RWPI    RelocMode = RelocMode(binding.LLVMRelocROPI_RWPI)    // ROPI 与 RWPI 兼具：只读段与可写数据均位置无关
 )
 
 // CodeModel 代码模型
 type CodeModel int32
 
+// CodeModel 取值对应 LLVM 代码模型（binding.LLVMCodeModel），描述代码与数据的
+// 大小及地址范围假设，影响寻址指令的选取。
 const (
-	CodeModelDefault    CodeModel = CodeModel(binding.LLVMCodeModelDefault)
-	CodeModelJITDefault CodeModel = CodeModel(binding.LLVMCodeModelJITDefault)
-	CodeModelTiny       CodeModel = CodeModel(binding.LLVMCodeModelTiny)
-	CodeModelSmall      CodeModel = CodeModel(binding.LLVMCodeModelSmall)
-	CodeModelKernel     CodeModel = CodeModel(binding.LLVMCodeModelKernel)
-	CodeModelMedium     CodeModel = CodeModel(binding.LLVMCodeModelMedium)
-	CodeModelLarge      CodeModel = CodeModel(binding.LLVMCodeModelLarge)
+	CodeModelDefault    CodeModel = CodeModel(binding.LLVMCodeModelDefault)    // 目标默认：由目标后端选择代码模型
+	CodeModelJITDefault CodeModel = CodeModel(binding.LLVMCodeModelJITDefault) // JIT 默认：由目标为 JIT 代码选择默认代码模型
+	CodeModelTiny       CodeModel = CodeModel(binding.LLVMCodeModelTiny)       // 微模型：假设代码与数据位于 16 位地址空间内（仅部分目标支持）
+	CodeModelSmall      CodeModel = CodeModel(binding.LLVMCodeModelSmall)      // 小模型：假设代码与数据位于前 2 GiB 地址空间内（多数目标的默认）
+	CodeModelKernel     CodeModel = CodeModel(binding.LLVMCodeModelKernel)     // 内核模型：代码位于高地址区（如 x86-64 的负 2 GiB），供操作系统内核使用
+	CodeModelMedium     CodeModel = CodeModel(binding.LLVMCodeModelMedium)     // 中模型：代码位于前 2 GiB，数据可位于任意地址
+	CodeModelLarge      CodeModel = CodeModel(binding.LLVMCodeModelLarge)      // 大模型：对代码与数据的大小和地址不做假设
 )
 
 // FileType 产出文件类型
 type FileType int32
 
+// FileType 取值对应 LLVM 代码生成输出文件类型（binding.LLVMCodeGenFileType）。
 const (
-	AsmFile    FileType = FileType(binding.LLVMAssemblyFile)
-	ObjectFile FileType = FileType(binding.LLVMObjectFile)
+	AsmFile    FileType = FileType(binding.LLVMAssemblyFile) // 汇编文本文件（.s）
+	ObjectFile FileType = FileType(binding.LLVMObjectFile)   // 目标文件（.o/.obj）
 )
 
 // TargetMachine 目标机器；独立所有权根（不经 Context.Own），用毕 Close

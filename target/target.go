@@ -8,26 +8,28 @@ import (
 // Arch 目标架构
 type Arch uint8
 
+// Arch 取值对应 LLVM 内置的目标架构（LLVM target backend）；各架构可用的组件
+// （info/target/MC/asm printer/asm parser/disassembler）见 archInits。
 const (
-	AArch64 Arch = iota
-	AMDGPU
-	ARM
-	AVR
-	BPF
-	Hexagon
-	Lanai
-	LoongArch
-	Mips
-	MSP430
-	NVPTX
-	PowerPC
-	RISCV
-	Sparc
-	SystemZ
-	VE
-	WebAssembly
-	X86
-	XCore
+	AArch64     Arch = iota // ARM 64 位架构
+	AMDGPU                  // AMD GPU 架构
+	ARM                     // ARM 32 位架构
+	AVR                     // Atmel AVR 8 位微控制器架构
+	BPF                     // eBPF 架构（Linux 内核可编程字节码）
+	Hexagon                 // Qualcomm Hexagon DSP 架构
+	Lanai                   // Google Lanai 架构
+	LoongArch               // 龙芯 LoongArch 架构
+	Mips                    // MIPS 架构
+	MSP430                  // 德州仪器 MSP430 16 位微控制器架构
+	NVPTX                   // NVIDIA PTX 虚拟指令集（CUDA GPU 目标）
+	PowerPC                 // PowerPC 架构
+	RISCV                   // RISC-V 架构
+	Sparc                   // Sun SPARC 架构
+	SystemZ                 // IBM z/Architecture 大型机架构
+	VE                      // NEC SX-Aurora TSUBASA 向量引擎架构
+	WebAssembly             // WebAssembly 架构
+	X86                     // Intel x86 / x86-64 架构
+	XCore                   // XMOS XCore 架构
 )
 
 // archInit 单架构初始化函数表；nil 表示该组件在 binding 中不可用
