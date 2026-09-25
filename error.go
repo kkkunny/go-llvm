@@ -31,6 +31,8 @@ type Error struct {
 	cause  error // 底层错误链（WrapError 保留），支持 errors.Is/As 追溯
 }
 
+// Error 实现 error 接口，返回 "Op: Msg" 形式的错误文本（如 "llvm.Builder.Add: ..."）。
+// 文本不含 Reason 字段，也不展开底层 cause；底层错误经 [Error.Unwrap] 追溯。
 func (e *Error) Error() string { return fmt.Sprintf("%s: %s", e.Op, e.Msg) }
 
 // Unwrap 返回底层错误（若有）

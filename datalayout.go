@@ -9,9 +9,11 @@ import (
 // ByteOrder 目标字节序
 type ByteOrder int32
 
+// ByteOrder 取值对应 LLVM 目标字节序（binding.LLVMByteOrdering）。
+// 决定多字节整数与浮点在内存中的字节排列顺序。
 const (
-	LittleEndian ByteOrder = ByteOrder(binding.LLVMLittleEndian)
-	BigEndian    ByteOrder = ByteOrder(binding.LLVMBigEndian)
+	LittleEndian ByteOrder = ByteOrder(binding.LLVMLittleEndian) // 小端：低位字节在低地址
+	BigEndian    ByteOrder = ByteOrder(binding.LLVMBigEndian)    // 大端：高位字节在低地址
 )
 
 // DataLayout 目标数据布局查询句柄；由 NewDataLayout 或 TargetMachine 创建，用毕 Close

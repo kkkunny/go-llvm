@@ -9,14 +9,16 @@ import (
 // FloatKind 浮点类型种类
 type FloatKind binding.LLVMTypeKind
 
+// FloatKind 取值对应 LLVM 浮点类型种类（binding.LLVMTypeKind）。
+// 由 [FloatType.Kind] 返回，各取值的位宽与编码格式见行内说明。
 const (
-	FloatHalf     = FloatKind(binding.LLVMHalfTypeKind)
-	FloatBFloat   = FloatKind(binding.LLVMBFloatTypeKind)
-	FloatSingle   = FloatKind(binding.LLVMFloatTypeKind)
-	FloatDouble   = FloatKind(binding.LLVMDoubleTypeKind)
-	FloatX86FP80  = FloatKind(binding.LLVMX86_FP80TypeKind)
-	FloatFP128    = FloatKind(binding.LLVMFP128TypeKind)
-	FloatPPCFP128 = FloatKind(binding.LLVMPPC_FP128TypeKind)
+	FloatHalf     = FloatKind(binding.LLVMHalfTypeKind)      // 16 位 IEEE 754 半精度浮点（binary16）
+	FloatBFloat   = FloatKind(binding.LLVMBFloatTypeKind)    // 16 位 brain 浮点（bfloat16）：8 位指数 + 7 位尾数，动态范围与单精度相同
+	FloatSingle   = FloatKind(binding.LLVMFloatTypeKind)     // 32 位 IEEE 754 单精度浮点（binary32）
+	FloatDouble   = FloatKind(binding.LLVMDoubleTypeKind)    // 64 位 IEEE 754 双精度浮点（binary64）
+	FloatX86FP80  = FloatKind(binding.LLVMX86_FP80TypeKind)  // x87 80 位扩展精度浮点
+	FloatFP128    = FloatKind(binding.LLVMFP128TypeKind)     // 128 位 IEEE 754 四精度浮点（binary128，112 位尾数）
+	FloatPPCFP128 = FloatKind(binding.LLVMPPC_FP128TypeKind) // PowerPC 128 位浮点：两个 64 位双精度数组成的双-double 格式
 )
 
 // AnyType 类型句柄的非泛型视图

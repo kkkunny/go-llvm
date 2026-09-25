@@ -5,11 +5,13 @@ import "github.com/kkkunny/go-llvm/internal/binding"
 // DiagnosticSeverity 诊断严重级别
 type DiagnosticSeverity binding.LLVMDiagnosticSeverity
 
+// DiagnosticSeverity 取值对应 LLVM 诊断严重级别（binding.LLVMDiagnosticSeverity）。
+// [Context.SetDiagnosticHandler] 回调的 severity 参数即为其中一种。
 const (
-	DiagnosticError   = DiagnosticSeverity(binding.LLVMDSError)
-	DiagnosticWarning = DiagnosticSeverity(binding.LLVMDSWarning)
-	DiagnosticRemark  = DiagnosticSeverity(binding.LLVMDSRemark)
-	DiagnosticNote    = DiagnosticSeverity(binding.LLVMDSNote)
+	DiagnosticError   = DiagnosticSeverity(binding.LLVMDSError)   // 错误：报告编译错误
+	DiagnosticWarning = DiagnosticSeverity(binding.LLVMDSWarning) // 警告：报告可疑但不中断编译的问题
+	DiagnosticRemark  = DiagnosticSeverity(binding.LLVMDSRemark)  // 备注：报告优化等补充信息（如 -Rpass 输出）
+	DiagnosticNote    = DiagnosticSeverity(binding.LLVMDSNote)    // 附注：附加在前一条诊断之后的补充信息
 )
 
 // SetDiagnosticHandler 安装上下文诊断回调（覆盖 LLVM 默认的 stderr 输出）。
