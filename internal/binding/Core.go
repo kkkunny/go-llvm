@@ -2286,9 +2286,11 @@ func LLVMBuildNUWNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMVa
 	return ref
 }
 
-// LLVMConstNUWNeg Obtain a constant value referring to the negation of a constant (no unsigned wrap).
+// LLVMConstNUWNeg Obtain the negation of a constant.
+// LLVM 22 将 C API LLVMConstNUWNeg 标记弃用（弃用提示词为 "Use LLVMConstNull instead."，
+// 语义明显有误）；折叠后的整数常量无法携带 nuw 标志，ConstNeg 等价且无弃用警告。
 func LLVMConstNUWNeg(constantVal LLVMValueRef) LLVMValueRef {
-	return LLVMValueRef{c: C.LLVMConstNUWNeg(constantVal.c)}
+	return LLVMValueRef{c: C.LLVMConstNeg(constantVal.c)}
 }
 
 // LLVMCreateMemoryBufferWithContentsOfFile Read a file into a memory buffer.
@@ -2438,4 +2440,36 @@ func LLVMIntrinsicIsOverloaded(id uint32) bool {
 func LLVMGetIntrinsicDeclaration(m LLVMModuleRef, id uint32, paramTypes []LLVMTypeRef) LLVMValueRef {
 	ptr, length := slice2Ptr[LLVMTypeRef, C.LLVMTypeRef](paramTypes)
 	return LLVMValueRef{c: C.LLVMGetIntrinsicDeclaration(m.c, C.unsigned(id), ptr, C.size_t(length))}
+}
+
+// LLVMFastMathFlags Fast-math flags bitmask.
+type LLVMFastMathFlags uint32
+
+const (
+	LLVMFastMathAllowReassoc    LLVMFastMathFlags = C.LLVMFastMathAllowReassoc
+	LLVMFastMathNoNaNs          LLVMFastMathFlags = C.LLVMFastMathNoNaNs
+	LLVMFastMathNoInfs          LLVMFastMathFlags = C.LLVMFastMathNoInfs
+	LLVMFastMathNoSignedZeros   LLVMFastMathFlags = C.LLVMFastMathNoSignedZeros
+	LLVMFastMathAllowReciprocal LLVMFastMathFlags = C.LLVMFastMathAllowReciprocal
+	LLVMFastMathAllowContract   LLVMFastMathFlags = C.LLVMFastMathAllowContract
+	LLVMFastMathApproxFunc      LLVMFastMathFlags = C.LLVMFastMathApproxFunc
+	LLVMFastMathNone            LLVMFastMathFlags = 0
+	LLVMFastMathAll             LLVMFastMathFlags = LLVMFastMathAllowReassoc | LLVMFastMathNoNaNs |
+		LLVMFastMathNoInfs | LLVMFastMathNoSignedZeros | LLVMFastMathAllowReciprocal |
+		LLVMFastMathAllowContract | LLVMFastMathApproxFunc
+)
+
+// LLVMGetFastMathFlags Get the fast-math flags of an FP instruction.
+func LLVMGetFastMathFlags(v LLVMValueRef) LLVMFastMathFlags {
+	return LLVMFastMathFlags(C.LLVMGetFastMathFlags(v.c))
+}
+
+// LLVMSetFastMathFlags Set the fast-math flags of an FP instruction.
+func LLVMSetFastMathFlags(v LLVMValueRef, f LLVMFastMathFlags) {
+	C.LLVMSetFastMathFlags(v.c, C.LLVMFastMathFlags(f))
+}
+
+// LLVMCanValueUseFastMathFlags Whether the value can carry fast-math flags.
+func LLVMCanValueUseFastMathFlags(v LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMCanValueUseFastMathFlags(v.c))
 }
