@@ -410,6 +410,11 @@ func anyTypesToRefs(types []AnyType) []binding.LLVMTypeRef {
 	return refs
 }
 
+// AnyTypesToRefs 将类型列表转换为底层句柄列表（供 llvm/* 子包桥接使用）
+func AnyTypesToRefs(types []AnyType) []binding.LLVMTypeRef {
+	return anyTypesToRefs(types)
+}
+
 // kindOfType 底层类型句柄的种类标记
 func kindOfType(ref binding.LLVMTypeRef) Kind {
 	switch binding.LLVMGetTypeKind(ref) {
