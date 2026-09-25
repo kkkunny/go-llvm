@@ -1603,6 +1603,11 @@ func LLVMGetParentCatchSwitch(catchPad LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMGetParentCatchSwitch(catchPad.c)}
 }
 
+// LLVMHasPersonalityFn Check whether the given function has a personality function.
+func LLVMHasPersonalityFn(fn LLVMValueRef) bool {
+	return llvmBool2bool(C.LLVMHasPersonalityFn(fn.c))
+}
+
 // LLVMGetPersonalityFn Get the personality function attached to the function.
 func LLVMGetPersonalityFn(fn LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMGetPersonalityFn(fn.c)}

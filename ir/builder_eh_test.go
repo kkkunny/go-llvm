@@ -18,8 +18,11 @@ func TestFunctionPersonality(t *testing.T) {
 	pers := m.NewFunction("pers", ctx.Fn(i32, []llvm.AnyType{i32}, false))
 	fn := m.NewFunction("f", ctx.Fn(ctx.Void(), nil, false))
 
-	// 注：未设置 personality 时调用 fn.Personality() 会让 LLVM-C 的
-	// LLVMGetPersonalityFn 崩溃（见任务报告），故这里只验证已设置路径。
+	// 未设置 personality：安全查询应返回 ok=false，且不得触碰 LLVMGetPersonalityFn
+	if got, ok := fn.Personality(); ok {
+		t.Fatalf("unset personality should report ok=false, got %s", got)
+	}
+
 	fn.SetPersonality(pers)
 	got, ok := fn.Personality()
 	if !ok {
@@ -35,8 +38,11 @@ func TestFunctionPersonality(t *testing.T) {
 	if err := llvm.Catch(func() { fn.SetPersonality(llvm.Value[llvm.FnT]{}) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil personality should panic ErrInvalidArg, got %v", err)
 	}
-	// 注：对仅声明的函数调用 EntryBlock() 会返回非空垃圾句柄（LLVMGetEntryBasicBlock
-	// 对无入口块的函数是 UB，见任务报告），故不做断言。
+	// 仅声明的函数没有入口块：LLVMGetEntryBasicBlock 对空函数是 UB，安全查询应返回 ok=false
+	decl := m.NewFunction("decl", ctx.Fn(ctx.Void(), nil, false))
+	if blk, ok := decl.EntryBlock(); ok {
+		t.Fatalf("declared function should have no entry block, got %v", blk)
+	}
 }
 
 func buildEHModule(t *testing.T) (*llvm.Context, *Module, *Builder) {

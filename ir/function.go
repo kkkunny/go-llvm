@@ -88,9 +88,10 @@ func (f Function) AllParams() iter.Seq[Param] {
 	}
 }
 
-// EntryBlock 入口块
+// EntryBlock 入口块（函数首个基本块）；仅声明的函数返回 false。
+// LLVMGetEntryBasicBlock 对无基本块的函数是 UB，这里用空函数返回 NULL 的 LLVMGetFirstBasicBlock。
 func (f Function) EntryBlock() (Block, bool) {
-	ref := binding.LLVMGetEntryBasicBlock(f.Ref())
+	ref := binding.LLVMGetFirstBasicBlock(f.Ref())
 	if ref.IsNil() {
 		return Block{}, false
 	}
@@ -128,8 +129,11 @@ func (f Function) SetPersonality(pers llvm.ValueRef[llvm.FnT]) {
 	binding.LLVMSetPersonalityFn(f.Ref(), pv.Ref())
 }
 
-// Personality personality 函数（未设置时返回 false）
+// Personality personality 函数（未设置时返回 false；LLVMGetPersonalityFn 对未设置函数是 UB，必须先安全查询）
 func (f Function) Personality() (llvm.Value[llvm.FnT], bool) {
+	if !binding.LLVMHasPersonalityFn(f.Ref()) {
+		return llvm.Value[llvm.FnT]{}, false
+	}
 	ref := binding.LLVMGetPersonalityFn(f.Ref())
 	if ref.IsNil() {
 		return llvm.Value[llvm.FnT]{}, false
