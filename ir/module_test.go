@@ -300,3 +300,32 @@ func TestModuleSourceAndTriple(t *testing.T) {
 		t.Fatalf("module output missing datalayout:\n%s", m.String())
 	}
 }
+
+func TestModuleIteration(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "t")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	m.NewFunction("f1", ctx.Fn(i32, nil, false))
+	m.NewFunction("f2", ctx.Fn(i32, nil, false))
+	m.NewGlobal("g1", i32)
+	m.NewGlobal("g2", i32)
+
+	fns := map[string]bool{}
+	for fn := range m.AllFunctions() {
+		fns[fn.Name()] = true
+	}
+	if !fns["f1"] || !fns["f2"] {
+		t.Fatalf("AllFunctions = %v", fns)
+	}
+
+	gs := map[string]bool{}
+	for g := range m.AllGlobals() {
+		gs[g.Name()] = true
+	}
+	if !gs["g1"] || !gs["g2"] {
+		t.Fatalf("AllGlobals = %v", gs)
+	}
+}

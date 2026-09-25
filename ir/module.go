@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"iter"
+
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
@@ -230,6 +232,30 @@ func (m *Module) GetGlobal(name string) (Global, bool) {
 		return Global{}, false
 	}
 	return Global{Value: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}, true
+}
+
+// AllFunctions 模块内全部函数的惰性遍历（声明与定义都包含）
+func (m *Module) AllFunctions() iter.Seq[Function] {
+	return func(yield func(Function) bool) {
+		m.Check("ir.Module.AllFunctions")
+		for ref := binding.LLVMGetFirstFunction(m.ref); !ref.IsNil(); ref = binding.LLVMGetNextFunction(ref) {
+			if !yield(Function{Value: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}) {
+				return
+			}
+		}
+	}
+}
+
+// AllGlobals 模块内全部全局变量的惰性遍历（不含别名/ifunc）
+func (m *Module) AllGlobals() iter.Seq[Global] {
+	return func(yield func(Global) bool) {
+		m.Check("ir.Module.AllGlobals")
+		for ref := binding.LLVMGetFirstGlobal(m.ref); !ref.IsNil(); ref = binding.LLVMGetNextGlobal(ref) {
+			if !yield(Global{Value: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}) {
+				return
+			}
+		}
+	}
 }
 
 // DelGlobal 删除全局变量
