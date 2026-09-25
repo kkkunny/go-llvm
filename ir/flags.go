@@ -65,7 +65,7 @@ type NoWrap binding.LLVMGEPNoWrapFlags
 const (
 	NoWrapNone     = NoWrap(0)                           // 无额外保证
 	NoWrapInBounds = NoWrap(binding.LLVMGEPFlagInBounds) // inbounds：基址与所有中间地址都位于同一已分配对象内（蕴含 nusw 规则）
-	NoWrapNUSW     = NoWrap(binding.LLVMGEPFlagNUSW)     // nusw（no unsigned signed wrap）：索引按有符号解释时截断/乘加不回绕
+	NoWrapNUSW     = NoWrap(binding.LLVMGEPFlagNUSW)     // nusw（no unsigned signed wrap）：索引按有符号解释时截断/乘加不回绕，且地址（无符号）与各偏移（有符号）逐次相加不回绕
 	NoWrapNUW      = NoWrap(binding.LLVMGEPFlagNUW)      // nuw（no unsigned wrap）：索引按无符号解释时截断/乘加不回绕
 )
 

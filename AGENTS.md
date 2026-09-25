@@ -58,14 +58,15 @@ and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codege
 - **Builder return types**: return a role wrapper only when the instruction has role-specific operations (`Alloca`/`Load`/`Store`/`Call`/`Invoke`/`Phi`/`Switch`/`LandingPad`/`CatchSwitch`/`FuncletPad`/`Fence`/`AtomicRMW`/`CmpXchg`); everything else returns the plain `Value[T]`.
 - **Concurrency**: `Context` (ownership registry), `Lifetime` (atomic), the `LLJIT` adapter cache and the bridge registry are lock-protected; all other handles (`Module`/`Builder`/`Value`/`Type`/`Block`/`TargetMachine`/`DataLayout`/`MemoryBuffer`) are not goroutine-safe and must be used from a single goroutine. Debug builds sample the owning goroutine in `Builder`/`Module` operations and panic on cross-goroutine use (the race detector cannot see C-side state). `LLJIT.Func`/`MapFunc`/`Lookup` may be called concurrently, but `Close` must be serialized by the caller.
 - **Lifetime**: `Context` is the ownership root (`Own` returns an unregister func, `Close` cascades in reverse). `Module`/`Builder` implement `io.Closer`; `Value`/`Type`/`Block`/`GoFunc` never expose `Free` — they carry a `Lifetime` token and are checked on every operation. Second `Close` returns `ErrClosed`. `Module.Disown()`/`Context.Disown()`/`MemoryBuffer.Disown()` transfer ownership to an external owner (JIT) and **immediately** invalidate Go-side handles (no return value); `Context`-independent resources (`TargetMachine`, `MemoryBuffer`, `LLJIT`) are their own roots and are not registered via `Own`. `MemoryBuffer`/`DataLayout` carry a GC finalizer as a leak safety net — `Close`/`Disown` must clear it (`runtime.SetFinalizer(x, nil)`) before releasing the handle.
-- **Comments**: Package docs in English; symbol comments in Chinese for the root and sub-packages (and `internal/checks`); `internal/binding` in English; example code comments in Chinese and example READMEs in English.
+- **Comments**: Library package docs in English; symbol comments in Chinese for the root and sub-packages (and `internal/checks`); `internal/binding` in English; example package docs and code comments in Chinese, example READMEs in English.
 - Commits use Conventional Commits, commonly with Chinese descriptions.
 
 ## Doc comments
 
-Doc-comment language follows the *Comments* rule in *Core conventions*: package docs in English,
-symbol comments in Chinese for the root and sub-packages, `internal/binding` in English. The
-rules below apply to both languages.
+Doc-comment language follows the *Comments* rule in *Core conventions*: library package docs in
+English; symbol comments in Chinese for the root and sub-packages (and `internal/checks`);
+`internal/binding` in English; example package docs and code comments in Chinese, example READMEs
+in English. The rules below apply to both languages.
 
 - The first sentence begins with the symbol name and ends with a period (`。` in Chinese symbol
   comments): `NewModule 创建模块并登记到 Context 生命周期。`.

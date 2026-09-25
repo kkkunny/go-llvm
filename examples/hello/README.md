@@ -1,9 +1,10 @@
 # hello
 
 The smallest runnable go-llvm program: build a `main` function that returns
-`1 + 2`, verify the module, and print its LLVM IR. It is the runnable version
+`1 + 2`, verify the module, and print its LLVM IR. It is a simplified variant
 of the quick-start snippet in the repository root
-[`example_test.go`](../../example_test.go).
+[`example_test.go`](../../example_test.go): the root example compares the sum
+against 3 and returns 0/1, while hello returns the folded sum directly.
 
 ## Run
 

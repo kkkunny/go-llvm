@@ -122,7 +122,7 @@ func ExampleModule_Verify() {
 	entry := fn.Function().NewBlock("entry")
 	b.MoveToEnd(entry)
 	b.Ret(ctx.Int(32).Const(0))
-	fmt.Println("合法模块:", valid.Verify() == nil)
+	fmt.Println("valid module:", valid.Verify() == nil)
 	valid.Close()
 
 	// 非法模块：基本块缺少终结指令
@@ -135,18 +135,18 @@ func ExampleModule_Verify() {
 	defer invalid.Close()
 
 	err = invalid.Verify()
-	fmt.Println("Verify 返回错误:", err != nil)
+	fmt.Println("Verify error:", err != nil)
 	var verr *llvm.Error
 	if !errors.As(err, &verr) {
 		panic(err)
 	}
-	fmt.Println("错误类别为 ErrVerify:", verr.Reason == llvm.ErrVerify)
-	fmt.Println("错误位置:", verr.Op)
+	fmt.Println("error is ErrVerify:", verr.Reason == llvm.ErrVerify)
+	fmt.Println("error op:", verr.Op)
 	// Output:
-	// 合法模块: true
-	// Verify 返回错误: true
-	// 错误类别为 ErrVerify: true
-	// 错误位置: ir.Module.Verify
+	// valid module: true
+	// Verify error: true
+	// error is ErrVerify: true
+	// error op: ir.Module.Verify
 }
 
 // ExampleParseIRString 演示从文本 IR 解析模块：解析出的模块与手工构建的

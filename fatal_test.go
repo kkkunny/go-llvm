@@ -16,5 +16,6 @@ func TestFatalHandlers(t *testing.T) {
 // （上游文档：“Enables dumping a pretty stack trace when the program crashes”），
 // 它会抢占 Go 运行时用于栈增长的 SIGSEGV，导致此后任意测试触发
 // “PLEASE submit a bug report to LLVM … fatal error: runtime: split stack overflow”。
-// 该行为已在本地实测复现（PROBE=enable 后跑 ExampleTry 必崩），属上游 API 与 Go 运行时的
-// 已知冲突，故不放入进程内测试；详见 task-10 报告。
+// 本地实测：调用后（例如紧随其后运行 ExampleTry）任意测试都会在栈增长时 SIGSEGV
+// （Go 运行时报告 “runtime: split stack overflow”），属上游 API 与 Go 运行时的
+// 已知冲突，故不放入进程内测试。

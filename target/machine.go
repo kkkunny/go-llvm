@@ -46,7 +46,7 @@ const (
 	CodeModelJITDefault CodeModel = CodeModel(binding.LLVMCodeModelJITDefault) // JIT 默认：由目标为 JIT 代码选择默认代码模型
 	CodeModelTiny       CodeModel = CodeModel(binding.LLVMCodeModelTiny)       // 微模型：假设代码与数据位于 16 位地址空间内（仅部分目标支持）
 	CodeModelSmall      CodeModel = CodeModel(binding.LLVMCodeModelSmall)      // 小模型：假设代码与数据位于前 2 GiB 地址空间内（多数目标的默认）
-	CodeModelKernel     CodeModel = CodeModel(binding.LLVMCodeModelKernel)     // 内核模型：代码位于高地址区（如 x86-64 的负 2 GiB），供操作系统内核使用
+	CodeModelKernel     CodeModel = CodeModel(binding.LLVMCodeModelKernel)     // 内核模型：代码位于高地址区（如 x86-64 的负 2 GiB），并约束代码与数据的布局，供操作系统内核使用
 	CodeModelMedium     CodeModel = CodeModel(binding.LLVMCodeModelMedium)     // 中模型：代码位于前 2 GiB，数据可位于任意地址
 	CodeModelLarge      CodeModel = CodeModel(binding.LLVMCodeModelLarge)      // 大模型：对代码与数据的大小和地址不做假设
 )

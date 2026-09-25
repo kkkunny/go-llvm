@@ -36,8 +36,8 @@ insts: 7 -> 1
 
 `mem2reg` promotes the alloca away (which also makes the dead store
 disappear), and `instcombine` folds the `+ 0` / `* 1` identities, so all that
-remains is a constant return (function attributes omitted here, the module
-carries the usual ones):
+remains is a constant return (the `attributes #0` group definition line is
+omitted here; the module carries the usual ones):
 
 ```llvm
 define noundef i32 @compute() local_unnamed_addr #0 {
