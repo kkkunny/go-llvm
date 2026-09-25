@@ -51,9 +51,9 @@ func AsPhi[T llvm.Kind](v llvm.AnyValue) (Phi[T], bool) {
 	return asInst[T, Phi[T]]("ir.AsPhi", v, OpPHI, func(x llvm.Value[T]) Phi[T] { return Phi[T]{x} })
 }
 
-// AsSwitch 转为 Switch 角色
+// AsSwitch 转为 Switch 角色（switch 指令底层类型为 void）
 func AsSwitch(v llvm.AnyValue) (Switch, bool) {
-	return asInst[llvm.IntT, Switch]("ir.AsSwitch", v, OpSwitch, func(x llvm.Value[llvm.IntT]) Switch { return Switch{x} })
+	return asInst[llvm.VoidT, Switch]("ir.AsSwitch", v, OpSwitch, func(x llvm.Value[llvm.VoidT]) Switch { return Switch{x} })
 }
 
 // AsAtomicRMW 转为 AtomicRMW 角色（T 为操作数种类）

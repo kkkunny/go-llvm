@@ -10,7 +10,7 @@ var (
 	_ llvm.ValueRef[llvm.VoidT]   = Store{}
 	_ llvm.ValueRef[llvm.IntT]    = Call[llvm.IntT]{}
 	_ llvm.ValueRef[llvm.IntT]    = Phi[llvm.IntT]{}
-	_ llvm.ValueRef[llvm.IntT]    = Switch{}
+	_ llvm.ValueRef[llvm.VoidT]   = Switch{}
 	_ llvm.ValueRef[llvm.PtrT]    = Global{}
 	_ llvm.ValueRef[llvm.FnT]     = Function{}
 	_ llvm.ValueRef[llvm.DynT]    = Param{}

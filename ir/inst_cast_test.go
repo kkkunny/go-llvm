@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
-	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
 func TestAsRoles(t *testing.T) {
@@ -100,19 +99,8 @@ func TestAsRoleConversions(t *testing.T) {
 	if got, ok := AsInvoke[llvm.IntT](iv); !ok || got.ArgCount() != 1 || got.NormalBlock() != cont {
 		t.Fatalf("invoke -> AsInvoke failed: %v %v", got, ok)
 	}
-	// 已知缺陷的特征化测试（本任务不修生产代码）：switch 指令底层类型为 void，而 AsSwitch 用 IntT
-	// 做种类校验，调试构建下必然 panic ErrTypeMismatch；信任构建（llvm_release）跳过语义校验后可用。
-	// known bug: AsSwitch panics in debug builds; update this test when fixed——
-	// 缺陷修复后应删除 debug 分支，两种构建都做与 release 相同的成功断言（got.Count() == 1）。
-	// 缺陷清单：.superpowers/sdd/progress.md 的「发现的生产缺陷」。
-	if checks.Debug {
-		if err := llvm.Catch(func() { AsSwitch(sw) }); err == nil || err.Reason != llvm.ErrTypeMismatch {
-			t.Fatalf("AsSwitch in debug build should panic ErrTypeMismatch (known bug), got %v", err)
-		}
-	} else {
-		if got, ok := AsSwitch(sw); !ok || got.Count() != 1 {
-			t.Fatalf("switch -> AsSwitch failed: %v %v", got, ok)
-		}
+	if got, ok := AsSwitch(sw); !ok || got.Count() != 1 {
+		t.Fatalf("switch -> AsSwitch failed: %v %v", got, ok)
 	}
 	if got, ok := AsLandingPad[llvm.StructT](lp); !ok || got.ClauseCount() != 0 || !got.IsCleanup() {
 		t.Fatalf("landingpad -> AsLandingPad failed: %v %v", got, ok)

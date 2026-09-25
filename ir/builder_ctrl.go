@@ -6,9 +6,9 @@ import (
 	"github.com/kkkunny/go-llvm/internal/checks"
 )
 
-// Switch switch 终结指令角色（内嵌 Value[IntT]）
+// Switch switch 终结指令角色（switch 指令本身为 void，内嵌 Value[VoidT]）
 type Switch struct {
-	llvm.Value[llvm.IntT]
+	llvm.Value[llvm.VoidT]
 }
 
 // CondType switch 条件操作数的类型
@@ -112,7 +112,7 @@ func (b *Builder) Switch(v llvm.ValueRef[llvm.IntT], def Block) Switch {
 	b.pre(op, core(vv))
 	b.preBlock(op, def)
 	ref := binding.LLVMBuildSwitch(b.ref, vv.Ref(), def.ref, 0)
-	return Switch{Value: llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)}
+	return Switch{Value: llvm.NewValue[llvm.VoidT](b.ctx, b.inserted.life, ref)}
 }
 
 // Unreachable 插入 unreachable
