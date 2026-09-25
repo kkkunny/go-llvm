@@ -16,6 +16,7 @@ func TestGlobalLinkage(t *testing.T) {
 
 	i32 := ctx.Int(32)
 	g := m.NewGlobal("g", i32)
+	g.SetInitializer(ctx.ConstInt(i32, 0).Value)
 	if got := g.Linkage(); got != llvm.LinkageExternal {
 		t.Fatalf("default linkage = %v, want external", got)
 	}
@@ -26,15 +27,19 @@ func TestGlobalLinkage(t *testing.T) {
 	}
 
 	g2 := m.NewGlobal("g2", i32)
+	g2.SetInitializer(ctx.ConstInt(i32, 0).Value)
 	g2.SetLinkage(llvm.LinkageWeakODR)
 	if got := g2.Linkage(); got != llvm.LinkageWeakODR {
 		t.Fatalf("g2 linkage = %v, want weak_odr", got)
 	}
 
 	out := m.String()
-	for _, want := range []string{"@g = internal global i32", "@g2 = weak_odr global i32"} {
+	for _, want := range []string{"@g = internal global i32 0", "@g2 = weak_odr global i32 0"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("IR missing %q:\n%s", want, out)
 		}
+	}
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
 	}
 }

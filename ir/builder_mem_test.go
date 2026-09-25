@@ -253,8 +253,13 @@ func TestBuilderMemTypePrecheck(t *testing.T) {
 	if err := llvm.Catch(func() { b.GEP(ctx2.Int(32), ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign GEP element type should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { b.Malloc(ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
-		t.Fatalf("foreign malloc type should panic ErrInvalidArg, got %v", err)
+	if err := llvm.Catch(func() { b.Malloc(ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign malloc type should panic ErrCrossContext, got %v", err)
+	}
+	if err := llvm.Catch(func() {
+		b.MallocArray(ctx2.Int(32), ctx.ConstInt(ctx.Int(64), 1).Value, "")
+	}); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign malloc-array type should panic ErrCrossContext, got %v", err)
 	}
 	if err := llvm.Catch(func() { b.Load(ctx.Ptr(0).Zero(), ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign load type should panic ErrCrossContext, got %v", err)
@@ -275,7 +280,7 @@ func TestIsNullPtrDiff(t *testing.T) {
 
 	p := fn.ParamAs[llvm.PtrT](0)
 	q := fn.ParamAs[llvm.PtrT](1)
-	n := b.IsNull(p, "isnull")
+	b.IsNull(p, "isnull")
 	nn := b.IsNotNull(p, "isnotnull")
 	d := b.PtrDiff(i32, p, q, "diff")
 	if d.IsNil() {
@@ -293,5 +298,4 @@ func TestIsNullPtrDiff(t *testing.T) {
 	if !strings.Contains(got, "ptrtoint") {
 		t.Fatalf("IR missing ptrtoint:\n%s", got)
 	}
-	_ = n
 }

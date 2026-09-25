@@ -264,8 +264,11 @@ func (b *Builder) memTransfer(op string, dst llvm.ValueRef[llvm.PtrT], dstAlign 
 func (b *Builder) Malloc(t llvm.AnyType, name string) Call[llvm.PtrT] {
 	const op = "ir.Builder.Malloc"
 	b.pre(op)
-	if t == nil || t.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid type")
+	if t == nil {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil type")
+	}
+	if t.Context() != b.ctx {
+		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildMalloc(b.ref, t.Ref(), name)
 	return Call[llvm.PtrT]{Value: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
@@ -276,8 +279,11 @@ func (b *Builder) MallocArray(elem llvm.AnyType, n llvm.ValueRef[llvm.IntT], nam
 	const op = "ir.Builder.MallocArray"
 	nv := n.AsValue()
 	b.pre(op, core(nv))
-	if elem == nil || elem.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid type")
+	if elem == nil {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil element type")
+	}
+	if elem.Context() != b.ctx {
+		llvm.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
 	}
 	ref := binding.LLVMBuildArrayMalloc(b.ref, elem.Ref(), nv.Ref(), name)
 	return Call[llvm.PtrT]{Value: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}

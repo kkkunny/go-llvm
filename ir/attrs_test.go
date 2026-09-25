@@ -63,8 +63,7 @@ func TestAttrFunctionAndParamRoles(t *testing.T) {
 	entry := fn.NewBlock("entry")
 	b := NewBuilderAt(entry)
 	defer b.Close()
-	ret := b.Ret(ctx.ConstInt(i32, 0).Value)
-	_ = ret
+	b.Ret(ctx.ConstInt(i32, 0).Value)
 
 	if err := m.Verify(); err != nil {
 		t.Fatalf("verify: %v", err)
