@@ -200,6 +200,106 @@ func TestBuilderKindChecks(t *testing.T) {
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("indexing scalar should panic ErrInvalidArg, got %v", err)
 	}
+
+	// InsertValue 负向：空索引路径 / 元素类型不符 / 索引越界
+	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), nil, "") })
+	if err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("empty insert index path should panic ErrInvalidArg, got %v", err)
+	}
+	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), []uint32{1}, "") })
+	if err == nil || err.Reason != llvm.ErrTypeMismatch {
+		t.Fatalf("insert i32 into i64 slot should panic ErrTypeMismatch, got %v", err)
+	}
+	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(ctx.Int(64), 1), []uint32{9}, "") })
+	if err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("insert out-of-range index should panic ErrInvalidArg, got %v", err)
+	}
+
+	// 跨 Context 的间接调用签名（崩溃类地板：始终校验）
+	ctx2 := llvm.NewContext()
+	defer ctx2.Close()
+	sig2 := ctx2.Fn(ctx2.Int(32), nil, false)
+	err = llvm.Catch(func() {
+		b.CallIndirect[llvm.IntT](fn.ParamAs[llvm.PtrT](1), sig2, nil, "")
+	})
+	if err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign signature should panic ErrCrossContext, got %v", err)
+	}
+}
+
+// TestBuilderAggregateIndexPaths 覆盖 InsertValue/ExtractValue 的数组/嵌套结构体元素类型路径。
+func TestBuilderAggregateIndexPaths(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "aggpath")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	arr := ctx.Array(i32, 4)
+	inner := ctx.Struct([]llvm.AnyType{i32, i32}, false)
+	st := ctx.Struct([]llvm.AnyType{arr, inner}, false)
+	b := NewBuilder(ctx)
+	defer b.Close()
+
+	// 数组聚合的单层插入/提取
+	arrFn := m.NewFunction("arr", ctx.Fn(i32, []llvm.AnyType{arr}, false))
+	b.MoveToEnd(arrFn.NewBlock("entry"))
+	av := arrFn.ParamAs[llvm.ArrayT](0)
+	ins := b.InsertValue(av, ctx.ConstInt(i32, 7), []uint32{1}, "ins")
+	ex := b.ExtractValue[llvm.IntT](ins, []uint32{1}, "ex")
+	b.Ret(ex)
+
+	// 结构体 -> 数组 / 结构体 -> 嵌套结构体的多层提取
+	stFn := m.NewFunction("st", ctx.Fn(i32, []llvm.AnyType{st}, false))
+	b.MoveToEnd(stFn.NewBlock("entry"))
+	sv := stFn.ParamAs[llvm.StructT](0)
+	a := b.ExtractValue[llvm.IntT](sv, []uint32{0, 1}, "a")
+	n := b.ExtractValue[llvm.IntT](sv, []uint32{1, 0}, "n")
+	b.Ret(b.Add(a, n, "sum"))
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	out := m.String()
+	for _, want := range []string{
+		"%ins = insertvalue [4 x i32] %0, i32 7, 1",
+		"%ex = extractvalue [4 x i32] %ins, 1",
+		// 多层路径由单层指令链实现，LLVM 自动为后续层去重命名
+		"%a = extractvalue { [4 x i32], { i32, i32 } } %0, 0",
+		"%a1 = extractvalue [4 x i32] %a, 1",
+		"%n = extractvalue { [4 x i32], { i32, i32 } } %0, 1",
+		"%n2 = extractvalue { i32, i32 } %n, 0",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("module output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// TestAggregateVectorPathPrecheck 覆盖 elementTypeAt 的向量下标越界拒绝。
+// 注：LLVM 的 extractvalue/insertvalue 不接受向量聚合（langref：operand must be aggregate type），
+// 合法向量下标会让底层 LLVM 崩溃，故这里只验证越界路径在调试层被拦下。
+func TestAggregateVectorPathPrecheck(t *testing.T) {
+	requireDebug(t)
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "aggvec")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	st := ctx.Struct([]llvm.AnyType{i32, ctx.Vec(i32, 4)}, false)
+	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{st}, false))
+	b := NewBuilderAt(fn.NewBlock("entry"))
+	defer b.Close()
+	agg := fn.ParamAs[llvm.StructT](0)
+
+	if err := llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{1, 9}, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("vector index out of range should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), []uint32{1, 9}, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("vector insert index out of range should panic ErrInvalidArg, got %v", err)
+	}
+	b.RetVoid()
 }
 
 func TestBuilderAggregate(t *testing.T) {

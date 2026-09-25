@@ -31,7 +31,11 @@ func TestBuilderIntArithGolden(t *testing.T) {
 	b.AddNSW(a, c, "addnsw")
 	b.AddNUW(a, c, "addnuw")
 	b.Sub(a, c, "sub")
+	b.SubNSW(a, c, "subnsw")
+	b.SubNUW(a, c, "subnuw")
 	b.Mul(a, c, "mul")
+	b.MulNSW(a, c, "mulnsw")
+	b.MulNUW(a, c, "mulnuw")
 	b.SDiv(a, c, "sdiv")
 	b.UDiv(a, c, "udiv")
 	b.SRem(a, c, "srem")
@@ -52,7 +56,11 @@ func TestBuilderIntArithGolden(t *testing.T) {
 		"%addnsw = add nsw i32 %0, %1",
 		"%addnuw = add nuw i32 %0, %1",
 		"%sub = sub i32 %0, %1",
+		"%subnsw = sub nsw i32 %0, %1",
+		"%subnuw = sub nuw i32 %0, %1",
 		"%mul = mul i32 %0, %1",
+		"%mulnsw = mul nsw i32 %0, %1",
+		"%mulnuw = mul nuw i32 %0, %1",
 		"%sdiv = sdiv i32 %0, %1",
 		"%udiv = udiv i32 %0, %1",
 		"%srem = srem i32 %0, %1",

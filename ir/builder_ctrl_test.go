@@ -237,6 +237,15 @@ func TestBuilderSwitch(t *testing.T) {
 	if got := sw.CaseValue(0).String(); got != "i32 1" {
 		t.Fatalf("case value = %q", got)
 	}
+	// 注：Switch.Count 的 n==0 分支不可达（switch 必有 default 后继）。
+	if checks.Debug {
+		if err := llvm.Catch(func() { sw.CaseBlock(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+			t.Fatalf("CaseBlock out of range should panic ErrInvalidArg, got %v", err)
+		}
+		if err := llvm.Catch(func() { sw.CaseValue(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+			t.Fatalf("CaseValue out of range should panic ErrInvalidArg, got %v", err)
+		}
+	}
 
 	b.MoveToEnd(defBlk)
 	b.RetVoid()

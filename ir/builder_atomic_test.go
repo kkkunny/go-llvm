@@ -49,8 +49,14 @@ func TestBuilderAtomics(t *testing.T) {
 	}
 	rm.SetVolatile(true)
 	rm.SetAlign(4)
+	// 改操作与内存序都必须读回
+	rm.SetOp(llvm.RMWXchg)
+	rm.SetOrdering(llvm.AtomicAcquireRelease)
 	if !rm.IsVolatile() || rm.Align() != 4 {
 		t.Fatalf("rmw volatile/align = %v %d", rm.IsVolatile(), rm.Align())
+	}
+	if rm.Op() != llvm.RMWXchg || rm.Ordering() != llvm.AtomicAcquireRelease {
+		t.Fatalf("rmw after set = %v %v", rm.Op(), rm.Ordering())
 	}
 
 	cx := b.CmpXchg(p, one, ctx.ConstInt(i32, 2).Value, llvm.AtomicAcquire, llvm.AtomicMonotonic, false, "cx")
@@ -66,6 +72,16 @@ func TestBuilderAtomics(t *testing.T) {
 	}
 	cx.SetWeak(false)
 	cx.SetAlign(4)
+	// 成功序/失败序/volatile 的读写回环
+	cx.SetSuccessOrdering(llvm.AtomicSequentiallyConsistent)
+	cx.SetFailureOrdering(llvm.AtomicAcquire)
+	cx.SetVolatile(true)
+	if cx.SuccessOrdering() != llvm.AtomicSequentiallyConsistent || cx.FailureOrdering() != llvm.AtomicAcquire {
+		t.Fatalf("cmpxchg orderings after set = %v %v", cx.SuccessOrdering(), cx.FailureOrdering())
+	}
+	if !cx.IsVolatile() || cx.Align() != 4 {
+		t.Fatalf("cmpxchg volatile/align = %v %d", cx.IsVolatile(), cx.Align())
+	}
 
 	b.RetVoid()
 	if err := m.Verify(); err != nil {
@@ -74,8 +90,8 @@ func TestBuilderAtomics(t *testing.T) {
 	got := m.String()
 	for _, want := range []string{
 		"fence acquire",
-		"atomicrmw volatile add ptr %0, i32 1 monotonic, align 4",
-		"cmpxchg ptr %0, i32 1, i32 2 acquire monotonic, align 4",
+		"atomicrmw volatile xchg ptr %0, i32 1 acq_rel, align 4",
+		"cmpxchg volatile ptr %0, i32 1, i32 2 seq_cst acquire, align 4",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q:\n%s", want, got)

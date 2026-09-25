@@ -74,6 +74,11 @@ func TestFunctionAttrs(t *testing.T) {
 	if fn.Param(0).Index() != 0 || fn.Param(0).AttrCount() != 1 {
 		t.Fatalf("param index/count = %d/%d", fn.Param(0).Index(), fn.Param(0).AttrCount())
 	}
+	// Param.SetAlign 与 AlignAttr 等价（指针参数才允许对齐属性）
+	fn.Param(0).SetAlign(8)
+	if got, ok := fn.Param(0).EnumAttr(llvm.AttrAlign); !ok || got.EnumValue() != 8 {
+		t.Fatalf("param align after SetAlign = %v %v", got, ok)
+	}
 	if got := m.String(); !strings.Contains(got, "attributes #0 = {") || !strings.Contains(got, `"my-attr"="v1"`) {
 		t.Fatalf("function attr group missing:\n%s", got)
 	}

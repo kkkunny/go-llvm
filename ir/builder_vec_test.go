@@ -88,3 +88,33 @@ func TestBuilderVectorPrecheck(t *testing.T) {
 	}
 	b.RetVoid()
 }
+
+// TestVectorKindPrecheck 伪造底层为非向量的 VecT 句柄，触发 vecKindTy 的非向量拒绝。
+func TestVectorKindPrecheck(t *testing.T) {
+	requireDebug(t)
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "vec-kind")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(ctx.Void(), nil, false))
+	b := NewBuilderAt(fn.NewBlock("entry"))
+	defer b.Close()
+
+	one := ctx.ConstInt(i32, 1)
+	fakeVec := llvm.NewValue[llvm.VecT](ctx, m.Lifetime(), one.Ref())
+	idx := ctx.ConstInt(i32, 0).Value
+
+	if err := llvm.Catch(func() {
+		b.ExtractElement[llvm.IntT](fakeVec, idx, "")
+	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
+		t.Fatalf("non-vector value should panic ErrTypeMismatch, got %v", err)
+	}
+	if err := llvm.Catch(func() {
+		b.ShuffleVector(fakeVec, fakeVec, fakeVec, "")
+	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
+		t.Fatalf("non-vector mask should panic ErrTypeMismatch, got %v", err)
+	}
+	b.RetVoid()
+}

@@ -30,6 +30,11 @@ func TestBuilderMemoryGolden(t *testing.T) {
 	slot := b.Alloca(i32, "slot")
 	slot.SetAlign(8)
 	b.Store(p, slot)
+	st := b.Store(p, slot)
+	st.SetAlign(4)
+	if got := st.Align(); got != 4 {
+		t.Fatalf("store align = %d, want 4", got)
+	}
 	loaded := b.Load(slot, i32, "loaded")
 	b.Ret(loaded)
 
@@ -37,6 +42,7 @@ func TestBuilderMemoryGolden(t *testing.T) {
 	for _, want := range []string{
 		"%slot = alloca i32, align 8",
 		"store i32 %0, ptr %slot",
+		"store i32 %0, ptr %slot, align 4",
 		"%loaded = load i32, ptr %slot",
 		"ret i32 %loaded",
 	} {
@@ -215,6 +221,32 @@ func TestBuilderAlignPrecheck(t *testing.T) {
 	}
 }
 
+// TestBuilderMemTypePrecheck 覆盖 Alloca/GEP 的类型前置校验（nil/跨 Context）。
+func TestBuilderMemTypePrecheck(t *testing.T) {
+	ctx, m, b, _ := memModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer b.Close()
+
+	// nil 类型（崩溃类地板）
+	if err := llvm.Catch(func() { b.Alloca(nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil alloca type should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { b.GEP(nil, ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil GEP element type should panic ErrInvalidArg, got %v", err)
+	}
+
+	// 跨 Context 类型
+	ctx2 := llvm.NewContext()
+	defer ctx2.Close()
+	if err := llvm.Catch(func() { b.Alloca(ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign alloca type should panic ErrCrossContext, got %v", err)
+	}
+	if err := llvm.Catch(func() { b.GEP(ctx2.Int(32), ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign GEP element type should panic ErrCrossContext, got %v", err)
+	}
+}
+
 func TestIsNullPtrDiff(t *testing.T) {
 	ctx := llvm.NewContext()
 	defer ctx.Close()
@@ -230,17 +262,22 @@ func TestIsNullPtrDiff(t *testing.T) {
 	p := fn.ParamAs[llvm.PtrT](0)
 	q := fn.ParamAs[llvm.PtrT](1)
 	n := b.IsNull(p, "isnull")
+	nn := b.IsNotNull(p, "isnotnull")
 	d := b.PtrDiff(i32, p, q, "diff")
 	if d.IsNil() {
 		t.Fatalf("PtrDiff produced nil")
 	}
-	b.Ret(n)
+	b.Ret(nn)
 
 	got := m.String()
 	if !strings.Contains(got, "icmp eq ptr") {
 		t.Fatalf("IR missing icmp eq ptr:\n%s", got)
 	}
+	if !strings.Contains(got, "icmp ne ptr") {
+		t.Fatalf("IR missing icmp ne ptr:\n%s", got)
+	}
 	if !strings.Contains(got, "ptrtoint") {
 		t.Fatalf("IR missing ptrtoint:\n%s", got)
 	}
+	_ = n
 }

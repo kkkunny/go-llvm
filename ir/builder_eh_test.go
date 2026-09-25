@@ -50,16 +50,17 @@ func TestBuilderInvoke(t *testing.T) {
 	defer b.Close()
 
 	i32 := ctx.Int(32)
-	g := m.NewFunction("g", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	ptr := ctx.Ptr(0)
+	g := m.NewFunction("g", ctx.Fn(i32, []llvm.AnyType{ptr}, false))
 	pers := m.NewFunction("pers", ctx.Fn(i32, []llvm.AnyType{i32}, false))
-	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{i32}, false))
+	fn := m.NewFunction("f", ctx.Fn(i32, []llvm.AnyType{ptr}, false))
 	fn.SetPersonality(pers)
 	entry := fn.NewBlock("entry")
 	cont := fn.NewBlock("cont")
 	lpad := fn.NewBlock("lpad")
 
 	b.MoveToEnd(entry)
-	iv := b.Invoke[llvm.IntT](g, []llvm.AnyValue{fn.ParamAs[llvm.IntT](0)}, cont, lpad, "v")
+	iv := b.Invoke[llvm.IntT](g, []llvm.AnyValue{fn.ParamAs[llvm.PtrT](0)}, cont, lpad, "v")
 
 	if iv.NormalBlock() != cont {
 		t.Fatalf("normal block = %s, want cont", iv.NormalBlock().Name())
@@ -70,6 +71,23 @@ func TestBuilderInvoke(t *testing.T) {
 	if iv.ArgCount() != 1 {
 		t.Fatalf("arg count = %d, want 1", iv.ArgCount())
 	}
+	if got := iv.Arg(0); got.String() != fn.ParamAs[llvm.PtrT](0).String() {
+		t.Fatalf("arg 0 = %s, want %s", got, fn.ParamAs[llvm.PtrT](0))
+	}
+	// 替换实参（类型一致），参数对齐与 tail 标志读写回环
+	iv.SetArg(0, ctx.ConstNull(ptr))
+	if got := iv.Arg(0).String(); got != "ptr null" {
+		t.Fatalf("arg 0 after SetArg = %s, want ptr null", got)
+	}
+	iv.SetParamAlign(0, 8)
+	iv.SetTailCall(true)
+	if !iv.IsTailCall() {
+		t.Fatal("invoke should be tail after SetTailCall(true)")
+	}
+	iv.SetTailCallKind(TailCallTail)
+	if !iv.IsTailCall() {
+		t.Fatal("invoke should stay tail after SetTailCallKind(TailCallTail)")
+	}
 	if called, ok := iv.CalledFunction(); !ok || called.Name() != "g" {
 		t.Fatalf("called function = %v %v, want g", called, ok)
 	}
@@ -78,7 +96,7 @@ func TestBuilderInvoke(t *testing.T) {
 	b.Ret(iv)
 
 	b.MoveToEnd(lpad)
-	padTy := ctx.Struct([]llvm.AnyType{ctx.Ptr(0), i32}, false)
+	padTy := ctx.Struct([]llvm.AnyType{ptr, i32}, false)
 	lp := b.LandingPad(padTy, "lp")
 	lp.SetCleanup(true)
 	b.Resume(lp)
@@ -88,7 +106,7 @@ func TestBuilderInvoke(t *testing.T) {
 	}
 
 	got := m.String()
-	if !strings.Contains(got, "invoke i32 @g(i32 %0)") {
+	if !strings.Contains(got, "invoke i32 @g(ptr align 8 null)") {
 		t.Fatalf("missing invoke:\n%s", got)
 	}
 	if !strings.Contains(got, "to label %cont unwind label %lpad") {
@@ -317,6 +335,11 @@ func TestBuilderFunclets(t *testing.T) {
 	if got := cp.Arg(0); got.Name() != "ti" {
 		t.Fatalf("catchpad arg 0 = %s, want ti", got.Name())
 	}
+	// 替换 pad 实参（同类型读写回环）
+	cp.SetArg(0, ti)
+	if got := cp.Arg(0); got.Name() != "ti" {
+		t.Fatalf("catchpad arg 0 after SetArg = %s, want ti", got.Name())
+	}
 	b.CatchRet(cp, done)
 
 	b.MoveToEnd(done)
@@ -341,10 +364,41 @@ func TestBuilderFunclets(t *testing.T) {
 	}
 	b.CleanupRet(clp, Block{}) // unwind to caller
 
+	// ---- catchswitch 指定非零 unwind 目标（覆盖 preOptBlock 的非零分支） ----
+	kn2 := m.NewFunction("cs_unwind", ctx.Fn(ctx.Void(), nil, false))
+	kn2.SetPersonality(pers)
+	e3 := kn2.NewBlock("entry")
+	c3 := kn2.NewBlock("cont")
+	disp2 := kn2.NewBlock("dispatch")
+	hnd2 := kn2.NewBlock("hnd")
+	cln := kn2.NewBlock("cleanup")
+	done2 := kn2.NewBlock("done")
+
+	b.MoveToEnd(e3)
+	b.Invoke[llvm.VoidT](h, nil, c3, disp2, "")
+	b.MoveToEnd(c3)
+	b.RetVoid()
+
+	b.MoveToEnd(disp2)
+	cs2 := b.CatchSwitch(nil, cln, "cs")
+	cs2.AddHandler(hnd2)
+	b.MoveToEnd(hnd2)
+	cp2 := b.CatchPad(cs2, nil, "cp")
+	b.CatchRet(cp2, done2)
+	b.MoveToEnd(done2)
+	b.RetVoid()
+
+	b.MoveToEnd(cln)
+	clp2 := b.CleanupPad(nil, nil, "clp")
+	b.CleanupRet(clp2, Block{})
+
 	if err := m.Verify(); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
 	got := m.String()
+	if !strings.Contains(got, "catchswitch within none [label %hnd] unwind label %cleanup") {
+		t.Fatalf("missing catchswitch unwind label:\n%s", got)
+	}
 	if !strings.Contains(got, "catchswitch within none [label %hnd] unwind to caller") {
 		t.Fatalf("missing catchswitch:\n%s", got)
 	}
