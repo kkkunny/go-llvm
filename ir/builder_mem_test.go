@@ -214,3 +214,33 @@ func TestBuilderAlignPrecheck(t *testing.T) {
 		t.Fatalf("non-power-of-two dst align should panic ErrInvalidArg, got %v", err)
 	}
 }
+
+func TestIsNullPtrDiff(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "t")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(ctx.Int(1), []llvm.AnyType{ctx.Ptr(0), ctx.Ptr(0)}, false))
+	blk := fn.NewBlock("entry")
+	b := NewBuilderAt(blk)
+	defer b.Close()
+
+	p := fn.ParamAs[llvm.PtrT](0)
+	q := fn.ParamAs[llvm.PtrT](1)
+	n := b.IsNull(p, "isnull")
+	d := b.PtrDiff(i32, p, q, "diff")
+	if d.IsNil() {
+		t.Fatalf("PtrDiff produced nil")
+	}
+	b.Ret(n)
+
+	got := m.String()
+	if !strings.Contains(got, "icmp eq ptr") {
+		t.Fatalf("IR missing icmp eq ptr:\n%s", got)
+	}
+	if !strings.Contains(got, "ptrtoint") {
+		t.Fatalf("IR missing ptrtoint:\n%s", got)
+	}
+}

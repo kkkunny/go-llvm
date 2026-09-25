@@ -153,6 +153,29 @@ func (b *Builder) PtrAdd(p llvm.ValueRef[llvm.PtrT], off llvm.ValueRef[llvm.IntT
 	return b.gep("ir.Builder.PtrAdd", b.i8Type(), p, []llvm.ValueRef[llvm.IntT]{off}, name, false)
 }
 
+// IsNull 判断值为 null（ptr/int 均可）
+func (b *Builder) IsNull(v llvm.AnyValue, name string) llvm.Value[llvm.IntT] {
+	const op = "ir.Builder.IsNull"
+	b.pre(op, coreAny(v))
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildIsNull(b.ref, v.Ref(), name))
+}
+
+// IsNotNull 判断值非 null
+func (b *Builder) IsNotNull(v llvm.AnyValue, name string) llvm.Value[llvm.IntT] {
+	const op = "ir.Builder.IsNotNull"
+	b.pre(op, coreAny(v))
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildIsNotNull(b.ref, v.Ref(), name))
+}
+
+// PtrDiff 两指针按 elem 元素大小的差值（结果种类由 LLVM 决定，为整数）
+func (b *Builder) PtrDiff(elem llvm.AnyType, l, r llvm.ValueRef[llvm.PtrT], name string) llvm.Value[llvm.IntT] {
+	const op = "ir.Builder.PtrDiff"
+	lv, rv := l.AsValue(), r.AsValue()
+	b.pre(op, core(lv), core(rv))
+	b.ctx.CheckType(op, elem)
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildPtrDiff(b.ref, elem.Ref(), lv.Ref(), rv.Ref(), name))
+}
+
 func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], idx []llvm.ValueRef[llvm.IntT], name string, inBounds bool) llvm.Value[llvm.PtrT] {
 	pv := p.AsValue()
 	b.pre(op, core(pv))

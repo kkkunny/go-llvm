@@ -119,3 +119,28 @@ func preCastTo[T llvm.Kind](op string, b *Builder, to llvm.TypeRef[T]) {
 		llvm.Panicf(llvm.ErrCrossContext, op, "target type belongs to another context")
 	}
 }
+
+// Freeze 冻结值（undef/poison 收敛为任意但稳定的值）
+func (b *Builder) Freeze[T llvm.Kind](v llvm.ValueRef[T], name string) llvm.Value[T] {
+	const op = "ir.Builder.Freeze"
+	vv := v.AsValue()
+	b.pre(op, core(vv))
+	return llvm.NewValue[T](b.ctx, b.inserted.life, binding.LLVMBuildFreeze(b.ref, vv.Ref(), name))
+}
+
+// AddrSpaceCast 地址空间转换
+func (b *Builder) AddrSpaceCast[U llvm.Kind](v llvm.AnyValue, to llvm.TypeRef[U], name string) llvm.Value[U] {
+	const op = "ir.Builder.AddrSpaceCast"
+	b.pre(op, coreAny(v))
+	preCastTo(op, b, to)
+	return llvm.NewValue[U](b.ctx, b.inserted.life, binding.LLVMBuildAddrSpaceCast(b.ref, v.Ref(), to.AsType().Ref(), name))
+}
+
+// IntCast 整数转换（按需 trunc/extend）；signed 决定扩展语义
+func (b *Builder) IntCast(v llvm.ValueRef[llvm.IntT], to llvm.IntType, signed bool, name string) llvm.Value[llvm.IntT] {
+	const op = "ir.Builder.IntCast"
+	vv := v.AsValue()
+	b.pre(op, core(vv))
+	preCastTo(op, b, to)
+	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildIntCast(b.ref, vv.Ref(), to.Ref(), signed, name))
+}

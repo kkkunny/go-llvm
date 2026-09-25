@@ -202,3 +202,15 @@ func TestConstVector(t *testing.T) {
 		t.Fatalf("elem type mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 }
+
+func TestUndefPoison(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+	i32 := ctx.Int(32)
+	if u := i32.Undef(); u.String() != "i32 undef" {
+		t.Fatalf("Undef = %s", u.String())
+	}
+	if p := i32.Poison(); p.String() != "i32 poison" {
+		t.Fatalf("Poison = %s", p.String())
+	}
+}

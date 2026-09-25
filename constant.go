@@ -104,6 +104,18 @@ func (t Type[T]) Zero() Value[T] {
 	return t.ctx.ConstZero(t)
 }
 
+// Undef 该类型的 undef 常量（角色经内嵌 Type[T] 自动继承）
+func (t Type[T]) Undef() Value[T] {
+	t.Check("llvm.Type.Undef")
+	return newValue[T](t.ctx, t.ctx.life, binding.LLVMGetUndef(t.ref))
+}
+
+// Poison 该类型的 poison 常量（角色经内嵌 Type[T] 自动继承）
+func (t Type[T]) Poison() Value[T] {
+	t.Check("llvm.Type.Poison")
+	return newValue[T](t.ctx, t.ctx.life, binding.LLVMGetPoison(t.ref))
+}
+
 // ConstString 构造字符串常量；nullTerminate 为 true 时末尾附加 \00
 func (ctx *Context) ConstString(s string, nullTerminate bool) Value[ArrayT] {
 	ctx.CheckAlive("llvm.Context.ConstString")
