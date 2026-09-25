@@ -53,3 +53,31 @@ func SetFastMath(inst llvm.AnyValue, f FastMath) {
 	}
 	binding.LLVMSetFastMathFlags(inst.Ref(), binding.LLVMFastMathFlags(f))
 }
+
+// NoWrap GEP 无回绕 flags 位掩码
+type NoWrap binding.LLVMGEPNoWrapFlags
+
+const (
+	NoWrapNone     = NoWrap(0)
+	NoWrapInBounds = NoWrap(binding.LLVMGEPFlagInBounds)
+	NoWrapNUSW     = NoWrap(binding.LLVMGEPFlagNUSW)
+	NoWrapNUW      = NoWrap(binding.LLVMGEPFlagNUW)
+)
+
+// GEPNoWrapOf 读取 GEP no-wrap flags
+func GEPNoWrapOf(v llvm.AnyValue) NoWrap {
+	const op = "ir.GEPNoWrapOf"
+	if v == nil || !v.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	return NoWrap(binding.LLVMGEPGetNoWrapFlags(v.Ref()))
+}
+
+// SetGEPNoWrap 设置 GEP no-wrap flags
+func SetGEPNoWrap(v llvm.AnyValue, f NoWrap) {
+	const op = "ir.SetGEPNoWrap"
+	if v == nil || !v.Alive() {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+	}
+	binding.LLVMGEPSetNoWrapFlags(v.Ref(), binding.LLVMGEPNoWrapFlags(f))
+}

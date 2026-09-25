@@ -41,3 +41,28 @@ func TestFastMathFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestGEPNoWrap(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "t")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(ctx.Ptr(0), []llvm.AnyType{ctx.Ptr(0)}, false))
+	blk := fn.NewBlock("entry")
+	b := NewBuilderAt(blk)
+	defer b.Close()
+
+	p := fn.ParamAs[llvm.PtrT](0)
+	g := b.GEPWithFlags(i32, p, []llvm.ValueRef[llvm.IntT]{ctx.ConstInt(i32, 1)}, NoWrapInBounds|NoWrapNUW, "g")
+	if got := GEPNoWrapOf(g); got&NoWrapInBounds == 0 || got&NoWrapNUW == 0 {
+		t.Fatalf("flags = %v", got)
+	}
+	SetGEPNoWrap(g, NoWrapInBounds)
+	// inbounds 蕴含 nusw，LLVM 会规范化 flags
+	if got := GEPNoWrapOf(g); got != NoWrapInBounds|NoWrapNUSW {
+		t.Fatalf("flags after set = %v, want inbounds|nusw", got)
+	}
+	b.Ret(g)
+}

@@ -2473,3 +2473,30 @@ func LLVMSetFastMathFlags(v LLVMValueRef, f LLVMFastMathFlags) {
 func LLVMCanValueUseFastMathFlags(v LLVMValueRef) bool {
 	return llvmBool2bool(C.LLVMCanValueUseFastMathFlags(v.c))
 }
+
+// LLVMGEPNoWrapFlags GEP no-wrap flags bitmask.
+type LLVMGEPNoWrapFlags uint32
+
+const (
+	LLVMGEPFlagInBounds LLVMGEPNoWrapFlags = C.LLVMGEPFlagInBounds
+	LLVMGEPFlagNUSW     LLVMGEPNoWrapFlags = C.LLVMGEPFlagNUSW
+	LLVMGEPFlagNUW      LLVMGEPNoWrapFlags = C.LLVMGEPFlagNUW
+)
+
+// LLVMGEPGetNoWrapFlags Get the no-wrap flags of a GEP instruction.
+func LLVMGEPGetNoWrapFlags(gep LLVMValueRef) LLVMGEPNoWrapFlags {
+	return LLVMGEPNoWrapFlags(C.LLVMGEPGetNoWrapFlags(gep.c))
+}
+
+// LLVMGEPSetNoWrapFlags Set the no-wrap flags of a GEP instruction.
+func LLVMGEPSetNoWrapFlags(gep LLVMValueRef, f LLVMGEPNoWrapFlags) {
+	C.LLVMGEPSetNoWrapFlags(gep.c, C.LLVMGEPNoWrapFlags(f))
+}
+
+// LLVMBuildGEPWithNoWrapFlags Create a getelementptr instruction with no-wrap flags.
+func LLVMBuildGEPWithNoWrapFlags(b LLVMBuilderRef, ty LLVMTypeRef, p LLVMValueRef, indices []LLVMValueRef, name string, f LLVMGEPNoWrapFlags) LLVMValueRef {
+	ptr, length := slice2Ptr[LLVMValueRef, C.LLVMValueRef](indices)
+	return string2CString(name, func(cs *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMBuildGEPWithNoWrapFlags(b.c, ty.c, p.c, ptr, C.unsigned(length), cs, C.LLVMGEPNoWrapFlags(f))}
+	})
+}

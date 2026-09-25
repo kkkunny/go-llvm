@@ -176,7 +176,16 @@ func (b *Builder) PtrDiff(elem llvm.AnyType, l, r llvm.ValueRef[llvm.PtrT], name
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, binding.LLVMBuildPtrDiff(b.ref, elem.Ref(), lv.Ref(), rv.Ref(), name))
 }
 
-func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], idx []llvm.ValueRef[llvm.IntT], name string, inBounds bool) llvm.Value[llvm.PtrT] {
+// GEPWithFlags 带 no-wrap flags 的 GEP（elem 为元素类型）
+func (b *Builder) GEPWithFlags(elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], idx []llvm.ValueRef[llvm.IntT], flags NoWrap, name string) llvm.Value[llvm.PtrT] {
+	const op = "ir.Builder.GEPWithFlags"
+	pv := b.gepPre(op, elem, p)
+	refs := b.gepRefs(op, idx)
+	return llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, binding.LLVMBuildGEPWithNoWrapFlags(b.ref, elem.Ref(), pv.Ref(), refs, name, binding.LLVMGEPNoWrapFlags(flags)))
+}
+
+// gepPre 校验指针与元素类型并返回指针值
+func (b *Builder) gepPre(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT]) llvm.Value[llvm.PtrT] {
 	pv := p.AsValue()
 	b.pre(op, core(pv))
 	if elem == nil {
@@ -185,7 +194,11 @@ func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], 
 	if elem.Context() != b.ctx {
 		llvm.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
 	}
-	// 调试层不复用 scratch（B4）
+	return pv
+}
+
+// gepRefs 校验下标并写入 scratch（调试层不复用 scratch，B4）
+func (b *Builder) gepRefs(op string, idx []llvm.ValueRef[llvm.IntT]) []binding.LLVMValueRef {
 	var refs []binding.LLVMValueRef
 	if !checks.Debug {
 		refs = b.refs[:0]
@@ -198,6 +211,12 @@ func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], 
 	if !checks.Debug {
 		b.refs = refs
 	}
+	return refs
+}
+
+func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], idx []llvm.ValueRef[llvm.IntT], name string, inBounds bool) llvm.Value[llvm.PtrT] {
+	pv := b.gepPre(op, elem, p)
+	refs := b.gepRefs(op, idx)
 	var ref binding.LLVMValueRef
 	if inBounds {
 		ref = binding.LLVMBuildInBoundsGEP(b.ref, elem.Ref(), pv.Ref(), refs, name)
