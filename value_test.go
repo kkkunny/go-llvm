@@ -3,6 +3,8 @@ package llvm
 import (
 	"strings"
 	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
 func TestValueTypeAndAs(t *testing.T) {
@@ -78,6 +80,78 @@ func TestValueOfDispatch(t *testing.T) {
 
 	if v := ValueOf(ctx, life, ctx.ConstFloat(ctx.Float(FloatDouble), 1.5).Ref()); v.Type().String() != "double" {
 		t.Fatalf("ValueOf float Type() = %q", v.Type().String())
+	}
+}
+
+func TestCheckValuesFloor(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+	i32 := ctx.Int(32)
+
+	// 跨 Context 值
+	other := NewContext()
+	defer other.Close()
+	if err := Catch(func() {
+		ctx.CheckValues("llvm.Test.CheckValues", other.ConstSInt(other.Int(32), 1))
+	}); err == nil || err.Reason != ErrCrossContext {
+		t.Fatalf("跨 Context 值应 panic ErrCrossContext, got %v", err)
+	}
+
+	// nil 句柄：公开 API 的 Ref 会先行拦截，这里直接走底层入口验证地板
+	if err := Catch(func() {
+		ctx.checkValueOwn("llvm.Test.CheckValues", binding.LLVMValueRef{}, nil, ctx)
+	}); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("nil 句柄应 panic ErrInvalidArg, got %v", err)
+	}
+
+	// 已关闭 Context：绕过 Ref 的重复校验，直接走底层入口
+	closed := NewContext()
+	cv := closed.ConstSInt(closed.Int(32), 1)
+	_ = closed.Close()
+	if err := Catch(func() {
+		closed.checkValueOwn("llvm.Test.CheckValues", cv.RawRef(), cv.Lifetime(), cv.Context())
+	}); err == nil || err.Reason != ErrUseAfterFree {
+		t.Fatalf("已关闭 Context 应 panic ErrUseAfterFree, got %v", err)
+	}
+
+	// 生命周期令牌已结束
+	life := NewLifetime()
+	lv := NewValue[IntT](ctx, life, i32.Const(1).RawRef())
+	life.Kill()
+	if err := Catch(func() {
+		ctx.checkValueOwn("llvm.Test.CheckValues", lv.RawRef(), life, lv.Context())
+	}); err == nil || err.Reason != ErrUseAfterFree {
+		t.Fatalf("生命周期结束后应 panic ErrUseAfterFree, got %v", err)
+	}
+}
+
+func TestValueCrashFloor(t *testing.T) {
+	// nil 句柄
+	var nilVal Value[DynT]
+	if err := Catch(func() { nilVal.Ref() }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("nil 值 Ref() 应 panic ErrInvalidArg, got %v", err)
+	}
+
+	ctx := NewContext()
+	defer ctx.Close()
+	ref := ctx.ConstSInt(ctx.Int(32), 1).RawRef()
+
+	// ctx 为 nil
+	if err := Catch(func() { (Value[IntT]{ref: ref}).Ref() }); err == nil || err.Reason != ErrUseAfterFree {
+		t.Fatalf("ctx 为 nil 的值 Ref() 应 panic ErrUseAfterFree, got %v", err)
+	}
+
+	// 生命周期令牌已结束
+	life := NewLifetime()
+	v := NewValue[IntT](ctx, life, ref)
+	life.Kill()
+	if err := Catch(func() { v.Ref() }); err == nil || err.Reason != ErrUseAfterFree {
+		t.Fatalf("生命周期结束后 Ref() 应 panic ErrUseAfterFree, got %v", err)
+	}
+
+	// MustAs 种类不符
+	if err := Catch(func() { ctx.ConstSInt(ctx.Int(32), 1).MustAs[FloatT]() }); err == nil || err.Reason != ErrTypeMismatch {
+		t.Fatalf("MustAs 种类不符应 panic ErrTypeMismatch, got %v", err)
 	}
 }
 

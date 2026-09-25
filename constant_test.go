@@ -89,6 +89,24 @@ func TestConstNullZero(t *testing.T) {
 	}
 }
 
+func TestTypeNull(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	if got := ctx.Int(32).Null().String(); got != "i32 0" {
+		t.Fatalf("IntType.Null() = %q", got)
+	}
+	if got := ctx.Ptr(0).Null().String(); got != "ptr null" {
+		t.Fatalf("PtrType.Null() = %q", got)
+	}
+	if got := ctx.Int(32).DynType().Null().Type().String(); got != "i32" {
+		t.Fatalf("Type[DynT].Null() 类型 = %q", got)
+	}
+	if got := ctx.Struct([]AnyType{ctx.Int(32), ctx.Int(64)}, false).Null().String(); !strings.Contains(got, "zeroinitializer") {
+		t.Fatalf("StructType.Null() = %q", got)
+	}
+}
+
 func TestConstString(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
@@ -136,6 +154,29 @@ func TestConstArrayStruct(t *testing.T) {
 	}
 	if got := ns.String(); !strings.HasSuffix(got, "{ i32 3, i32 4 }") {
 		t.Fatalf("ConstNamedStruct = %q", got)
+	}
+}
+
+func TestConstNamedStructMismatch(t *testing.T) {
+	requireDebug(t)
+
+	ctx := NewContext()
+	defer ctx.Close()
+	i32 := ctx.Int(32)
+	named := ctx.NamedStruct("Pair")
+	named.SetBody([]AnyType{i32, i32}, false)
+
+	// 元素个数不符
+	if err := Catch(func() {
+		ctx.ConstNamedStruct(named, ctx.ConstInt(i32, 1))
+	}); err == nil || err.Reason != ErrTypeMismatch {
+		t.Fatalf("元素个数不符应 panic ErrTypeMismatch, got %v", err)
+	}
+	// 元素类型不符
+	if err := Catch(func() {
+		ctx.ConstNamedStruct(named, ctx.ConstInt(i32, 1), ctx.ConstFloat(ctx.Float(FloatDouble), 1))
+	}); err == nil || err.Reason != ErrTypeMismatch {
+		t.Fatalf("元素类型不符应 panic ErrTypeMismatch, got %v", err)
 	}
 }
 

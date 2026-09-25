@@ -71,6 +71,51 @@ func TestContextOwnUnownSelective(t *testing.T) {
 	}
 }
 
+func TestContextDisown(t *testing.T) {
+	ctx := NewContext()
+	closed := false
+	ctx.Own(&closeRecorder{closed: &closed})
+	life := ctx.Lifetime()
+	if life == nil || life != ctx.Lifetime() || !life.Alive() {
+		t.Fatal("Lifetime 应返回同一存活的令牌")
+	}
+
+	ctx.Disown()
+	if !closed {
+		t.Fatal("Disown 应级联关闭未移交的子资源")
+	}
+	if ctx.Alive() || life.Alive() {
+		t.Fatal("Disown 后 Context 与令牌都应失效")
+	}
+	ctx.Disown() // 已移交后幂等
+	if err := ctx.Close(); err == nil || err.(*Error).Reason != ErrClosed {
+		t.Fatalf("Disown 后 Close 应为 ErrClosed, got %v", err)
+	}
+
+	// 已关闭的 Context 上 Disown 为 no-op
+	closedCtx := NewContext()
+	_ = closedCtx.Close()
+	closedCtx.Disown()
+}
+
+func TestContextSyncScopeID(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	// 同一名称在同一 Context 内应映射到同一 ID（LLVM-C 合约）
+	system := ctx.SyncScopeID("system")
+	if got := ctx.SyncScopeID("system"); got != system {
+		t.Fatalf("同名 scope 应返回同一 ID: %d vs %d", got, system)
+	}
+	custom := ctx.SyncScopeID("go-llvm-test-scope")
+	if got := ctx.SyncScopeID("go-llvm-test-scope"); got != custom {
+		t.Fatalf("同名 scope 应返回同一 ID: %d vs %d", got, custom)
+	}
+	if custom == system {
+		t.Fatalf("不同 scope 名不应共用 ID: %d", custom)
+	}
+}
+
 func TestTypeAliveCheck(t *testing.T) {
 	ctx := NewContext()
 	i32 := ctx.Int(32)

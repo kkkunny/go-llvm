@@ -2,6 +2,7 @@ package llvm
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 	"unsafe"
 )
@@ -121,6 +122,58 @@ func TestConstOf(t *testing.T) {
 	}
 }
 
+func TestTypeOfIntWidths(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	intTy := "i" + strconv.Itoa(strconv.IntSize)
+	cases := []struct {
+		name string
+		got  func() (Type[DynT], error)
+		want string
+	}{
+		{"int", func() (Type[DynT], error) { return TypeOf[int](ctx) }, intTy},
+		{"uint", func() (Type[DynT], error) { return TypeOf[uint](ctx) }, intTy},
+		{"uint16", func() (Type[DynT], error) { return TypeOf[uint16](ctx) }, "i16"},
+		{"uintptr", func() (Type[DynT], error) { return TypeOf[uintptr](ctx) }, intTy},
+	}
+	for _, c := range cases {
+		ty, err := c.got()
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got := ty.String(); got != c.want {
+			t.Fatalf("%s: got %q, want %q", c.name, got, c.want)
+		}
+	}
+
+	// 数组元素类型不支持时冒泡 ErrUnsupported
+	if _, err := TypeOf[[2]string](ctx); err == nil || err.(*Error).Reason != ErrUnsupported {
+		t.Fatalf("array of string should be unsupported, got %v", err)
+	}
+}
+
+func TestConstOfMoreKinds(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	if v, err := ConstOf(ctx, false); err != nil || v.String() != "i1 false" {
+		t.Fatalf("ConstOf(false) = %v, %v", v, err)
+	}
+	if v, err := ConstOf(ctx, uint16(7)); err != nil || v.String() != "i16 7" {
+		t.Fatalf("ConstOf(uint16) = %v, %v", v, err)
+	}
+
+	// 数组元素 / 结构体字段不支持时返回 ErrUnsupported
+	if _, err := ConstOf(ctx, [2]string{"a", "b"}); err == nil || err.(*Error).Reason != ErrUnsupported {
+		t.Fatalf("ConstOf([2]string) should be unsupported, got %v", err)
+	}
+	type badStruct struct{ S string }
+	if _, err := ConstOf(ctx, badStruct{S: "x"}); err == nil || err.(*Error).Reason != ErrUnsupported {
+		t.Fatalf("ConstOf(struct with string) should be unsupported, got %v", err)
+	}
+}
+
 func TestFnSignatureOf(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
@@ -155,5 +208,14 @@ func TestFnSignatureOf(t *testing.T) {
 	}
 	if _, _, err := FnSignatureOf[func(string)](ctx); err == nil || err.(*Error).Reason != ErrUnsupported {
 		t.Fatalf("unsupported param type should be unsupported, got %v", err)
+	}
+	if _, _, err := FnSignatureOf[func() string](ctx); err == nil || err.(*Error).Reason != ErrUnsupported {
+		t.Fatalf("unsupported return type should be unsupported, got %v", err)
+	}
+
+	// 第二次查询命中签名缓存
+	_, goTy2, err := FnSignatureOf[func(int32, float64) int32](ctx)
+	if err != nil || goTy2 != goTy {
+		t.Fatalf("cache hit = %v, %v", goTy2, err)
 	}
 }

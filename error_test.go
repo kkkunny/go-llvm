@@ -70,6 +70,15 @@ func TestTry(t *testing.T) {
 	}
 }
 
+func TestTryRethrowNonError(t *testing.T) {
+	defer func() {
+		if r := recover(); r != "boom" {
+			t.Fatalf("非 *Error panic 应原样重抛, got %v", r)
+		}
+	}()
+	_, _ = Try(func() int { panic("boom") })
+}
+
 func TestMustWrapsPlainError(t *testing.T) {
 	err := Catch(func() { Must(0, errors.New("boom")) })
 	if err == nil || err.Reason != ErrInternal {
@@ -82,6 +91,18 @@ func TestWrapErrorUnwrap(t *testing.T) {
 	got := WrapError(ErrJIT, "llvm.Test", base)
 	if !errors.Is(got, base) {
 		t.Fatal("wrapped error should unwrap to its cause")
+	}
+}
+
+func TestPanicf(t *testing.T) {
+	err := Catch(func() {
+		Panicf(ErrNotFound, "llvm.Test.Panicf", "missing %q", "x")
+	})
+	if err == nil {
+		t.Fatal("Panicf 应 panic *Error")
+	}
+	if err.Reason != ErrNotFound || err.Op != "llvm.Test.Panicf" || err.Msg != `missing "x"` {
+		t.Fatalf("unexpected error: %+v", err)
 	}
 }
 

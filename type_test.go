@@ -141,6 +141,177 @@ func TestTypeAsMismatch(t *testing.T) {
 	}
 }
 
+func TestTypeBridging(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	i32 := ctx.Int(32)
+	if i32.RawRef() != i32.Ref() {
+		t.Fatal("RawRef 应与 Ref 指向同一句柄")
+	}
+	nt := IntType{NewType[IntT](ctx, i32.RawRef())}
+	if nt.Bits() != 32 {
+		t.Fatalf("NewType[IntT] = %s", nt)
+	}
+
+	refs := AnyTypesToRefs([]AnyType{ctx.Int(32), ctx.Float(FloatDouble), ctx.Ptr(0)})
+	if len(refs) != 3 || refs[0] != i32.RawRef() {
+		t.Fatalf("AnyTypesToRefs = %v", refs)
+	}
+	if got := TypeOfRef(ctx, refs[1]).String(); got != "double" {
+		t.Fatalf("TypeOfRef(refs[1]) = %q", got)
+	}
+}
+
+func TestAsTypeRoles(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	if got := AsVoidType(ctx.Void()).String(); got != "void" {
+		t.Fatalf("AsVoidType = %q", got)
+	}
+	if got := AsIntType(ctx.Int(32)).Bits(); got != 32 {
+		t.Fatalf("AsIntType = %d", got)
+	}
+	if got := AsFloatType(ctx.Float(FloatSingle)).Kind(); got != FloatSingle {
+		t.Fatalf("AsFloatType = %v", got)
+	}
+	if got := AsPtrType(ctx.Ptr(0)).Addrspace(); got != 0 {
+		t.Fatalf("AsPtrType = %d", got)
+	}
+	st := ctx.Struct([]AnyType{ctx.Int(32)}, false)
+	if got := AsStructType(st).Elems(); len(got) != 1 || got[0].String() != "i32" {
+		t.Fatalf("AsStructType = %v", got)
+	}
+	if got := AsArrayType(ctx.Array(ctx.Int(8), 4)).Len(); got != 4 {
+		t.Fatalf("AsArrayType = %d", got)
+	}
+	if got := AsVecType(ctx.Vec(ctx.Int(8), 2)).Len(); got != 2 {
+		t.Fatalf("AsVecType = %d", got)
+	}
+	if AsFnType(ctx.Fn(ctx.Void(), nil, false)).IsVarArg() {
+		t.Fatal("AsFnType 应保留非变参签名")
+	}
+
+	// nil 类型与种类不符都应 panic
+	if err := Catch(func() { AsIntType(nil) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("AsIntType(nil) 应 panic ErrInvalidArg, got %v", err)
+	}
+	if err := Catch(func() { AsIntType(ctx.Float(FloatSingle)) }); err == nil || err.Reason != ErrTypeMismatch {
+		t.Fatalf("AsIntType(float) 应 panic ErrTypeMismatch, got %v", err)
+	}
+}
+
+func TestPtrTypeOpaque(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+	if !ctx.Ptr(0).IsOpaque() {
+		t.Fatal("LLVM 22 的指针类型应为不透明")
+	}
+}
+
+func TestTypeNilFloor(t *testing.T) {
+	var t0 Type[IntT]
+	if got := t0.String(); got != "<nil>" {
+		t.Fatalf("nil 类型 String() = %q", got)
+	}
+	if err := Catch(func() { t0.Ref() }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("nil 类型 Ref() 应 panic ErrInvalidArg, got %v", err)
+	}
+	if err := Catch(func() { t0.Check("llvm.Test.Type.Check") }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("nil 类型 Check() 应 panic ErrInvalidArg, got %v", err)
+	}
+
+	ctx := NewContext()
+	defer ctx.Close()
+	if err := Catch(func() { ctx.Float(FloatDouble).MustAs[IntT]() }); err == nil || err.Reason != ErrTypeMismatch {
+		t.Fatalf("MustAs 种类不符应 panic ErrTypeMismatch, got %v", err)
+	}
+	// 已释放 Context 上的类型句柄走同一地板
+	dead := NewContext()
+	ty := dead.Int(32)
+	_ = dead.Close()
+	if err := Catch(func() { ty.Ref() }); err == nil || err.Reason != ErrUseAfterFree {
+		t.Fatalf("已释放 Context 的类型应 panic ErrUseAfterFree, got %v", err)
+	}
+}
+
+func TestCheckTypeValidation(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	if err := Catch(func() { ctx.CheckType("llvm.Test.CheckType", nil) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("nil 类型应 panic ErrInvalidArg, got %v", err)
+	}
+	if err := Catch(func() { ctx.CheckType("llvm.Test.CheckType", Type[IntT]{}) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("nil 句柄应 panic ErrInvalidArg, got %v", err)
+	}
+
+	ctx2 := NewContext()
+	defer ctx2.Close()
+	if err := Catch(func() { ctx.CheckType("llvm.Test.CheckType", ctx2.Int(32)) }); err == nil || err.Reason != ErrCrossContext {
+		t.Fatalf("跨 Context 类型应 panic ErrCrossContext, got %v", err)
+	}
+}
+
+func TestFloatKinds(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	want := []struct {
+		kind FloatKind
+		str  string
+	}{
+		{FloatHalf, "half"},
+		{FloatBFloat, "bfloat"},
+		{FloatSingle, "float"},
+		{FloatDouble, "double"},
+		{FloatX86FP80, "x86_fp80"},
+		{FloatFP128, "fp128"},
+		{FloatPPCFP128, "ppc_fp128"},
+	}
+	for _, c := range want {
+		got := ctx.Float(c.kind)
+		if s := got.String(); s != c.str {
+			t.Errorf("Float(%v) = %q, want %q", c.kind, s, c.str)
+		}
+		if k := got.Kind(); k != c.kind {
+			t.Errorf("Float(%v).Kind() = %v", c.kind, k)
+		}
+	}
+	if err := Catch(func() { ctx.Float(FloatKind(99)) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("未知浮点种类应 panic ErrInvalidArg, got %v", err)
+	}
+}
+
+func TestKindOfTypeAndName(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	// metadata 值的内建类型应归类为 MetaT
+	if _, err := ctx.MDString("x").Value().Type().DynType().As[MetaT](); err != nil {
+		t.Fatalf("metadata 类型应归类为 MetaT: %v", err)
+	}
+	if _, err := ctx.Int(32).DynType().As[MetaT](); err == nil || err.(*Error).Reason != ErrTypeMismatch {
+		t.Fatalf("i32 不应归类为 MetaT, got %v", err)
+	}
+
+	// kindName 错误文本辅助：全部种类
+	cases := []struct {
+		kind Kind
+		want string
+	}{
+		{VoidT{}, "void"}, {IntT{}, "int"}, {FloatT{}, "float"}, {PtrT{}, "pointer"},
+		{StructT{}, "struct"}, {ArrayT{}, "array"}, {VecT{}, "vector"}, {FnT{}, "function"},
+		{LabelT{}, "label"}, {MetaT{}, "metadata"}, {TokenT{}, "token"}, {DynT{}, "dyn"},
+	}
+	for _, c := range cases {
+		if got := kindName(c.kind); got != c.want {
+			t.Errorf("kindName(%T) = %q, want %q", c.kind, got, c.want)
+		}
+	}
+}
+
 func TestTypeCrossContextPanic(t *testing.T) {
 	ctx1 := NewContext()
 	defer ctx1.Close()
