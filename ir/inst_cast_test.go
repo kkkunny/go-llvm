@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
@@ -177,7 +179,8 @@ func TestAsRoleConversions(t *testing.T) {
 	}
 }
 
-// TestTerminatorPrecheck 非条件终结指令/越界后继在调试构建下必须 panic。
+// TestTerminatorPrecheck 后继越界在调试构建下必须 panic；
+// 非终结指令与无条件终结指令的常开拒绝见 TestSuccessorOpsRejectNonTerminator 与 TestSwitchConditionAccess。
 func TestTerminatorPrecheck(t *testing.T) {
 	requireDebug(t)
 	ctx := llvm.NewContext()
@@ -193,20 +196,13 @@ func TestTerminatorPrecheck(t *testing.T) {
 	b := NewBuilderAt(entry)
 	defer b.Close()
 
-	cond := b.ICmp(llvm.IntEQ, fn.ParamAs[llvm.IntT](0), ctx.ConstInt(i32, 0), "c")
+	b.ICmp(llvm.IntEQ, fn.ParamAs[llvm.IntT](0), ctx.ConstInt(i32, 0), "c")
 	br := b.Br(then) // 无条件 br：只有 1 个后继
 	if IsConditional(br) {
 		t.Fatal("unconditional br should not be conditional")
 	}
 	if n := SuccessorCount(br); n != 1 {
 		t.Fatalf("successor count = %d, want 1", n)
-	}
-	// 注：非终结指令的拒绝路径见 TestSuccessorOpsRejectNonTerminator（此处 br 是终结指令）。
-	if err := llvm.Catch(func() { Condition(br) }); err == nil || err.Reason != llvm.ErrInvalidArg {
-		t.Fatalf("Condition on unconditional br should panic ErrInvalidArg, got %v", err)
-	}
-	if err := llvm.Catch(func() { SetCondition(br, cond) }); err == nil || err.Reason != llvm.ErrInvalidArg {
-		t.Fatalf("SetCondition on unconditional br should panic ErrInvalidArg, got %v", err)
 	}
 	if err := llvm.Catch(func() { Successor(br, 1) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("successor out of range should panic ErrInvalidArg, got %v", err)
@@ -271,6 +267,95 @@ func TestSuccessorOpsRejectNonTerminator(t *testing.T) {
 	}
 	if IsConditional(ret) {
 		t.Fatal("ret should not be conditional")
+	}
+}
+
+// TestSwitchConditionAccess 覆盖 switch 的条件访问：llvm-c/Core.h 明示
+// LLVMIsConditional/LLVMGetCondition/LLVMSetCondition 只支持 BranchInst，
+// switch 必须按操作码分流到操作数 0（LLVMGetOperand/LLVMSetOperand）。
+// 本用例不设 requireDebug，两种构建模式都验证。
+func TestSwitchConditionAccess(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "switchcond")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(ctx.Void(), []llvm.AnyType{i32}, false))
+	entry := fn.NewBlock("entry")
+	b := NewBuilderAt(entry)
+	defer b.Close()
+
+	cond := fn.ParamAs[llvm.IntT](0)
+
+	// 0 / 1 / 2 case 的 switch 条件都必须可读可替换
+	for n := 0; n <= 2; n++ {
+		head := fn.NewBlock(fmt.Sprintf("head%d", n))
+		def := fn.NewBlock(fmt.Sprintf("def%d", n))
+		b.MoveToEnd(head)
+		sw := b.Switch(cond, def)
+
+		b.MoveToEnd(def)
+		b.RetVoid()
+		for i := 0; i < n; i++ {
+			cb := fn.NewBlock(fmt.Sprintf("case%d_%d", n, i))
+			sw.AddCase(ctx.ConstInt(i32, uint64(i+1)), cb)
+			b.MoveToEnd(cb)
+			b.RetVoid()
+		}
+
+		if !IsConditional(sw) {
+			t.Errorf("%d case switch should be conditional", n)
+		}
+		if got := Condition(sw); got.String() != cond.String() {
+			t.Errorf("%d case switch condition = %s, want %s", n, got, cond)
+		}
+		want := ctx.ConstInt(i32, uint64(10+n))
+		SetCondition(sw, want)
+		if got := Condition(sw); got.String() != want.String() {
+			t.Errorf("%d case switch condition after SetCondition = %s, want %s", n, got, want)
+		}
+	}
+
+	// 无条件 br 与 ret：Condition/SetCondition 在两种构建模式下都必须 panic ErrInvalidArg
+	b.MoveToEnd(entry)
+	b.RetVoid()
+	brHead := fn.NewBlock("brhead")
+	brDest := fn.NewBlock("brdest")
+	b.MoveToEnd(brHead)
+	br := b.Br(brDest)
+	b.MoveToEnd(brDest)
+	ret := b.RetVoid()
+	for _, tc := range []struct {
+		name string
+		term llvm.AnyValue
+	}{
+		{"unconditional br", br},
+		{"ret", ret},
+	} {
+		if err := llvm.Catch(func() { Condition(tc.term) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+			t.Errorf("%s: Condition should panic ErrInvalidArg, got %v", tc.name, err)
+		}
+		if err := llvm.Catch(func() { SetCondition(tc.term, cond) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+			t.Errorf("%s: SetCondition should panic ErrInvalidArg, got %v", tc.name, err)
+		}
+	}
+	if IsConditional(br) {
+		t.Error("unconditional br should not be conditional")
+	}
+	if IsConditional(ret) {
+		t.Error("ret should not be conditional")
+	}
+
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	out := m.String()
+	for n := 0; n <= 2; n++ {
+		want := fmt.Sprintf("switch i32 %d, label %%def%d", 10+n, n)
+		if !strings.Contains(out, want) {
+			t.Errorf("module output missing %q:\n%s", want, out)
+		}
 	}
 }
 

@@ -137,24 +137,44 @@ func SetSuccessor(term llvm.AnyValue, i uint32, blk Block) {
 	binding.LLVMSetSuccessor(term.Ref(), i, blk.Ref())
 }
 
-// IsConditional 终结指令是否有条件（条件 br / switch）；非终结指令 panic（崩溃类地板，两种构建均生效）
+// IsConditional 终结指令是否有条件（条件 br 与 switch）；非终结指令 panic（崩溃类地板，两种构建均生效）。
+// LLVMIsConditional 只支持 br（llvm-c/Core.h），switch 恒为条件终结指令，其余终结指令恒为非条件，
+// 因此这里按操作码分流，绝不对非 br 调用 LLVM-C。
 func IsConditional(term llvm.AnyValue) bool {
 	const op = "ir.IsConditional"
 	requireTerminator(op, term)
-	return binding.LLVMIsConditional(term.Ref())
+	got, ok := OpOf(term)
+	if !ok {
+		return false
+	}
+	switch got {
+	case OpSwitch:
+		return true
+	case OpBr:
+		return binding.LLVMIsConditional(term.Ref())
+	default:
+		return false
+	}
 }
 
-// Condition 条件值；非终结指令 panic（崩溃类地板，两种构建均生效），非条件终结指令仅调试层 panic
+// Condition 条件值（条件 br 与 switch）；非条件终结指令 panic（崩溃类地板，两种构建均生效）。
+// LLVMGetCondition 只支持 br，switch 的条件是操作数 0（LLVMGetOperand）。
 func Condition(term llvm.AnyValue) llvm.Value[llvm.DynT] {
 	const op = "ir.Condition"
 	requireTerminator(op, term)
-	if checks.Debug && !IsConditional(term) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
+	got, ok := OpOf(term)
+	if ok && got == OpSwitch {
+		return llvm.ValueOf(term.Context(), term.Lifetime(), binding.LLVMGetOperand(term.Ref(), 0))
 	}
-	return llvm.ValueOf(term.Context(), term.Lifetime(), binding.LLVMGetCondition(term.Ref()))
+	if ok && got == OpBr && binding.LLVMIsConditional(term.Ref()) {
+		return llvm.ValueOf(term.Context(), term.Lifetime(), binding.LLVMGetCondition(term.Ref()))
+	}
+	llvm.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
+	return llvm.Value[llvm.DynT]{}
 }
 
-// SetCondition 替换条件值；非终结指令 panic（崩溃类地板，两种构建均生效），非条件终结指令仅调试层 panic
+// SetCondition 替换条件值（条件 br 与 switch）；非条件终结指令 panic（崩溃类地板，两种构建均生效）。
+// LLVMSetCondition 只支持 br，switch 的条件是操作数 0（LLVMSetOperand）。
 func SetCondition(term llvm.AnyValue, cond llvm.AnyValue) {
 	const op = "ir.SetCondition"
 	requireTerminator(op, term)
@@ -164,8 +184,14 @@ func SetCondition(term llvm.AnyValue, cond llvm.AnyValue) {
 	if term.Context() != cond.Context() {
 		llvm.Panicf(llvm.ErrCrossContext, op, "condition belongs to another context")
 	}
-	if checks.Debug && !IsConditional(term) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
+	got, ok := OpOf(term)
+	if ok && got == OpSwitch {
+		binding.LLVMSetOperand(term.Ref(), 0, cond.Ref())
+		return
 	}
-	binding.LLVMSetCondition(term.Ref(), cond.Ref())
+	if ok && got == OpBr && binding.LLVMIsConditional(term.Ref()) {
+		binding.LLVMSetCondition(term.Ref(), cond.Ref())
+		return
+	}
+	llvm.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
 }
