@@ -145,7 +145,10 @@ code, _ := j.RunMain([]string{"prog"})             // 按 main(argc, argv, envp)
 
 `Func[F]` / `MapFunc[F]` calls go through `reflect` + a fixed-signature C channel, so each call costs
 roughly 0.1–0.5 µs and one small allocation (slot arrays are pooled). Fetch the Go function value once
-and keep it. For hot loops, look the symbol up with `Lookup` and call the address from your own cgo
+and keep it. Debug builds verify `F` against the signature the JIT module declared for the symbol
+(before registering), so a mismatched signature panics as `ErrTypeMismatch` instead of running
+undefined behavior; the trust build (`-tags=llvm_release`) skips this and trusts the caller.
+For hot loops, look the symbol up with `Lookup` and call the address from your own cgo
 binding — note that a bare `unsafe.Pointer` cannot be called from pure Go without cgo or an
 assembly trampoline, so the escape hatch requires a cgo-enabled caller.
 

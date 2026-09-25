@@ -139,7 +139,11 @@
 2. **FnType 参数缓存未做**：调试层用 `LLVMGetParamTypes` 单次调用 + `Value.ty` 已把
    实参类型校验降到 1 次 cgo；`FnType` 全量缓存需要改所有构造路径，收益不足。
 3. **A2 打印前 Verify 移除**：见 §8；B5 已覆盖真正的代码生成边界。
-4. **B3 JIT 签名核对未做**：独立可裁剪项（设计第二期后段），当前 `Func[F]` 仍依赖调用方
-   保证签名。
+4. **B3 JIT 签名核对已完成（后续补充）**：调试构建在 `AddIRModule` 时记录模块内函数
+   签名（`name → LLVM 类型文本`，迭代用新增的 `LLVMGetFirstFunction/NextFunction`
+   binding；注意 LLVM 22 不透明指针下须用 `LLVMGetFunctionType` 而非 `LLVMTypeOf`），
+   `Func[F]`/`MapFunc[F]` 注册时对照 `FnSignatureOfGo` 的映射文本，不匹配 panic
+   `ErrTypeMismatch`；未知符号（`MapSymbol`/对象文件引入）跳过，不可过桥签名交由既有
+   错误路径。release 构建不记录、不核对，零成本。
 5. **异步/块级 Lifetime**：公开 API 无块删除路径，`prePosition` 用模块级令牌已足够；
    若未来暴露 `EraseBlock`，需补块专属令牌。

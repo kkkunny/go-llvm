@@ -511,6 +511,18 @@ func LLVMGetNamedFunction(m LLVMModuleRef, name string) LLVMValueRef {
 	})
 }
 
+// LLVMGetFirstFunction Obtain the first Function in a Module.
+// @see llvm::Module::begin()
+func LLVMGetFirstFunction(m LLVMModuleRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetFirstFunction(m.c)}
+}
+
+// LLVMGetNextFunction Advance to the next Function in a Module.
+// @see llvm::Module::iterator::operator++()
+func LLVMGetNextFunction(fn LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetNextFunction(fn.c)}
+}
+
 // LLVMGetNamedFunctionWithLength Obtain a Function value from a Module by its name.
 // The returned value corresponds to a llvm::Function value.
 // @see llvm::Module::getFunction()

@@ -23,6 +23,7 @@ func (j *LLJIT) Func[F any](name string) (F, error) {
 	if ft.Kind() != reflect.Func {
 		return zero, errBridge("not a function type: " + ft.String())
 	}
+	j.checkSymbolSig(op, name, ft)
 	e, err := j.adapterFor(ft)
 	if err != nil {
 		return zero, err
@@ -60,6 +61,7 @@ func (j *LLJIT) MapFunc[F any](name string, f F) error {
 	if ft.Kind() != reflect.Func {
 		return errBridge("not a function type: " + ft.String())
 	}
+	j.checkSymbolSig(op, name, ft)
 	if _, _, err := checkBridgeFunc(ft); err != nil {
 		return err
 	}

@@ -22,6 +22,10 @@ type LLJIT struct {
 	adapters    map[reflect.Type]*adapterEntry
 	channelOnce sync.Once
 	channelErr  error
+
+	sigMu      sync.Mutex              // 保护下方调试层签名核对表
+	symbolSigs map[string]string       // 调试层：JIT 符号 → LLVM 类型文本（B3）
+	goSigs     map[reflect.Type]string // 调试层：Go 签名 → LLVM 类型文本缓存
 }
 
 // NewLLJIT 创建面向宿主的目标 JIT；失败返回 ErrJIT
@@ -78,6 +82,9 @@ func (j *LLJIT) AddIRModule(mod *ir.Module) error {
 	const op = "jit.LLJIT.AddIRModule"
 	j.check(op)
 	mod.Check(op)
+	if checks.Debug {
+		j.recordModuleSigs(mod)
+	}
 	if checks.Debug {
 		if err := mod.Verify(); err != nil {
 			llvm.Panicf(llvm.ErrVerify, op, "module verification failed before JIT: %s", err)
