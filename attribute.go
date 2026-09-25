@@ -9,9 +9,11 @@ import (
 // AttrIndex 属性位置：返回值、函数本体或参数（参数从 0 起）
 type AttrIndex int32
 
+// AttrIndex 常量对应 LLVM 属性位置索引（binding.LLVMAttributeReturnIndex 等）。
+// 参数位置从 0 起（见 AttrParam），AttrReturn 对应返回值，AttrFunction 对应函数本体。
 const (
-	AttrReturn   AttrIndex = AttrIndex(binding.LLVMAttributeReturnIndex)
-	AttrFunction AttrIndex = AttrIndex(binding.LLVMAttributeFunctionIndex)
+	AttrReturn   AttrIndex = AttrIndex(binding.LLVMAttributeReturnIndex)   // 返回值属性位置（LLVM 索引 0）
+	AttrFunction AttrIndex = AttrIndex(binding.LLVMAttributeFunctionIndex) // 函数本体属性位置（LLVM 索引 -1）
 )
 
 // AttrParam 第 i 个参数（i 从 0 起）的属性位置
@@ -269,46 +271,48 @@ func (ctx *Context) SRetAttr(t AnyType) Attribute { return ctx.TypeAttr(AttrSRet
 // CallConv 调用约定
 type CallConv binding.LLVMCallConv
 
+// CallConv 取值对应 LLVM 调用约定（binding.LLVMCallConv），决定参数与返回值的传递方式
+// 以及寄存器保存规则；目标相关约定（x86/ARM/AVR/AMDGPU 等）只在相应后端上有效。
 const (
-	CallConvC             = CallConv(binding.LLVMCCallConv)
-	CallConvFast          = CallConv(binding.LLVMFastCallConv)
-	CallConvCold          = CallConv(binding.LLVMColdCallConv)
-	CallConvGHC           = CallConv(binding.LLVMGHCCallConv)
-	CallConvHiPE          = CallConv(binding.LLVMHiPECallConv)
-	CallConvAnyReg        = CallConv(binding.LLVMAnyRegCallConv)
-	CallConvPreserveMost  = CallConv(binding.LLVMPreserveMostCallConv)
-	CallConvPreserveAll   = CallConv(binding.LLVMPreserveAllCallConv)
-	CallConvSwift         = CallConv(binding.LLVMSwiftCallConv)
-	CallConvCXXFastTLS    = CallConv(binding.LLVMCXXFASTTLSCallConv)
-	CallConvX86StdCall    = CallConv(binding.LLVMX86StdcallCallConv)
-	CallConvX86FastCall   = CallConv(binding.LLVMX86FastcallCallConv)
-	CallConvARMAPCS       = CallConv(binding.LLVMARMAPCSCallConv)
-	CallConvARMAAPCS      = CallConv(binding.LLVMARMAAPCSCallConv)
-	CallConvARMAAPCSVFP   = CallConv(binding.LLVMARMAAPCSVFPCallConv)
-	CallConvMSP430INTR    = CallConv(binding.LLVMMSP430INTRCallConv)
-	CallConvX86ThisCall   = CallConv(binding.LLVMX86ThisCallCallConv)
-	CallConvPTXKernel     = CallConv(binding.LLVMPTXKernelCallConv)
-	CallConvPTXDevice     = CallConv(binding.LLVMPTXDeviceCallConv)
-	CallConvSPIRFunc      = CallConv(binding.LLVMSPIRFUNCCallConv)
-	CallConvSPIRKernel    = CallConv(binding.LLVMSPIRKERNELCallConv)
-	CallConvIntelOCLBI    = CallConv(binding.LLVMIntelOCLBICallConv)
-	CallConvX8664SysV     = CallConv(binding.LLVMX8664SysVCallConv)
-	CallConvWin64         = CallConv(binding.LLVMWin64CallConv)
-	CallConvX86VectorCall = CallConv(binding.LLVMX86VectorCallCallConv)
-	CallConvHHVM          = CallConv(binding.LLVMHHVMCallConv)
-	CallConvHHVMC         = CallConv(binding.LLVMHHVMCCallConv)
-	CallConvX86INTR       = CallConv(binding.LLVMX86INTRCallConv)
-	CallConvAVRINTR       = CallConv(binding.LLVMAVRINTRCallConv)
-	CallConvAVRSignal     = CallConv(binding.LLVMAVRSIGNALCallConv)
-	CallConvAVRBuiltin    = CallConv(binding.LLVMAVRBUILTINCallConv)
-	CallConvAMDGPUVS      = CallConv(binding.LLVMAMDGPUVSCallConv)
-	CallConvAMDGPUGS      = CallConv(binding.LLVMAMDGPUGSCallConv)
-	CallConvAMDGPUPS      = CallConv(binding.LLVMAMDGPUPSCallConv)
-	CallConvAMDGPUCS      = CallConv(binding.LLVMAMDGPUCSCallConv)
-	CallConvAMDGPUKernel  = CallConv(binding.LLVMAMDGPUKERNELCallConv)
-	CallConvX86RegCall    = CallConv(binding.LLVMX86RegCallCallConv)
-	CallConvAMDGPUHS      = CallConv(binding.LLVMAMDGPUHSCallConv)
-	CallConvMSP430Builtin = CallConv(binding.LLVMMSP430BUILTINCallConv)
-	CallConvAMDGPULS      = CallConv(binding.LLVMAMDGPULSCallConv)
-	CallConvAMDGPUES      = CallConv(binding.LLVMAMDGPUESCallConv)
+	CallConvC             = CallConv(binding.LLVMCCallConv)             // C 调用约定（LLVM 默认）
+	CallConvFast          = CallConv(binding.LLVMFastCallConv)          // fastcc：快速调用约定，尽量通过寄存器传递参数与返回值
+	CallConvCold          = CallConv(binding.LLVMColdCallConv)          // coldcc：冷路径调用约定，尽量减少被调用方对寄存器的破坏
+	CallConvGHC           = CallConv(binding.LLVMGHCCallConv)           // GHC 调用约定（Haskell GHC 运行时）
+	CallConvHiPE          = CallConv(binding.LLVMHiPECallConv)          // HiPE 调用约定（Erlang HiPE 运行时）
+	CallConvAnyReg        = CallConv(binding.LLVMAnyRegCallConv)        // anyregcc：允许值保存在任意寄存器中（供 patchpoint 等动态调用使用）
+	CallConvPreserveMost  = CallConv(binding.LLVMPreserveMostCallConv)  // preserve_mostcc：保留绝大多数寄存器，仅允许破坏传参与返回值所需寄存器
+	CallConvPreserveAll   = CallConv(binding.LLVMPreserveAllCallConv)   // preserve_allcc：除返回值所需外保留所有寄存器
+	CallConvSwift         = CallConv(binding.LLVMSwiftCallConv)         // swiftcc：Swift 语言调用约定
+	CallConvCXXFastTLS    = CallConv(binding.LLVMCXXFASTTLSCallConv)    // cxx_fast_tlscc：C++ 快速 TLS 访问函数（如 __tls_get_addr）的调用约定
+	CallConvX86StdCall    = CallConv(binding.LLVMX86StdcallCallConv)    // x86_stdcallcc：X86 stdcall，被调用方清栈
+	CallConvX86FastCall   = CallConv(binding.LLVMX86FastcallCallConv)   // x86_fastcallcc：X86 fastcall，前两个参数经 ECX/EDX 传递
+	CallConvARMAPCS       = CallConv(binding.LLVMARMAPCSCallConv)       // arm_apcscc：ARM APCS 调用约定（旧版）
+	CallConvARMAAPCS      = CallConv(binding.LLVMARMAAPCSCallConv)      // arm_aapcscc：ARM AAPCS 过程调用标准
+	CallConvARMAAPCSVFP   = CallConv(binding.LLVMARMAAPCSVFPCallConv)   // arm_aapcs_vfpcc：ARM AAPCS VFP，浮点参数经 VFP 寄存器传递
+	CallConvMSP430INTR    = CallConv(binding.LLVMMSP430INTRCallConv)    // msp430_intrcc：MSP430 中断处理调用约定
+	CallConvX86ThisCall   = CallConv(binding.LLVMX86ThisCallCallConv)   // x86_thiscallcc：X86 thiscall，this 指针经 ECX 传递
+	CallConvPTXKernel     = CallConv(binding.LLVMPTXKernelCallConv)     // ptx_kernel：PTX 内核入口调用约定
+	CallConvPTXDevice     = CallConv(binding.LLVMPTXDeviceCallConv)     // ptx_device：PTX 设备函数调用约定
+	CallConvSPIRFunc      = CallConv(binding.LLVMSPIRFUNCCallConv)      // spir_func：SPIR 函数调用约定（OpenCL 设备函数）
+	CallConvSPIRKernel    = CallConv(binding.LLVMSPIRKERNELCallConv)    // spir_kernel：SPIR 内核调用约定（OpenCL 内核入口）
+	CallConvIntelOCLBI    = CallConv(binding.LLVMIntelOCLBICallConv)    // intel_ocl_bicc：Intel OpenCL 内置函数调用约定
+	CallConvX8664SysV     = CallConv(binding.LLVMX8664SysVCallConv)     // x86_64_sysvcc：x86-64 System V ABI 调用约定
+	CallConvWin64         = CallConv(binding.LLVMWin64CallConv)         // win64cc：Windows x64 调用约定
+	CallConvX86VectorCall = CallConv(binding.LLVMX86VectorCallCallConv) // x86_vectorcallcc：X86 向量调用约定，向量参数经向量寄存器传递
+	CallConvHHVM          = CallConv(binding.LLVMHHVMCallConv)          // hhvmcc：HHVM 调用约定（已废弃的占位值）
+	CallConvHHVMC         = CallConv(binding.LLVMHHVMCCallConv)         // hhvm_ccc：HHVM C 调用约定（已废弃的占位值）
+	CallConvX86INTR       = CallConv(binding.LLVMX86INTRCallConv)       // x86_intrcc：X86 硬件中断处理调用约定
+	CallConvAVRINTR       = CallConv(binding.LLVMAVRINTRCallConv)       // avr_intrcc：AVR 中断处理调用约定
+	CallConvAVRSignal     = CallConv(binding.LLVMAVRSIGNALCallConv)     // avr_signalcc：AVR 信号处理调用约定
+	CallConvAVRBuiltin    = CallConv(binding.LLVMAVRBUILTINCallConv)    // AVR 运行时库内置函数调用约定（保留寄存器的优化约定）
+	CallConvAMDGPUVS      = CallConv(binding.LLVMAMDGPUVSCallConv)      // amdgpu_vs：AMDGPU 顶点着色器
+	CallConvAMDGPUGS      = CallConv(binding.LLVMAMDGPUGSCallConv)      // amdgpu_gs：AMDGPU 几何着色器
+	CallConvAMDGPUPS      = CallConv(binding.LLVMAMDGPUPSCallConv)      // amdgpu_ps：AMDGPU 像素（片元）着色器
+	CallConvAMDGPUCS      = CallConv(binding.LLVMAMDGPUCSCallConv)      // amdgpu_cs：AMDGPU 计算着色器
+	CallConvAMDGPUKernel  = CallConv(binding.LLVMAMDGPUKERNELCallConv)  // amdgpu_kernel：AMDGPU 内核入口
+	CallConvX86RegCall    = CallConv(binding.LLVMX86RegCallCallConv)    // x86_regcallcc：X86 register 调用约定（Intel regcall，尽量用寄存器传参）
+	CallConvAMDGPUHS      = CallConv(binding.LLVMAMDGPUHSCallConv)      // amdgpu_hs：AMDGPU 曲面细分控制（hull）着色器
+	CallConvMSP430Builtin = CallConv(binding.LLVMMSP430BUILTINCallConv) // MSP430 运行时库内置函数调用约定（使用额外寄存器的优化约定）
+	CallConvAMDGPULS      = CallConv(binding.LLVMAMDGPULSCallConv)      // amdgpu_ls：AMDGPU 局部着色器（启用曲面细分时的 AMDPAL 顶点着色器）
+	CallConvAMDGPUES      = CallConv(binding.LLVMAMDGPUESCallConv)      // amdgpu_es：AMDGPU 导出着色器（曲面细分时等价于评估着色器，否则为顶点着色器）
 )
