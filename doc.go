@@ -1,15 +1,30 @@
-// Package llvm 提供系统安装版 LLVM 的 Go 封装。
+// Package llvm provides Go bindings to a system-installed LLVM.
 //
-// 包布局：
+// This package holds the core vocabulary of the library: kinds, types, values, constants,
+// contexts, errors and lifetimes. IR construction, code generation, execution and
+// optimization live in the sub-packages.
 //
-//	llvm        核心词汇：Kind、Type[T]、Value[T]、常量、Context、错误与生命周期
-//	llvm/ir     IR 构建：Module、Function、Block、Builder、指令
-//	llvm/target 目标机器与代码生成
-//	llvm/jit    ORC LLJIT 执行引擎
-//	llvm/pass   优化管线
+// # Package layout
 //
-// 类型安全：值与类型以种类级泛型 Value[T]/Type[T] 表达，类别专属操作放在角色包装上
-// （如 IntType.Bits()、Alloca.SetAlign()）。
+//   - llvm: the core vocabulary — [Kind], [Type] and [Value], constants, [Context], error
+//     values and lifetimes.
+//   - [github.com/kkkunny/go-llvm/ir]: IR construction and inspection —
+//     [github.com/kkkunny/go-llvm/ir.Module], functions, blocks, builder and instructions.
+//   - [github.com/kkkunny/go-llvm/target]: target machines and code generation.
+//   - [github.com/kkkunny/go-llvm/jit]: ORC LLJIT execution engine.
+//   - [github.com/kkkunny/go-llvm/pass]: optimization pipelines.
 //
-// 错误处理：运行时可失败操作返回 error；程序员错误 panic(*Error)，可用 Catch 收敛。
+// # Type safety
+//
+// Types and values are expressed with kind-level generics, [Type] and [Value]: the type
+// parameter distinguishes categories such as integer, float, pointer, struct or function,
+// never bit widths or element types. Category-specific operations live on role wrappers that
+// embed the generic view, such as [IntType.Bits] or
+// [github.com/kkkunny/go-llvm/ir.Alloca.SetAlign]. [TypeRef] and [ValueRef] are implemented
+// by both the generic and the role form, so generic APIs accept either.
+//
+// # Error handling
+//
+// Recoverable runtime failures return an error. Programmer errors panic with an [Error];
+// recover such panics with [Catch], or use [Try] when a value is produced.
 package llvm
