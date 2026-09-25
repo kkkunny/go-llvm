@@ -1,25 +1,26 @@
 # Kaleidoscope
 
-用 [go-llvm](../../) 实现 LLVM 官方教程
+An implementation of the Kaleidoscope language from the official LLVM tutorial
 [My First Language Frontend](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html)
-的 Kaleidoscope 语言（功能覆盖到第 7 章：JIT 与优化），参考
-[inkwell 的同名示例](https://github.com/TheDan64/inkwell/tree/master/examples/kaleidoscope)。
+on top of [go-llvm](../../), covering the tutorial up to chapter 7 (JIT and
+optimization), modeled on
+[the inkwell example of the same name](https://github.com/TheDan64/inkwell/tree/master/examples/kaleidoscope).
 
-## 运行
+## Running
 
-需要已安装 LLVM 22（与库的要求一致），然后：
+Requires LLVM 22 (same requirement as the library), then:
 
 ```shell
 go run ./examples/kaleidoscope
 ```
 
-也可以直接求值单个表达式后退出：
+You can also evaluate a single expression and exit:
 
 ```shell
 go run ./examples/kaleidoscope -e '1 + 2 * 2'
 ```
 
-## 示例会话
+## Sample session
 
 ```text
 Kaleidoscope REPL（输入 exit 或 quit 退出）
@@ -36,18 +37,22 @@ Kaleidoscope REPL（输入 exit 或 quit 退出）
 ?> exit
 ```
 
-`for` 表达式的值恒为 0，示例里用 `putchard` 打印星号观察循环次数。
+(The REPL banner is printed in Chinese, meaning "enter exit or quit to
+leave".)
 
-## 命令行参数
+The value of a `for` expression is always 0; the sample uses `putchard` to
+print asterisks so that the number of iterations is visible.
 
-| 参数 | 含义 |
+## Command-line flags
+
+| Flag | Meaning |
 |---|---|
-| `-e <expr>` | 求值单个表达式后退出 |
-| `-dl` | 显示词法分析结果（token 流） |
-| `-dp` | 显示语法分析结果（AST） |
-| `-dc` | 显示生成的 LLVM IR |
+| `-e <expr>` | Evaluate a single expression and exit |
+| `-dl` | Dump the lexer output (token stream) |
+| `-dp` | Dump the parser output (AST) |
+| `-dc` | Dump the generated LLVM IR |
 
-例如：
+For example:
 
 ```shell
 $ go run ./examples/kaleidoscope -dl -dp -dc -e '1 + 2 * 2'
@@ -62,41 +67,46 @@ entry:
 => 5
 ```
 
-## 语言特性（对应教程章节）
+## Language features (tutorial chapters)
 
-| 教程章节 | 特性 | 示例 |
+| Tutorial chapter | Feature | Example |
 |---|---|---|
-| 1 | 词法分析与 REPL | `1 + 1` |
-| 2 | AST 与优先级解析 | `1 + 2 * 3` |
-| 3 | 数字与二元运算代码生成 | `10 / 4` |
-| 4 | 函数、`extern`、调用、`if/then/else` | `def fib(n) if n < 2 then n else fib(n - 1) + fib(n - 2)` |
-| 5 | `for/in` 循环、自定义 `binary`/`unary` 算符、赋值 | `def binary^ 40 (a, b) a * b` |
-| 7 | 顶层表达式 JIT 求值 + 优化管线 | `fib(40)` |
+| 1 | Lexing and the REPL | `1 + 1` |
+| 2 | AST and precedence parsing | `1 + 2 * 3` |
+| 3 | Codegen for numbers and binary operations | `10 / 4` |
+| 4 | Functions, `extern`, calls, `if/then/else` | `def fib(n) if n < 2 then n else fib(n - 1) + fib(n - 2)` |
+| 5 | `for/in` loops, custom `binary`/`unary` operators, assignment | `def binary^ 40 (a, b) a * b` |
+| 7 | Top-level expression JIT evaluation + optimization pipeline | `fib(40)` |
 
-`var a = 1, b in ...` 作用域同样支持。
+Scoping with `var a = 1, b in ...` is supported as well.
 
-## 实现说明
+## Implementation notes
 
-| 文件 | 职责 |
+| File | Responsibility |
 |---|---|
-| `lexer.go` | 词法分析 |
-| `parser.go` | 递归下降 + 优先级爬升解析 |
-| `compiler.go` | AST → `ir.Module`（Alloca/Load/Store、PHI、CondBr、自定义算符调用……） |
-| `session.go` | 会话状态：常驻 `jit.LLJIT`、历史定义、优化管线 |
-| `main.go` | 命令行与 REPL |
+| `lexer.go` | Lexing |
+| `parser.go` | Recursive descent + precedence climbing |
+| `compiler.go` | AST → `ir.Module` (Alloca/Load/Store, PHI, CondBr, custom operator calls, ...) |
+| `session.go` | Session state: the long-lived `jit.LLJIT`, historical definitions, optimization pipeline |
+| `main.go` | Command line and REPL |
 
-- 每次求值新建 `Context` + `ir.Module`，把历史定义和新函数一起重编译（对齐 inkwell），
-  经 `pass.RunPasses("instcombine,reassociate,gvn,simplifycfg,mem2reg")` 优化后，
-  用 `jit.ResourceTracker` 加入 JIT，求值完立即 `Remove()`（对应教程 LangImpl07 的
-  `addModule`/`removeModule`）。
-- `extern sin(x)` 之类声明由 `jit.LLJIT.AddProcessSymbols()` 解析到宿主进程符号；
-  `putchard`/`printd` 通过 `jit.LLJIT.MapFunc` 注册为 Go 回调。
-- 与 inkwell 的一处有意差异：同名 `def` 重定义会替换历史定义，而 inkwell 会在模块里
-  残留旧函数。
-- 未通过 `binary <op> <prec>` 声明的算符不能出现在二元位置（对齐官方教程；inkwell 会给
-  未注册算符默认优先级）。
+- Every evaluation creates a fresh `Context` + `ir.Module` and recompiles the
+  historical definitions together with the new function (matching inkwell);
+  after `pass.RunPasses("instcombine,reassociate,gvn,simplifycfg,mem2reg")`,
+  the module is added to the JIT via `jit.ResourceTracker` and `Remove()`d as
+  soon as evaluation finishes (corresponding to `addModule`/`removeModule` in
+  the tutorial's LangImpl07).
+- Declarations such as `extern sin(x)` are resolved to host process symbols by
+  `jit.LLJIT.AddProcessSymbols()`; `putchard`/`printd` are registered as Go
+  callbacks through `jit.LLJIT.MapFunc`.
+- One deliberate difference from inkwell: redefining a `def` with the same
+  name replaces the historical definition, whereas inkwell leaves the old
+  function behind in the module.
+- Operators not declared with `binary <op> <prec>` cannot appear in binary
+  position (matching the official tutorial; inkwell gives unregistered
+  operators a default precedence).
 
-## 测试
+## Tests
 
 ```shell
 go test ./examples/kaleidoscope
