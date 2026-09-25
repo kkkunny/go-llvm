@@ -42,7 +42,10 @@ func (m Metadata) IsString() bool {
 	return !binding.LLVMIsAMDString(m.Value().Ref()).IsNil()
 }
 
-// IsNode 是否 MDNode
+// IsNode 是否 MDNode。
+//
+// 注意：上游 LLVMIsAMDNode 对 ValueAsMetadata 也返回真，因此该判断不能单独用于排除
+// 值包装；需要真正的 MDNode 时须结合 [Metadata.IsValueAsMetadata]（为假才是节点）。
 func (m Metadata) IsNode() bool {
 	m.Check("llvm.Metadata.IsNode")
 	return !binding.LLVMIsAMDNode(m.Value().Ref()).IsNil()
@@ -94,7 +97,11 @@ func (ctx *Context) MDString(s string) Metadata {
 	return Metadata{ref: binding.LLVMMDStringInContext2(ctx.ref, s), ctx: ctx}
 }
 
-// MDNode 构造 MDNode；元素须属于同一 Context
+// MDNode 构造 MDNode；元素须属于同一 Context。
+//
+// 注意：elems 只有一个 ValueAsMetadata 元素（经 [Context.ValueAsMetadata] 包装）时，
+// LLVM 直接返回该 ValueAsMetadata 而非节点，其 [Metadata.String] 形如 `i32 3` 而不是
+// `!{...}`；需要真正的节点时请传 ≥2 个元素。
 func (ctx *Context) MDNode(elems ...Metadata) Metadata {
 	const op = "llvm.Context.MDNode"
 	ctx.CheckAlive(op)

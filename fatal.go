@@ -16,7 +16,11 @@ func ResetFatalErrorHandler() {
 	binding.LLVMResetFatalErrorHandler()
 }
 
-// EnablePrettyStackTrace 启用 LLVM 内建堆栈跟踪
+// EnablePrettyStackTrace 启用 LLVM 内建堆栈跟踪。
+//
+// 警告：该 API 会安装 LLVM 崩溃信号处理器，与 Go runtime 用于栈增长的 SIGSEGV 冲突；
+// 实测调用后进程会在栈增长时崩溃（runtime: split stack overflow），普通 Go 程序与
+// 测试中不要调用。
 func EnablePrettyStackTrace() {
 	binding.LLVMEnablePrettyStackTrace()
 }

@@ -110,7 +110,10 @@ func (ctx *Context) Disown() {
 // Ref 返回底层句柄（供 llvm/* 子包桥接使用）
 func (ctx *Context) Ref() binding.LLVMContextRef { return ctx.ref }
 
-// SyncScopeID 按名查询 sync scope ID（"system" 恒为 0；未注册的名字由 LLVM 分配新 ID）
+// SyncScopeID 按名查询 sync scope ID。
+//
+// 常见作用域名（如 "system"、"singlethread"）由 LLVM 固定识别，但对应 ID 的具体数值
+// 属 LLVM 内部约定，不同版本可能不同，勿硬编码；未注册的名字由 LLVM 分配新 ID。
 func (ctx *Context) SyncScopeID(name string) uint32 {
 	ctx.CheckAlive("llvm.Context.SyncScopeID")
 	return binding.LLVMGetSyncScopeID(ctx.ref, name)
