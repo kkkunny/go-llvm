@@ -1,6 +1,10 @@
-// Package pass 提供优化管线执行入口（PassBuilder），不定义 pass 本身。
+// Package pass runs optimization pipelines through LLVM's PassBuilder; it does not define
+// passes itself.
 //
-// 依赖方向：llvm/ir ← llvm/pass（pass 不反向被 ir 依赖）。
+// [RunPasses] and [RunPassesOnFunction] take pipelines in the opt -passes syntax, such as
+// "default<O2>" or "function(instcombine)"; [AutoOpt] runs the default pipeline for an
+// optimization [Level]. The dependency direction is one-way: this package depends on
+// [github.com/kkkunny/go-llvm/ir], never the reverse.
 package pass
 
 import (
