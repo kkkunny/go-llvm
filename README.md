@@ -134,6 +134,7 @@ target.InitNative()
 j, _ := jit.NewLLJIT()
 defer j.Close()
 
+_ = j.AddProcessSymbols()                          // 进程符号（libc/libm 等）可被 JIT 内 extern 声明解析
 _ = j.AddIRModule(module)                          // 模块与 Context 所有权移交 JIT
 fib, _ := j.Func[func(int32) int32]("fib")         // 真实 Go 函数值
 fmt.Println(fib(10))
@@ -151,6 +152,23 @@ undefined behavior; the trust build (`-tags=llvm_release`) skips this and trusts
 For hot loops, look the symbol up with `Lookup` and call the address from your own cgo
 binding — note that a bare `unsafe.Pointer` cannot be called from pure Go without cgo or an
 assembly trampoline, so the escape hatch requires a cgo-enabled caller.
+
+`AddProcessSymbols` installs a `DynamicLibrarySearchGenerator` on the main JITDylib, so IR that
+only declares a function (e.g. `extern double sin(double)`) resolves against the host process at
+materialization time. Call it before `AddIRModule`.
+
+### Kaleidoscope example
+
+[`examples/kaleidoscope`](examples/kaleidoscope) is a runnable implementation of the LLVM
+tutorial's Kaleidoscope language (up to chapter 7: JIT and optimization), built entirely on
+this library's public API — lexer, Pratt parser, `ir` codegen, `pass` optimization pipeline,
+and `jit.LLJIT` + `ResourceTracker` execution. Run it with:
+
+```shell
+go run ./examples/kaleidoscope          # REPL
+go run ./examples/kaleidoscope -e '1 + 2 * 2'
+go run ./examples/kaleidoscope -dl -dp -dc -e '1 + 2 * 2'   # dump tokens/AST/IR
+```
 
 ### Non-standard LLVM prefixes
 
