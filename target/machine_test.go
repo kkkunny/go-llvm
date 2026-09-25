@@ -1,6 +1,7 @@
 package target
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,6 +100,72 @@ func TestTargetMachineEmit(t *testing.T) {
 	}
 }
 
+// TestTargetMachineCPUFeatures 验证建机时传入的 CPU/特性串可原样回读
+func TestTargetMachineCPUFeatures(t *testing.T) {
+	ctx, m, tm := newMachineModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer tm.Close()
+
+	// newMachineModule 以宿主 CPU/特性建机，回读应一致
+	if got, want := tm.CPU(), HostCPUName(); got != want {
+		t.Fatalf("CPU() = %q, want %q", got, want)
+	}
+	if got, want := tm.Features(), HostCPUFeatures(); got != want {
+		t.Fatalf("Features() = %q, want %q", got, want)
+	}
+}
+
+// TestTargetMachineSetAsmVerbosity 验证汇编详细模式确实改变汇编产物，且可关闭恢复
+func TestTargetMachineSetAsmVerbosity(t *testing.T) {
+	ctx, m, tm := newMachineModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer tm.Close()
+
+	plain, err := tm.Emit(m, AsmFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer plain.Close()
+
+	// 打开详细汇编：产物应带有块注释等额外信息
+	tm.SetAsmVerbosity(true)
+	verbose, err := tm.Emit(m, AsmFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer verbose.Close()
+	if bytes.Equal(plain.Bytes(), verbose.Bytes()) {
+		t.Fatal("verbose asm output should differ from the default output")
+	}
+
+	// 关闭后应恢复默认产物
+	tm.SetAsmVerbosity(false)
+	restored, err := tm.Emit(m, AsmFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restored.Close()
+	if !bytes.Equal(plain.Bytes(), restored.Bytes()) {
+		t.Fatal("asm output should return to the default after disabling verbosity")
+	}
+}
+
+// TestTargetMachineEmitToFileError 输出路径不可写时返回 ErrCodeGen（而非崩溃或静默成功）
+func TestTargetMachineEmitToFileError(t *testing.T) {
+	ctx, m, tm := newMachineModule(t)
+	defer ctx.Close()
+	defer m.Close()
+	defer tm.Close()
+
+	// 父目录不存在：打开输出文件失败
+	bad := filepath.Join(t.TempDir(), "no-such-dir", "m.s")
+	if err := tm.EmitToFile(m, bad, AsmFile); err == nil || err.(*llvm.Error).Reason != llvm.ErrCodeGen {
+		t.Fatalf("emit to unwritable path should return ErrCodeGen, got %v", err)
+	}
+}
+
 func TestTargetMachineChecks(t *testing.T) {
 	ctx, m, tm := newMachineModule(t)
 	defer ctx.Close()
@@ -120,5 +187,15 @@ func TestTargetMachineChecks(t *testing.T) {
 	}
 	if err := llvm.Catch(func() { tm.Triple() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("use after close should panic ErrUseAfterFree, got %v", err)
+	}
+	// 释放后 CPU/Features/SetAsmVerbosity 均须在触碰句柄前拦截
+	for name, fn := range map[string]func(){
+		"CPU":             func() { tm.CPU() },
+		"Features":        func() { tm.Features() },
+		"SetAsmVerbosity": func() { tm.SetAsmVerbosity(true) },
+	} {
+		if err := llvm.Catch(fn); err == nil || err.Reason != llvm.ErrUseAfterFree {
+			t.Fatalf("%s after close should panic ErrUseAfterFree, got %v", name, err)
+		}
 	}
 }

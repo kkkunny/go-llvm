@@ -2,6 +2,7 @@ package jit
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
@@ -105,6 +106,64 @@ func TestLLJITFuncFloatsAndPointers(t *testing.T) {
 	}
 	if got := scale(1.5, 4); got != 6 {
 		t.Fatalf("scale(1.5, 4) = %v", got)
+	}
+}
+
+// TestSlotToPtr 槽位位模式与指针互转：非零槽位保持地址，零槽位得到 nil
+func TestSlotToPtr(t *testing.T) {
+	v := 42
+	p := unsafe.Pointer(&v)
+	if got := slotToPtr(uint64(uintptr(p))); got != p {
+		t.Fatalf("slotToPtr round trip: got %p, want %p", got, p)
+	}
+	if got := slotToPtr(0); got != nil {
+		t.Fatalf("slotToPtr(0) = %p, want nil", got)
+	}
+}
+
+// TestLLJITPointerBridge 指针经桥的完整往返：Go 实参 → JIT → Go 回调 → JIT → 返回值，
+// 覆盖槽位与指针互转及指针身份的保持
+func TestLLJITPointerBridge(t *testing.T) {
+	j := newJIT(t)
+	defer j.Close()
+
+	// native→Go 方向：回调把收到的指针原样返回
+	if err := j.MapFunc("go_ptr_id", func(p unsafe.Pointer) unsafe.Pointer { return p }); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := llvm.NewContext()
+	m := ir.NewModule(ctx, "ptr_bridge")
+	ptr := ctx.Ptr(0)
+	decl := m.NewFunction("go_ptr_id", ctx.Fn(ptr, []llvm.AnyType{ptr}, false))
+	fn := m.NewFunction("echo_ptr", ctx.Fn(ptr, []llvm.AnyType{ptr}, false))
+	b := ir.NewBuilder(ctx)
+	b.MoveToEnd(fn.NewBlock("entry"))
+	b.Ret(b.Call[llvm.PtrT](decl.Value, []llvm.AnyValue{fn.ParamAs[llvm.PtrT](0).Dyn()}, "").Value)
+	if err := b.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := j.AddIRModule(m); err != nil {
+		t.Fatal(err)
+	}
+
+	echo, err := j.Func[func(unsafe.Pointer) unsafe.Pointer]("echo_ptr")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v := int32(1234)
+	got := echo(unsafe.Pointer(&v))
+	if got != unsafe.Pointer(&v) {
+		t.Fatalf("echo_ptr(&v) = %p, want %p", got, unsafe.Pointer(&v))
+	}
+	if *(*int32)(got) != 1234 {
+		t.Fatalf("echo_ptr(&v) deref = %d, want 1234", *(*int32)(got))
+	}
+
+	// 空指针往返仍为 nil
+	if got := echo(nil); got != nil {
+		t.Fatalf("echo_ptr(nil) = %p, want nil", got)
 	}
 }
 

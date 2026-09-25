@@ -53,3 +53,28 @@ func TestInitUnknownArch(t *testing.T) {
 		t.Fatalf("unknown arch should panic ErrInvalidArg, got %v", err)
 	}
 }
+
+// TestTargetRefAndHasJIT 验证 Ref 暴露的底层句柄指向全局唯一的目标描述
+func TestTargetRefAndHasJIT(t *testing.T) {
+	InitNative()
+
+	native, err := NativeTarget()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if native.Ref().IsNil() {
+		t.Fatal("Ref should return a non-nil handle")
+	}
+	// 同一三元组重复查询应得到同一目标描述句柄
+	again, err := FromTriple(DefaultTriple())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if native.Ref() != again.Ref() {
+		t.Fatalf("Ref handles should be identical for %q", DefaultTriple())
+	}
+	// 宿主目标是 LLJIT 的基础，必须支持 JIT
+	if !native.HasJIT() {
+		t.Fatalf("native target %q should support JIT", native.Name())
+	}
+}
