@@ -184,7 +184,10 @@ func SetParamAlign(inst llvm.AnyValue, i uint32, align uint32) {
 	binding.LLVMSetInstrParamAlignment(inst.Ref(), i+1, align) // LLVM-C 索引 1-based，0 为返回值
 }
 
-// SyncScopeOf 读取原子指令的 sync scope ID（0 = system）
+// SyncScopeOf 读取原子指令的 sync scope ID。
+//
+// ID 由 LLVM 分配，常见作用域名（如 "system"、"singlethread"）的对应数值属 LLVM 内部
+// 约定，勿硬编码；按名查询 ID 用 [llvm.Context.SyncScopeID]。
 func SyncScopeOf(inst llvm.AnyValue) uint32 {
 	const op = "ir.SyncScopeOf"
 	if inst == nil || !inst.Alive() {
