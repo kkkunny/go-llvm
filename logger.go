@@ -21,13 +21,12 @@ func logf(format string, args ...any) {
 
 // defaultDiagnosticHandler 默认诊断回调：把 LLVM 默认 handler 的进程退出/abort
 // 变为可观测的日志（回调可能由任意 goroutine 触发，禁止 panic）。
+// remark/note 属提示信息（量可能很大），不输出。
 func defaultDiagnosticHandler(severity DiagnosticSeverity, msg string) {
 	switch severity {
 	case DiagnosticError:
 		logf("llvm error: %s", msg)
 	case DiagnosticWarning:
 		logf("llvm warning: %s", msg)
-	default:
-		logf("llvm diagnostic: %s", msg)
 	}
 }
