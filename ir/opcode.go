@@ -11,8 +11,8 @@ import (
 type Op binding.LLVMOpcode
 
 // Op 取值对应 LLVM 指令操作码（binding.LLVMOpcode）；每个取值对应 LangRef 中的一类指令，
-// OpUserOp1/OpUserOp2 除外（保留给 pass 内部使用）。未知操作码不会 panic：
-// String 输出 op<N>，角色转换（AsLoad 等）返回 false，按项目约定退化为不透明的 Value[DynT]。
+// OpUserOp1/OpUserOp2 除外（保留给 pass 内部使用）。未知操作码不会 panic：String 输出 op<N>，
+// 角色转换（AsLoad 等）返回 false，随后以不透明的 Value[DynT] 处理。
 const (
 	OpRet            = Op(binding.LLVMRet)            // 从函数返回
 	OpBr             = Op(binding.LLVMBr)             // 无条件或条件分支
@@ -31,11 +31,11 @@ const (
 	OpSDiv           = Op(binding.LLVMSDiv)           // 有符号整数除法（除零或 INT_MIN/-1 为未定义行为，可带 exact）
 	OpFDiv           = Op(binding.LLVMFDiv)           // 浮点除法
 	OpURem           = Op(binding.LLVMURem)           // 无符号整数取余（除零为未定义行为）
-	OpSRem           = Op(binding.LLVMSRem)           // 有符号整数取余（结果符号与被除数一致）
+	OpSRem           = Op(binding.LLVMSRem)           // 有符号整数取余（结果符号与被除数一致；除零或 INT_MIN % -1 为未定义行为）
 	OpFRem           = Op(binding.LLVMFRem)           // 浮点取余（fmod 语义，结果符号与被除数一致）
-	OpShl            = Op(binding.LLVMShl)            // 左移：低位补 0
-	OpLShr           = Op(binding.LLVMLShr)           // 逻辑右移：高位补 0
-	OpAShr           = Op(binding.LLVMAShr)           // 算术右移：高位补符号位
+	OpShl            = Op(binding.LLVMShl)            // 左移：低位补 0；移位量不小于位宽时得 poison
+	OpLShr           = Op(binding.LLVMLShr)           // 逻辑右移：高位补 0；移位量不小于位宽时得 poison
+	OpAShr           = Op(binding.LLVMAShr)           // 算术右移：高位补符号位；移位量不小于位宽时得 poison
 	OpAnd            = Op(binding.LLVMAnd)            // 按位与
 	OpOr             = Op(binding.LLVMOr)             // 按位或
 	OpXor            = Op(binding.LLVMXor)            // 按位异或
@@ -74,8 +74,8 @@ const (
 	OpAtomicRMW      = Op(binding.LLVMAtomicRMW)      // 原子读改写：返回修改前的旧值
 	OpResume         = Op(binding.LLVMResume)         // 恢复异常的栈展开（终结指令）
 	OpLandingPad     = Op(binding.LLVMLandingPad)     // 异常着陆点：unwind 进入本块时的首指令（旧式 EH）
-	OpCleanupRet     = Op(binding.LLVMCleanupRet)     // 从 cleanup pad 返回（WinEH 终结指令）
-	OpCatchRet       = Op(binding.LLVMCatchRet)       // 从 catch pad 返回并跳转到普通基本块（WinEH 终结指令）
+	OpCleanupRet     = Op(binding.LLVMCleanupRet)     // 退出 cleanup pad（WinEH 终结指令）
+	OpCatchRet       = Op(binding.LLVMCatchRet)       // 离开 catch pad 并跳转到普通基本块（WinEH 终结指令）
 	OpCatchPad       = Op(binding.LLVMCatchPad)       // WinEH catch 结构的入口 pad
 	OpCleanupPad     = Op(binding.LLVMCleanupPad)     // WinEH cleanup 结构的入口 pad
 	OpCatchSwitch    = Op(binding.LLVMCatchSwitch)    // WinEH 终结指令：把异常分派给一组 handler pad

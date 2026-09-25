@@ -52,11 +52,11 @@ func main() {
 	n := fib.ParamAs[llvm.IntT](0)
 	b.CondBr(b.ICmp(llvm.IntSLT, n, i32.Const(2), "cmp"), base, recurse)
 
-	// base: return n
+	// base：返回 n
 	b.MoveToEnd(base)
 	b.Ret(n)
 
-	// recurse: return fib(n-1) + fib(n-2)
+	// recurse：返回 fib(n-1) + fib(n-2)
 	b.MoveToEnd(recurse)
 	n1 := b.Sub(n, i32.Const(1), "n1")
 	f1 := b.Call[llvm.IntT](fib, []llvm.AnyValue{n1.Dyn()}, "f1").Value

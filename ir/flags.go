@@ -17,7 +17,7 @@ const (
 	FastMathAllowReassoc    = FastMath(binding.LLVMFastMathAllowReassoc)    // 允许重结合：浮点运算可按代数等价的方式重新结合
 	FastMathNoNaNs          = FastMath(binding.LLVMFastMathNoNaNs)          // 假设无 NaN：操作数为 NaN 或结果本应为 NaN 时得到 poison
 	FastMathNoInfs          = FastMath(binding.LLVMFastMathNoInfs)          // 假设无无穷大：操作数为 ±Inf 或结果本应为 ±Inf 时得到 poison
-	FastMathNoSignedZeros   = FastMath(binding.LLVMFastMathNoSignedZeros)   // 忽略零的符号：±0.0 的符号位可被非确定地翻转
+	FastMathNoSignedZeros   = FastMath(binding.LLVMFastMathNoSignedZeros)   // 忽略零的符号（nsz）：允许优化将零参数或结果的符号视为无关紧要
 	FastMathAllowReciprocal = FastMath(binding.LLVMFastMathAllowReciprocal) // 允许用倒数近似除法：a/b 可改写为 a*(1/b)
 	FastMathAllowContract   = FastMath(binding.LLVMFastMathAllowContract)   // 允许收缩：乘法与加法可融合为乘加（FMA），但不做重结合
 	FastMathApproxFunc      = FastMath(binding.LLVMFastMathApproxFunc)      // 允许近似函数：sin/log/sqrt 等可替换为近似计算

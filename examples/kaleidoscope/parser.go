@@ -125,7 +125,7 @@ type ParseError struct {
 	Pos int
 }
 
-// Error 返回语法错误消息，格式为 "<Msg> (at token <Pos>)"，Pos 为出错 token 在 token 流中的下标。
+// Error 返回语法错误消息，格式为 "<Msg> (at token <Pos>)"，Pos 为出错 token 在（去注释后的）token 流中的下标。
 func (e *ParseError) Error() string { return fmt.Sprintf("%s (at token %d)", e.Msg, e.Pos) }
 
 // Parser 递归下降 + 优先级爬升解析器

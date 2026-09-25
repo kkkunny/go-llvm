@@ -9,7 +9,7 @@ import (
 type Arch uint8
 
 // Arch 取值对应 LLVM 内置的目标架构（LLVM target backend）；各架构可用的组件
-// （info/target/MC/asm printer/asm parser/disassembler）见 archInits。
+// （info/target/MC/asm printer/asm parser/disassembler）由包内初始化表决定。
 const (
 	AArch64     Arch = iota // ARM 64 位架构
 	AMDGPU                  // AMD GPU 架构
@@ -17,7 +17,7 @@ const (
 	AVR                     // Atmel AVR 8 位微控制器架构
 	BPF                     // eBPF 架构（Linux 内核可编程字节码）
 	Hexagon                 // Qualcomm Hexagon DSP 架构
-	Lanai                   // Google Lanai 架构
+	Lanai                   // Lanai 架构（Google 内部使用的 32 位处理器）
 	LoongArch               // 龙芯 LoongArch 架构
 	Mips                    // MIPS 架构
 	MSP430                  // 德州仪器 MSP430 16 位微控制器架构

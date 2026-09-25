@@ -8,7 +8,7 @@ import (
 // TokenKind 词法单元种类
 type TokenKind int
 
-// TokenKind 的取值：教程语言的关键字、字面量、算符、标点与注释各占一种。
+// TokenKind 的取值分属五类：关键字、字面量、算符、标点与注释。
 const (
 	TokEOF     TokenKind = iota // 输入结束（token 流末尾的哨兵）
 	TokDef                      // 关键字 def

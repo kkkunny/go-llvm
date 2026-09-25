@@ -150,7 +150,7 @@ func ExampleModule_Verify() {
 }
 
 // ExampleParseIRString 演示从文本 IR 解析模块：解析出的模块与手工构建的
-// 模块等价，可直接查询函数并遍历基本块。
+// 模块等价，可直接查询函数、基本块与指令。
 func ExampleParseIRString() {
 	ctx := llvm.NewContext()
 	defer ctx.Close()

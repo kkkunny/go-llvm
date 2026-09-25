@@ -13,7 +13,7 @@ import (
 	"github.com/kkkunny/go-llvm/ir"
 )
 
-// Level 默认管线优化级别（对应 default<O*>）
+// Level 优化级别
 type Level string
 
 // Level 取值对应 PassBuilder 的优化级别（default<O*> 管线），决定默认管线包含的
