@@ -288,3 +288,35 @@ func orcError2Error(err C.LLVMErrorRef) error {
 type orcError struct{ msg string }
 
 func (e *orcError) Error() string { return e.msg }
+
+// LLVMOrcJITDylibClear Calls remove on all trackers associated with this JITDylib.
+func LLVMOrcJITDylibClear(jd LLVMOrcJITDylibRef) error {
+	return orcError2Error(C.LLVMOrcJITDylibClear(jd.c))
+}
+
+// LLVMOrcJITDylibGetDefaultResourceTracker Return the default resource tracker for the JITDylib.
+// 注意：LLVM 22 的实现未按文档增加引用计数（缺 Retain），C 侧句柄的 release 会破坏
+// JITDylib 自身持有的引用，故公开层不暴露该句柄；卸载全部符号请用 LLVMOrcJITDylibClear。
+func LLVMOrcJITDylibGetDefaultResourceTracker(jd LLVMOrcJITDylibRef) LLVMOrcResourceTrackerRef {
+	return LLVMOrcResourceTrackerRef{c: C.LLVMOrcJITDylibGetDefaultResourceTracker(jd.c)}
+}
+
+// LLVMOrcResourceTrackerRemove Remove all symbols tracked by the resource tracker (unload).
+func LLVMOrcResourceTrackerRemove(rt LLVMOrcResourceTrackerRef) error {
+	return orcError2Error(C.LLVMOrcResourceTrackerRemove(rt.c))
+}
+
+// LLVMOrcResourceTrackerTransferTo Transfer ownership of tracked symbols to another tracker.
+func LLVMOrcResourceTrackerTransferTo(src, dst LLVMOrcResourceTrackerRef) {
+	C.LLVMOrcResourceTrackerTransferTo(src.c, dst.c)
+}
+
+// LLVMOrcLLJITAddLLVMIRModuleWithRT Add an IR module to the LLJIT under the given resource tracker.
+func LLVMOrcLLJITAddLLVMIRModuleWithRT(j LLVMOrcLLJITRef, rt LLVMOrcResourceTrackerRef, tsm LLVMOrcThreadSafeModuleRef) error {
+	return orcError2Error(C.LLVMOrcLLJITAddLLVMIRModuleWithRT(j.c, rt.c, tsm.c))
+}
+
+// LLVMOrcLLJITAddObjectFileWithRT Add an object file to the LLJIT under the given resource tracker.
+func LLVMOrcLLJITAddObjectFileWithRT(j LLVMOrcLLJITRef, rt LLVMOrcResourceTrackerRef, buf LLVMMemoryBufferRef) error {
+	return orcError2Error(C.LLVMOrcLLJITAddObjectFileWithRT(j.c, rt.c, buf.c))
+}

@@ -91,17 +91,23 @@ func (j *LLJIT) AddIRModule(mod *ir.Module) error {
 		}
 	}
 
+	tsm := consumeModule(mod)
+	// ORC 约定：调用后所有权无条件移交（失败时由 JIT 错误路径释放 TSM）
+	if err := binding.LLVMOrcLLJITAddLLVMIRModule(j.ref, binding.LLVMOrcLLJITGetMainJITDylib(j.ref), tsm); err != nil {
+		return llvm.WrapError(llvm.ErrJIT, op, err)
+	}
+	return nil
+}
+
+// consumeModule 把模块及其 Context 的所有权转成 ThreadSafeModule；Go 侧句柄即刻失效
+func consumeModule(mod *ir.Module) binding.LLVMOrcThreadSafeModuleRef {
 	ctx := mod.Context()
 	tsctx := binding.LLVMOrcCreateNewThreadSafeContextFromLLVMContext(ctx.Ref())
 	mod.Disown()
 	ctx.Disown()
 	tsm := binding.LLVMOrcCreateNewThreadSafeModule(mod.Ref(), tsctx)
 	binding.LLVMOrcDisposeThreadSafeContext(tsctx)
-	// ORC 约定：调用后所有权无条件移交（失败时由 JIT 错误路径释放 TSM）
-	if err := binding.LLVMOrcLLJITAddLLVMIRModule(j.ref, binding.LLVMOrcLLJITGetMainJITDylib(j.ref), tsm); err != nil {
-		return llvm.WrapError(llvm.ErrJIT, op, err)
-	}
-	return nil
+	return tsm
 }
 
 // AddObjectFile 把目标文件缓冲加入主 JITDylib；失败返回 ErrJIT。
