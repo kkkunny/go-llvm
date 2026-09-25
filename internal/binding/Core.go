@@ -2622,3 +2622,117 @@ func LLVMBuildInvokeWithOperandBundles(b LLVMBuilderRef, ty LLVMTypeRef, fn LLVM
 		return LLVMValueRef{c: C.LLVMBuildInvokeWithOperandBundles(b.c, ty.c, fn.c, aptr, C.unsigned(alen), then.c, catch.c, bptr, C.unsigned(blen), cs)}
 	})
 }
+
+// LLVMGetSection Get the section of the global value.
+func LLVMGetSection(g LLVMValueRef) string {
+	s := C.LLVMGetSection(g.c)
+	if s == nil {
+		return ""
+	}
+	return C.GoString(s)
+}
+
+// LLVMSetSection Set the section of the global value.
+func LLVMSetSection(g LLVMValueRef, section string) {
+	string2CString(section, func(cs *C.char) struct{} {
+		C.LLVMSetSection(g.c, cs)
+		return struct{}{}
+	})
+}
+
+// LLVMDLLStorageClass DLL storage class.
+type LLVMDLLStorageClass int32
+
+const (
+	LLVMDefaultStorageClass   LLVMDLLStorageClass = C.LLVMDefaultStorageClass
+	LLVMDLLImportStorageClass LLVMDLLStorageClass = C.LLVMDLLImportStorageClass
+	LLVMDLLExportStorageClass LLVMDLLStorageClass = C.LLVMDLLExportStorageClass
+)
+
+// LLVMGetDLLStorageClass Get the DLL storage class of the global value.
+func LLVMGetDLLStorageClass(g LLVMValueRef) LLVMDLLStorageClass {
+	return LLVMDLLStorageClass(C.LLVMGetDLLStorageClass(g.c))
+}
+
+// LLVMSetDLLStorageClass Set the DLL storage class of the global value.
+func LLVMSetDLLStorageClass(g LLVMValueRef, class LLVMDLLStorageClass) {
+	C.LLVMSetDLLStorageClass(g.c, C.LLVMDLLStorageClass(class))
+}
+
+// LLVMGetGC Get the GC name of the function.
+func LLVMGetGC(fn LLVMValueRef) string {
+	s := C.LLVMGetGC(fn.c)
+	if s == nil {
+		return ""
+	}
+	return C.GoString(s)
+}
+
+// LLVMSetGC Set the GC name of the function.
+func LLVMSetGC(fn LLVMValueRef, name string) {
+	string2CString(name, func(cs *C.char) struct{} {
+		C.LLVMSetGC(fn.c, cs)
+		return struct{}{}
+	})
+}
+
+// LLVMGetPrefixData Get the prefix data of the function.
+func LLVMGetPrefixData(fn LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetPrefixData(fn.c)}
+}
+
+// LLVMSetPrefixData Set the prefix data of the function.
+func LLVMSetPrefixData(fn, prefixData LLVMValueRef) {
+	C.LLVMSetPrefixData(fn.c, prefixData.c)
+}
+
+// LLVMGetPrologueData Get the prologue data of the function.
+func LLVMGetPrologueData(fn LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetPrologueData(fn.c)}
+}
+
+// LLVMSetPrologueData Set the prologue data of the function.
+func LLVMSetPrologueData(fn, prologueData LLVMValueRef) {
+	C.LLVMSetPrologueData(fn.c, prologueData.c)
+}
+
+// LLVMAddAlias2 Create an alias with the given value type, address space and aliasee.
+func LLVMAddAlias2(m LLVMModuleRef, valueTy LLVMTypeRef, addrSpace uint32, aliasee LLVMValueRef, name string) LLVMValueRef {
+	return string2CString(name, func(cs *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMAddAlias2(m.c, valueTy.c, C.unsigned(addrSpace), aliasee.c, cs)}
+	})
+}
+
+// LLVMAliasGetAliasee Get the aliasee of the alias.
+func LLVMAliasGetAliasee(a LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMAliasGetAliasee(a.c)}
+}
+
+// LLVMAliasSetAliasee Set the aliasee of the alias.
+func LLVMAliasSetAliasee(a, aliasee LLVMValueRef) {
+	C.LLVMAliasSetAliasee(a.c, aliasee.c)
+}
+
+// LLVMAddGlobalIFunc Add a global indirect function to the module.
+func LLVMAddGlobalIFunc(m LLVMModuleRef, name string, ty LLVMTypeRef, addrSpace uint32, resolver LLVMValueRef) LLVMValueRef {
+	return string2CString(name, func(cs *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMAddGlobalIFunc(m.c, cs, C.size_t(len(name)), ty.c, C.unsigned(addrSpace), resolver.c)}
+	})
+}
+
+// LLVMGetFirstGlobalAlias Obtain the first global alias in a module.
+func LLVMGetFirstGlobalAlias(m LLVMModuleRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetFirstGlobalAlias(m.c)}
+}
+
+// LLVMGetNextGlobalAlias Obtain the next global alias in a module.
+func LLVMGetNextGlobalAlias(a LLVMValueRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGetNextGlobalAlias(a.c)}
+}
+
+// LLVMGetNamedGlobalAlias Obtain the global alias with the given name.
+func LLVMGetNamedGlobalAlias(m LLVMModuleRef, name string) LLVMValueRef {
+	return string2CString(name, func(cs *C.char) LLVMValueRef {
+		return LLVMValueRef{c: C.LLVMGetNamedGlobalAlias(m.c, cs, C.size_t(len(name)))}
+	})
+}

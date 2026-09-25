@@ -137,6 +137,50 @@ func (f Function) Personality() (llvm.Value[llvm.FnT], bool) {
 	return llvm.NewValue[llvm.FnT](f.Context(), f.Lifetime(), ref), true
 }
 
+// Section 段名
+func (f Function) Section() string {
+	return binding.LLVMGetSection(f.Ref())
+}
+
+// SetSection 设置段名
+func (f Function) SetSection(s string) {
+	binding.LLVMSetSection(f.Ref(), s)
+}
+
+// GC GC 策略名
+func (f Function) GC() string {
+	return binding.LLVMGetGC(f.Ref())
+}
+
+// SetGC 设置 GC 策略名
+func (f Function) SetGC(name string) {
+	binding.LLVMSetGC(f.Ref(), name)
+}
+
+// PrefixData 前缀数据（无则空句柄）
+func (f Function) PrefixData() llvm.Value[llvm.DynT] {
+	return llvm.ValueOf(f.Context(), f.Lifetime(), binding.LLVMGetPrefixData(f.Ref()))
+}
+
+// SetPrefixData 设置前缀数据
+func (f Function) SetPrefixData(v llvm.AnyValue) {
+	const op = "ir.Function.SetPrefixData"
+	f.Context().CheckValues(op, v)
+	binding.LLVMSetPrefixData(f.Ref(), v.Ref())
+}
+
+// PrologueData 序言数据（无则空句柄）
+func (f Function) PrologueData() llvm.Value[llvm.DynT] {
+	return llvm.ValueOf(f.Context(), f.Lifetime(), binding.LLVMGetPrologueData(f.Ref()))
+}
+
+// SetPrologueData 设置序言数据
+func (f Function) SetPrologueData(v llvm.AnyValue) {
+	const op = "ir.Function.SetPrologueData"
+	f.Context().CheckValues(op, v)
+	binding.LLVMSetPrologueData(f.Ref(), v.Ref())
+}
+
 // Param 函数参数角色（内嵌 Value[DynT]）
 type Param struct {
 	llvm.Value[llvm.DynT]
