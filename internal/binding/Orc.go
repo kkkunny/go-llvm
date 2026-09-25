@@ -328,8 +328,10 @@ func LLVMOrcJITDylibClear(jd LLVMOrcJITDylibRef) error {
 }
 
 // LLVMOrcJITDylibGetDefaultResourceTracker Return the default resource tracker for the JITDylib.
-// 注意：LLVM 22 的实现未按文档增加引用计数（缺 Retain），C 侧句柄的 release 会破坏
-// JITDylib 自身持有的引用，故公开层不暴露该句柄；卸载全部符号请用 LLVMOrcJITDylibClear。
+// Note: the LLVM 22 implementation does not take the reference count documented for
+// this API (no Retain), so releasing the C-side handle would break the reference held
+// by the JITDylib itself; the public layer therefore does not expose this handle, and
+// LLVMOrcJITDylibClear should be used to unload all symbols.
 func LLVMOrcJITDylibGetDefaultResourceTracker(jd LLVMOrcJITDylibRef) LLVMOrcResourceTrackerRef {
 	return LLVMOrcResourceTrackerRef{c: C.LLVMOrcJITDylibGetDefaultResourceTracker(jd.c)}
 }

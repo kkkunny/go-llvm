@@ -32,12 +32,14 @@ func slice2Ptr[T, F any](v []T) (*F, C.unsigned) {
 	return ptr, C.unsigned(len(v))
 }
 
-// emptyCString 静态空字符串缓冲（Name 等"可为空"的 C 参数用）。
-// LLVM 对这类参数只读取不保留；用静态缓冲避免每次调用的 C 堆分配与两次额外 cgo 穿越。
+// emptyCString is a static empty-string buffer (for C parameters such as Name that may be empty).
+// LLVM only reads such arguments and never retains them; the static buffer avoids a C heap
+// allocation and two extra cgo crossings per call.
 var emptyCString = C.CString("")
 
 // string2CString passes a temporary C string to f and frees it afterwards.
-// 空串直接使用静态缓冲；非空串仍走 CString/free 保证 NUL 终止与生命周期安全。
+// Empty strings use the static buffer directly; non-empty strings still go through CString/free
+// to guarantee NUL termination and lifetime safety.
 func string2CString[T any](v string, f func(v *C.char) T) T {
 	if len(v) == 0 {
 		return f(emptyCString)

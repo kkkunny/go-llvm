@@ -7,7 +7,8 @@ package binding
 import "C"
 import "unsafe"
 
-// BridgeMaxSlots 固定签名通道的最大槽数（每槽 8 字节；返回值为通道函数返回）
+// BridgeMaxSlots is the maximum number of slots in the fixed-signature channel (8 bytes per slot;
+// the channel function's return value is passed back as the call's return).
 const BridgeMaxSlots = 16
 
 var bridgeDispatch func(idx int64, slots []uint64) uint64
@@ -20,12 +21,12 @@ func goLLVMBridgeDispatch(idx C.int64_t, slots *C.uint64_t) C.uint64_t {
 	return C.uint64_t(bridgeDispatch(int64(idx), unsafe.Slice((*uint64)(unsafe.Pointer(slots)), BridgeMaxSlots)))
 }
 
-// SetBridgeDispatch 注册 Go 侧派发器（供 llvm/jit 桥接使用）
+// SetBridgeDispatch registers the Go-side dispatcher (used by the llvm/jit bridge).
 func SetBridgeDispatch(fn func(idx int64, slots []uint64) uint64) {
 	bridgeDispatch = fn
 }
 
-// BridgeCall 以固定 C ABI 调用 JIT 生成的适配器（slots 长度至少 BridgeMaxSlots）
+// BridgeCall calls a JIT-generated adapter with the fixed C ABI (slots must be at least BridgeMaxSlots long).
 func BridgeCall(adapter, fn unsafe.Pointer, slots []uint64) uint64 {
 	var ptr *C.uint64_t
 	if len(slots) > 0 {
@@ -34,17 +35,17 @@ func BridgeCall(adapter, fn unsafe.Pointer, slots []uint64) uint64 {
 	return uint64(C.llvmBridgeCall(adapter, fn, ptr))
 }
 
-// BridgeGoChannelAddr 返回 callGoChannel 通道的 C 函数地址
+// BridgeGoChannelAddr returns the C function address of the callGoChannel channel.
 func BridgeGoChannelAddr() unsafe.Pointer {
 	return C.llvmBridgeGoChannelAddr()
 }
 
-// CStringArray C 字符串数组（NULL 结尾）；用毕 Free
+// CStringArray is an array of C strings (NULL-terminated); Free it when done.
 type CStringArray struct {
 	ptrs []*C.char
 }
 
-// NewCStringArray 构造以 NULL 结尾的 C 字符串数组
+// NewCStringArray builds a NULL-terminated array of C strings.
 func NewCStringArray(strs []string) *CStringArray {
 	ptrs := make([]*C.char, len(strs)+1)
 	for i, s := range strs {
@@ -53,7 +54,7 @@ func NewCStringArray(strs []string) *CStringArray {
 	return &CStringArray{ptrs: ptrs}
 }
 
-// Ptr 返回数组头指针（NULL 结尾）
+// Ptr returns the array head pointer (NULL-terminated).
 func (a *CStringArray) Ptr() **C.char {
 	if len(a.ptrs) == 0 {
 		return nil
@@ -61,7 +62,7 @@ func (a *CStringArray) Ptr() **C.char {
 	return (**C.char)(unsafe.Pointer(&a.ptrs[0]))
 }
 
-// Free 释放数组及其中字符串
+// Free frees the array and the strings it contains.
 func (a *CStringArray) Free() {
 	for _, p := range a.ptrs {
 		if p != nil {

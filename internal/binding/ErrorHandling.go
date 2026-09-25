@@ -19,7 +19,7 @@ func goLLVMFatalErrorHandler(msg *C.char) {
 	}
 }
 
-// diagnosticHandlers 诊断回调注册表：Context id → Go 回调（可能被任意 goroutine 触发）
+// diagnosticHandlers is the diagnostic callback registry: Context id -> Go callback (may be invoked from any goroutine).
 var diagnosticHandlers sync.Map
 
 //export goLLVMDiagnosticHandler
@@ -29,13 +29,13 @@ func goLLVMDiagnosticHandler(id C.uintptr_t, severity C.int, msg *C.char) {
 	}
 }
 
-// LLVMContextSetDiagnosticHandlerGo 安装 Go 侧诊断回调；id 由调用方保证唯一
+// LLVMContextSetDiagnosticHandlerGo installs a Go-side diagnostic callback; the caller must ensure id is unique.
 func LLVMContextSetDiagnosticHandlerGo(c LLVMContextRef, id uint64, handler func(LLVMDiagnosticSeverity, string)) {
 	diagnosticHandlers.Store(id, handler)
 	C.llvmInstallGoDiagnosticHandler(c.c, C.uintptr_t(id))
 }
 
-// LLVMContextClearDiagnosticHandlerGo 移除诊断回调
+// LLVMContextClearDiagnosticHandlerGo removes the diagnostic callback.
 func LLVMContextClearDiagnosticHandlerGo(c LLVMContextRef, id uint64) {
 	diagnosticHandlers.Delete(id)
 	C.llvmClearGoDiagnosticHandler(c.c)
@@ -49,7 +49,7 @@ func LLVMInstallFatalErrorHandler(handler FuncPtr[LLVMFatalErrorHandler]) {
 	C.LLVMInstallFatalErrorHandler((C.LLVMFatalErrorHandler)(handler.ptr))
 }
 
-// LLVMInstallFatalErrorHandlerGo 安装 Go 侧 fatal error 回调
+// LLVMInstallFatalErrorHandlerGo installs a Go-side fatal error callback.
 func LLVMInstallFatalErrorHandlerGo(handler func(string)) {
 	goFatalHandler = handler
 	C.llvmInstallGoFatalErrorHandler()
@@ -67,7 +67,7 @@ func LLVMEnablePrettyStackTrace() {
 	C.LLVMEnablePrettyStackTrace()
 }
 
-// LLVMContextHasDiagnosticHandler 是否安装了诊断回调
+// LLVMContextHasDiagnosticHandler reports whether a diagnostic callback is installed.
 func LLVMContextHasDiagnosticHandler(c LLVMContextRef) bool {
 	return C.LLVMContextGetDiagnosticHandler(c.c) != nil
 }

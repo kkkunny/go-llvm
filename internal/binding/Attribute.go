@@ -5,7 +5,7 @@ package binding
 */
 import "C"
 
-// LLVMCallConv 调用约定
+// LLVMCallConv is a calling convention.
 type LLVMCallConv int32
 
 const (

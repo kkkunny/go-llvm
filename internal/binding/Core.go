@@ -2292,8 +2292,9 @@ func LLVMBuildNUWNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMVa
 }
 
 // LLVMConstNUWNeg Obtain the negation of a constant.
-// LLVM 22 将 C API LLVMConstNUWNeg 标记弃用（弃用提示词为 "Use LLVMConstNull instead."，
-// 语义明显有误）；折叠后的整数常量无法携带 nuw 标志，ConstNeg 等价且无弃用警告。
+// LLVM 22 deprecates the C API LLVMConstNUWNeg (the deprecation note says
+// "Use LLVMConstNull instead.", which is clearly wrong); a folded integer constant
+// cannot carry the nuw flag, so ConstNeg is equivalent and free of the deprecation warning.
 func LLVMConstNUWNeg(constantVal LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstNeg(constantVal.c)}
 }
@@ -2342,7 +2343,7 @@ func LLVMDisposeMemoryBuffer(buf LLVMMemoryBufferRef) {
 	C.LLVMDisposeMemoryBuffer(buf.c)
 }
 
-// LLVMGoEmitError 经 LLVMContext::emitError 发出诊断（LLVM-C 无对应 API，供诊断回调测试/调试用）
+// LLVMGoEmitError emits a diagnostic via LLVMContext::emitError (no LLVM-C counterpart; for diagnostic callback tests/debugging).
 func LLVMGoEmitError(c LLVMContextRef, msg string) {
 	string2CString(msg, func(cmsg *C.char) bool {
 		C.LLVMGoEmitError(c.c, cmsg)

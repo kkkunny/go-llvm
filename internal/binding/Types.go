@@ -56,20 +56,20 @@ func (ref LLVMMemoryBufferRef) IsNil() bool   { return ref.c == nil }
 func (ref LLVMUseRef) IsNil() bool            { return ref.c == nil }
 func (ref LLVMOperandBundleRef) IsNil() bool  { return ref.c == nil }
 
-// Equal 句柄等值比较
+// Equal compares handle equality.
 func (ref LLVMContextRef) Equal(other LLVMContextRef) bool { return ref.c == other.c }
 
-// Equal 句柄等值比较
+// Equal compares handle equality.
 func (ref LLVMModuleRef) Equal(other LLVMModuleRef) bool { return ref.c == other.c }
 
-// Equal 句柄等值比较
+// Equal compares handle equality.
 func (ref LLVMTypeRef) Equal(other LLVMTypeRef) bool { return ref.c == other.c }
 
-// Equal 句柄等值比较
+// Equal compares handle equality.
 func (ref LLVMValueRef) Equal(other LLVMValueRef) bool { return ref.c == other.c }
 
-// Equal 句柄等值比较
+// Equal compares handle equality.
 func (ref LLVMBasicBlockRef) Equal(other LLVMBasicBlockRef) bool { return ref.c == other.c }
 
-// Equal 句柄等值比较
+// Equal compares handle equality.
 func (ref LLVMBuilderRef) Equal(other LLVMBuilderRef) bool { return ref.c == other.c }

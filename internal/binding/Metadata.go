@@ -5,7 +5,7 @@ package binding
 */
 import "C"
 
-// LLVMModuleFlagBehavior 模块级 flag 的合并行为
+// LLVMModuleFlagBehavior is the merge behavior for module-level flags.
 type LLVMModuleFlagBehavior int32
 
 const (
@@ -40,7 +40,7 @@ func LLVMValueAsMetadata(v LLVMValueRef) LLVMMetadataRef {
 	return LLVMMetadataRef{c: C.LLVMValueAsMetadata(v.c)}
 }
 
-// LLVMGetMDString Obtain the underlying string from a MDString value; ok 为 false 表示非 MDString。
+// LLVMGetMDString Obtain the underlying string from a MDString value; ok is false when the value is not an MDString.
 func LLVMGetMDString(v LLVMValueRef) (string, bool) {
 	var length C.unsigned
 	ptr := C.LLVMGetMDString(v.c, &length)
@@ -56,12 +56,12 @@ func LLVMIsAMDNode(v LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMIsAMDNode(v.c)}
 }
 
-// LLVMIsAValueAsMetadata 返回非 nil 表示该 metadata-as-value 是 ValueAsMetadata。
+// LLVMIsAValueAsMetadata returns non-nil when the metadata-as-value is a ValueAsMetadata.
 func LLVMIsAValueAsMetadata(v LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMIsAValueAsMetadata(v.c)}
 }
 
-// LLVMIsAMDString 返回非 nil 表示该 metadata-as-value 是 MDString。
+// LLVMIsAMDString returns non-nil when the metadata-as-value is an MDString.
 func LLVMIsAMDString(v LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMIsAMDString(v.c)}
 }
@@ -128,7 +128,7 @@ func LLVMAddModuleFlag(m LLVMModuleRef, behavior LLVMModuleFlagBehavior, key str
 	})
 }
 
-// LLVMGetModuleFlag Get a module-level flag from the module-level flags metadata; 未设置返回 nil。
+// LLVMGetModuleFlag Get a module-level flag from the module-level flags metadata; returns nil if not set.
 func LLVMGetModuleFlag(m LLVMModuleRef, key string) LLVMMetadataRef {
 	klen := C.size_t(len(key))
 	return string2CString(key, func(ckey *C.char) LLVMMetadataRef {
@@ -149,7 +149,7 @@ func LLVMSetMetadata(v LLVMValueRef, kindID uint32, node LLVMValueRef) {
 	C.LLVMSetMetadata(v.c, C.unsigned(kindID), node.c)
 }
 
-// LLVMGetMetadata Get the metadata of the specified kind on a value; 不存在返回 nil。
+// LLVMGetMetadata Get the metadata of the specified kind on a value; returns nil if absent.
 func LLVMGetMetadata(v LLVMValueRef, kindID uint32) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMGetMetadata(v.c, C.unsigned(kindID))}
 }
@@ -169,7 +169,7 @@ func LLVMGetBlockAddressBasicBlock(blockAddr LLVMValueRef) LLVMBasicBlockRef {
 	return LLVMBasicBlockRef{c: C.LLVMGetBlockAddressBasicBlock(blockAddr.c)}
 }
 
-// LLVMInlineAsmDialect 内联汇编方言
+// LLVMInlineAsmDialect is the inline assembly dialect.
 type LLVMInlineAsmDialect int32
 
 const (
