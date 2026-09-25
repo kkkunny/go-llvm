@@ -9,19 +9,16 @@ type IntConst struct{ Value[IntT] }
 
 // SignedValue 有符号值
 func (c IntConst) SignedValue() int64 {
-	c.Check("llvm.IntConst.SignedValue")
-	return binding.LLVMConstIntGetSExtValue(c.ref)
+	return binding.LLVMConstIntGetSExtValue(c.Ref())
 }
 
 // UnsignedValue 无符号值
 func (c IntConst) UnsignedValue() uint64 {
-	c.Check("llvm.IntConst.UnsignedValue")
-	return binding.LLVMConstIntGetZExtValue(c.ref)
+	return binding.LLVMConstIntGetZExtValue(c.Ref())
 }
 
 // IsNegative 是否有符号语义下为负
 func (c IntConst) IsNegative() bool {
-	c.Check("llvm.IntConst.IsNegative")
 	return c.SignedValue() < 0
 }
 
@@ -30,8 +27,7 @@ type FloatConst struct{ Value[FloatT] }
 
 // FloatValue 浮点值（方法名避开内嵌字段 Value）
 func (c FloatConst) FloatValue() float64 {
-	c.Check("llvm.FloatConst.FloatValue")
-	v, _ := binding.LLVMConstRealGetDouble(c.ref)
+	v, _ := binding.LLVMConstRealGetDouble(c.Ref())
 	return v
 }
 

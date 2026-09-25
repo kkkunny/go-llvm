@@ -16,20 +16,17 @@ type Function struct {
 
 // Signature 函数类型
 func (f Function) Signature() llvm.FnType {
-	f.Check("ir.Function.Signature")
 	return llvm.AsFnType(llvm.TypeOfRef(f.Context(), binding.LLVMGetFunctionType(f.Ref())))
 }
 
 // CountParams 参数个数
 func (f Function) CountParams() uint {
-	f.Check("ir.Function.CountParams")
 	return uint(binding.LLVMCountParams(f.Ref()))
 }
 
 // Param 第 i 个参数（擦除种类）
 func (f Function) Param(i uint) Param {
 	const op = "ir.Function.Param"
-	f.Check(op)
 	if checks.Debug && i >= f.CountParams() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "parameter index %d out of range", i)
 	}
@@ -44,7 +41,6 @@ func (f Function) ParamAs[U llvm.Kind](i uint) llvm.Value[U] {
 
 // Params 全部参数
 func (f Function) Params() []Param {
-	f.Check("ir.Function.Params")
 	n := f.CountParams()
 	params := make([]Param, n)
 	for i := range params {
@@ -55,14 +51,12 @@ func (f Function) Params() []Param {
 
 // NewBlock 追加基本块
 func (f Function) NewBlock(name string) Block {
-	f.Check("ir.Function.NewBlock")
 	ref := binding.LLVMAppendBasicBlockInContext(f.Context().Ref(), f.Ref(), name)
 	return wrapBlock(f.Context(), f.Lifetime(), ref)
 }
 
 // Blocks 全部基本块；需要零分配遍历时用 AllBlocks
 func (f Function) Blocks() []Block {
-	f.Check("ir.Function.Blocks")
 	refs := binding.LLVMGetBasicBlocks(f.Ref())
 	blocks := make([]Block, len(refs))
 	for i, ref := range refs {
@@ -74,7 +68,6 @@ func (f Function) Blocks() []Block {
 // AllBlocks 惰性遍历全部基本块（range 友好，无切片分配）
 func (f Function) AllBlocks() iter.Seq[Block] {
 	return func(yield func(Block) bool) {
-		f.Check("ir.Function.AllBlocks")
 		for ref := binding.LLVMGetFirstBasicBlock(f.Ref()); !ref.IsNil(); ref = binding.LLVMGetNextBasicBlock(ref) {
 			if !yield(wrapBlock(f.Context(), f.Lifetime(), ref)) {
 				return
@@ -86,7 +79,6 @@ func (f Function) AllBlocks() iter.Seq[Block] {
 // AllParams 惰性遍历全部参数（range 友好，无切片分配）
 func (f Function) AllParams() iter.Seq[Param] {
 	return func(yield func(Param) bool) {
-		f.Check("ir.Function.AllParams")
 		n := f.CountParams()
 		for i := uint(0); i < n; i++ {
 			if !yield(f.Param(i)) {
@@ -98,7 +90,6 @@ func (f Function) AllParams() iter.Seq[Param] {
 
 // EntryBlock 入口块
 func (f Function) EntryBlock() (Block, bool) {
-	f.Check("ir.Function.EntryBlock")
 	ref := binding.LLVMGetEntryBasicBlock(f.Ref())
 	if ref.IsNil() {
 		return Block{}, false
@@ -108,32 +99,27 @@ func (f Function) EntryBlock() (Block, bool) {
 
 // OnlyDecl 是否只有声明（无基本块）
 func (f Function) OnlyDecl() bool {
-	f.Check("ir.Function.OnlyDecl")
 	return binding.LLVMIsDeclaration(f.Ref())
 }
 
 // Verify 校验函数
 func (f Function) Verify() bool {
-	f.Check("ir.Function.Verify")
 	return !binding.LLVMVerifyFunction(f.Ref(), binding.LLVMReturnStatusAction)
 }
 
 // Linkage 链接类型
 func (f Function) Linkage() llvm.Linkage {
-	f.Check("ir.Function.Linkage")
 	return llvm.Linkage(binding.LLVMGetLinkage(f.Ref()))
 }
 
 // SetLinkage 设置链接类型
 func (f Function) SetLinkage(l llvm.Linkage) {
-	f.Check("ir.Function.SetLinkage")
 	binding.LLVMSetLinkage(f.Ref(), binding.LLVMLinkage(l))
 }
 
 // SetPersonality 设置 personality 函数（EH 展开用）
 func (f Function) SetPersonality(pers llvm.ValueRef[llvm.FnT]) {
 	const op = "ir.Function.SetPersonality"
-	f.Check(op)
 	pv := pers.AsValue()
 	if pv.IsNil() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "nil personality")
@@ -144,7 +130,6 @@ func (f Function) SetPersonality(pers llvm.ValueRef[llvm.FnT]) {
 
 // Personality personality 函数（未设置时返回 false）
 func (f Function) Personality() (llvm.Value[llvm.FnT], bool) {
-	f.Check("ir.Function.Personality")
 	ref := binding.LLVMGetPersonalityFn(f.Ref())
 	if ref.IsNil() {
 		return llvm.Value[llvm.FnT]{}, false
@@ -160,14 +145,12 @@ type Param struct {
 // SetAlign 设置参数对齐
 func (p Param) SetAlign(n uint32) {
 	const op = "ir.Param.SetAlign"
-	p.Check(op)
 	preAlign(op, n)
 	binding.LLVMSetAlignment(p.Ref(), n)
 }
 
 // Belong 参数所属函数
 func (p Param) Belong() Function {
-	p.Check("ir.Param.Belong")
 	return Function{Value: llvm.NewValue[llvm.FnT](p.Context(), p.Lifetime(), binding.LLVMGetParamParent(p.Ref()))}
 }
 

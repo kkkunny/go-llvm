@@ -42,8 +42,25 @@ type Type[T Kind] struct {
 	ctx *Context
 }
 
-// Ref 返回底层句柄（供 llvm/* 子包桥接使用）
-func (t Type[T]) Ref() binding.LLVMTypeRef { return t.ref }
+// RawRef 返回底层句柄且不做校验；仅供预检查询，业务路径请用 Ref
+func (t Type[T]) RawRef() binding.LLVMTypeRef { return t.ref }
+
+// Ref 返回底层句柄：崩溃类地板的统一咽喉——nil / Context 已关在此 panic。
+// 快路径保持可内联（慢路径单独走 checkFloor），类型角色方法无需各自序言 Check。
+func (t Type[T]) Ref() binding.LLVMTypeRef {
+	if t.ctx == nil || t.ref.IsNil() || !t.ctx.Alive() {
+		t.checkFloor("llvm.Type.Ref")
+	}
+	return t.ref
+}
+
+// checkFloor 崩溃类地板校验（任何构建都开，纯 Go）
+func (t Type[T]) checkFloor(op string) {
+	if t.ctx == nil || t.ref.IsNil() {
+		errPanic(ErrInvalidArg, op, "nil type handle")
+	}
+	t.ctx.CheckAlive(op)
+}
 
 // DynType 擦除类型参数
 func (t Type[T]) DynType() Type[DynT] { return Type[DynT]{ref: t.ref, ctx: t.ctx} }
@@ -57,14 +74,9 @@ func (t Type[T]) Context() *Context { return t.ctx }
 // IsNil 是否为空句柄
 func (t Type[T]) IsNil() bool { return t.ref.IsNil() }
 
-// Check 类型操作前置校验：句柄非零值且 Context 存活。
+// Check 类型操作前置校验（显式入口，供需要指定 op 的场景）；与 Ref 同一套地板校验。
 // 供 llvm/* 子包的类型角色方法统一调用（角色经内嵌 Type[T] 自动继承）。
-func (t Type[T]) Check(op string) {
-	if t.ctx == nil || t.ref.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil type handle")
-	}
-	t.ctx.CheckAlive(op)
-}
+func (t Type[T]) Check(op string) { t.checkFloor(op) }
 
 // String 类型的 IR 文本表示
 func (t Type[T]) String() string {
@@ -77,8 +89,7 @@ func (t Type[T]) String() string {
 
 // IsSized 类型是否具有确定大小
 func (t Type[T]) IsSized() bool {
-	t.Check("llvm.Type.IsSized")
-	return binding.LLVMTypeIsSized(t.ref)
+	return binding.LLVMTypeIsSized(t.Ref())
 }
 
 // Equal 与另一类型是否同一 LLVM 类型
@@ -86,21 +97,20 @@ func (t Type[T]) Equal(other AnyType) bool {
 	if other == nil {
 		return false
 	}
-	t.Check("llvm.Type.Equal")
-	return t.ref.Equal(other.Ref())
+	return t.Ref().Equal(other.Ref())
 }
 
 // As 运行时校验种类后转换类型参数；目标是 DynT 时始终成功
 func (t Type[T]) As[U Kind]() (Type[U], error) {
-	t.Check("llvm.Type.As")
-	if !kindMatches[U](t.ref) {
+	ref := t.Ref()
+	if !kindMatches[U](ref) {
 		return Type[U]{}, &Error{
 			Reason: ErrTypeMismatch,
 			Op:     "llvm.Type.As",
-			Msg:    "type kind mismatch: have " + kindName(kindOfType(t.ref)) + ", want " + kindName(kindOf[U]()),
+			Msg:    "type kind mismatch: have " + kindName(kindOfType(ref)) + ", want " + kindName(kindOf[U]()),
 		}
 	}
-	return Type[U]{ref: t.ref, ctx: t.ctx}, nil
+	return Type[U]{ref: ref, ctx: t.ctx}, nil
 }
 
 // MustAs As 的 panic 版本（程序员错误）
@@ -183,38 +193,32 @@ type FnType struct{ Type[FnT] }
 
 // Bits 整数位宽
 func (t IntType) Bits() uint32 {
-	t.Check("llvm.IntType.Bits")
-	return binding.LLVMGetIntTypeWidth(t.ref)
+	return binding.LLVMGetIntTypeWidth(t.Ref())
 }
 
 // Kind 浮点种类
 func (t FloatType) Kind() FloatKind {
-	t.Check("llvm.FloatType.Kind")
-	return FloatKind(binding.LLVMGetTypeKind(t.ref))
+	return FloatKind(binding.LLVMGetTypeKind(t.Ref()))
 }
 
 // Addrspace 指针地址空间
 func (t PtrType) Addrspace() uint32 {
-	t.Check("llvm.PtrType.Addrspace")
-	return binding.LLVMGetPointerAddressSpace(t.ref)
+	return binding.LLVMGetPointerAddressSpace(t.Ref())
 }
 
 // IsOpaque 指针是否不透明
 func (t PtrType) IsOpaque() bool {
-	t.Check("llvm.PtrType.IsOpaque")
-	return binding.LLVMPointerTypeIsOpaque(t.ref)
+	return binding.LLVMPointerTypeIsOpaque(t.Ref())
 }
 
 // Name 结构体名称（字面量结构体为空）
 func (t StructType) Name() string {
-	t.Check("llvm.StructType.Name")
-	return binding.LLVMGetStructName(t.ref)
+	return binding.LLVMGetStructName(t.Ref())
 }
 
 // Elems 结构体元素类型；需要零分配遍历时用 AllElems
 func (t StructType) Elems() []AnyType {
-	t.Check("llvm.StructType.Elems")
-	refs := binding.LLVMGetStructElementTypes(t.ref)
+	refs := binding.LLVMGetStructElementTypes(t.Ref())
 	elems := make([]AnyType, len(refs))
 	for i, ref := range refs {
 		elems[i] = TypeOfRef(t.ctx, ref)
@@ -225,10 +229,9 @@ func (t StructType) Elems() []AnyType {
 // AllElems 惰性遍历结构体元素类型（range 友好，无切片分配）
 func (t StructType) AllElems() iter.Seq[AnyType] {
 	return func(yield func(AnyType) bool) {
-		t.Check("llvm.StructType.AllElems")
-		n := binding.LLVMCountStructElementTypes(t.ref)
+		n := binding.LLVMCountStructElementTypes(t.Ref())
 		for i := uint32(0); i < n; i++ {
-			if !yield(TypeOfRef(t.ctx, binding.LLVMStructGetTypeAtIndex(t.ref, i))) {
+			if !yield(TypeOfRef(t.ctx, binding.LLVMStructGetTypeAtIndex(t.Ref(), i))) {
 				return
 			}
 		}
@@ -237,63 +240,53 @@ func (t StructType) AllElems() iter.Seq[AnyType] {
 
 // Elem 第 i 个结构体元素类型
 func (t StructType) Elem(i uint32) AnyType {
-	t.Check("llvm.StructType.Elem")
-	return TypeOfRef(t.ctx, binding.LLVMStructGetTypeAtIndex(t.ref, i))
+	return TypeOfRef(t.ctx, binding.LLVMStructGetTypeAtIndex(t.Ref(), i))
 }
 
 // SetBody 设置结构体成员
 func (t StructType) SetBody(elems []AnyType, packed bool) {
-	t.Check("llvm.StructType.SetBody")
 	t.ctx.CheckTypes("llvm.StructType.SetBody", elems)
-	binding.LLVMStructSetBody(t.ref, anyTypesToRefs(elems), packed)
+	binding.LLVMStructSetBody(t.Ref(), anyTypesToRefs(elems), packed)
 }
 
 // IsPacked 是否 packed
 func (t StructType) IsPacked() bool {
-	t.Check("llvm.StructType.IsPacked")
-	return binding.LLVMIsPackedStruct(t.ref)
+	return binding.LLVMIsPackedStruct(t.Ref())
 }
 
 // IsOpaque 是否 opaque（未设置成员）
 func (t StructType) IsOpaque() bool {
-	t.Check("llvm.StructType.IsOpaque")
-	return binding.LLVMIsOpaqueStruct(t.ref)
+	return binding.LLVMIsOpaqueStruct(t.Ref())
 }
 
 // Elem 数组元素类型
 func (t ArrayType) Elem() AnyType {
-	t.Check("llvm.ArrayType.Elem")
-	return TypeOfRef(t.ctx, binding.LLVMGetElementType(t.ref))
+	return TypeOfRef(t.ctx, binding.LLVMGetElementType(t.Ref()))
 }
 
 // Len 数组长度
 func (t ArrayType) Len() uint64 {
-	t.Check("llvm.ArrayType.Len")
-	return binding.LLVMGetArrayLength2(t.ref)
+	return binding.LLVMGetArrayLength2(t.Ref())
 }
 
 // Elem 向量元素类型
 func (t VecType) Elem() AnyType {
-	t.Check("llvm.VecType.Elem")
-	return TypeOfRef(t.ctx, binding.LLVMGetElementType(t.ref))
+	return TypeOfRef(t.ctx, binding.LLVMGetElementType(t.Ref()))
 }
 
 // Len 向量元素个数
 func (t VecType) Len() uint32 {
-	t.Check("llvm.VecType.Len")
-	return binding.LLVMGetVectorSize(t.ref)
+	return binding.LLVMGetVectorSize(t.Ref())
 }
 
 // Return 函数返回类型
 func (t FnType) Return() AnyType {
-	t.Check("llvm.FnType.Return")
-	return TypeOfRef(t.ctx, binding.LLVMGetReturnType(t.ref))
+	return TypeOfRef(t.ctx, binding.LLVMGetReturnType(t.Ref()))
 }
 
 // Params 函数参数类型
 func (t FnType) Params() []AnyType {
-	t.Check("llvm.FnType.Params")
-	refs := binding.LLVMGetParamTypes(t.ref)
+	refs := binding.LLVMGetParamTypes(t.Ref())
 	params := make([]AnyType, len(refs))
 	for i, ref := range refs {
 		params[i] = TypeOfRef(t.ctx, ref)
@@ -303,8 +296,7 @@ func (t FnType) Params() []AnyType {
 
 // IsVarArg 是否变参
 func (t FnType) IsVarArg() bool {
-	t.Check("llvm.FnType.IsVarArg")
-	return binding.LLVMIsFunctionVarArg(t.ref)
+	return binding.LLVMIsFunctionVarArg(t.Ref())
 }
 
 // ===== Context 类型构造器 =====

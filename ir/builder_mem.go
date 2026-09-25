@@ -14,14 +14,12 @@ type Alloca struct {
 // SetAlign 设置分配对齐
 func (a Alloca) SetAlign(n uint32) {
 	const op = "ir.Alloca.SetAlign"
-	a.Check(op)
 	preAlign(op, n)
 	binding.LLVMSetAlignment(a.Ref(), n)
 }
 
 // Align 分配对齐
 func (a Alloca) Align() uint32 {
-	a.Check("ir.Alloca.Align")
 	return binding.LLVMGetAlignment(a.Ref())
 }
 
@@ -33,40 +31,34 @@ type Load[T llvm.Kind] struct {
 // SetAlign 设置加载对齐
 func (l Load[T]) SetAlign(n uint32) {
 	const op = "ir.Load.SetAlign"
-	l.Check(op)
 	preAlign(op, n)
 	binding.LLVMSetAlignment(l.Ref(), n)
 }
 
 // Align 加载对齐
 func (l Load[T]) Align() uint32 {
-	l.Check("ir.Load.Align")
 	return binding.LLVMGetAlignment(l.Ref())
 }
 
 // SetVolatile 设置 volatile 访问
 func (l Load[T]) SetVolatile(v bool) {
-	l.Check("ir.Load.SetVolatile")
 	binding.LLVMSetVolatile(l.Ref(), v)
 }
 
 // IsVolatile 是否 volatile 访问
 func (l Load[T]) IsVolatile() bool {
-	l.Check("ir.Load.IsVolatile")
 	return binding.LLVMGetVolatile(l.Ref())
 }
 
 // SetOrdering 设置原子内存序
 func (l Load[T]) SetOrdering(o llvm.AtomicOrdering) {
 	const op = "ir.Load.SetOrdering"
-	l.Check(op)
 	preOrderingLoad(op, o)
 	binding.LLVMSetOrdering(l.Ref(), binding.LLVMAtomicOrdering(o))
 }
 
 // Ordering 原子内存序（非原子访问为 AtomicNotAtomic）
 func (l Load[T]) Ordering() llvm.AtomicOrdering {
-	l.Check("ir.Load.Ordering")
 	return llvm.AtomicOrdering(binding.LLVMGetOrdering(l.Ref()))
 }
 
@@ -78,40 +70,34 @@ type Store struct {
 // SetAlign 设置存储对齐
 func (s Store) SetAlign(n uint32) {
 	const op = "ir.Store.SetAlign"
-	s.Check(op)
 	preAlign(op, n)
 	binding.LLVMSetAlignment(s.Ref(), n)
 }
 
 // Align 存储对齐
 func (s Store) Align() uint32 {
-	s.Check("ir.Store.Align")
 	return binding.LLVMGetAlignment(s.Ref())
 }
 
 // SetVolatile 设置 volatile 访问
 func (s Store) SetVolatile(v bool) {
-	s.Check("ir.Store.SetVolatile")
 	binding.LLVMSetVolatile(s.Ref(), v)
 }
 
 // IsVolatile 是否 volatile 访问
 func (s Store) IsVolatile() bool {
-	s.Check("ir.Store.IsVolatile")
 	return binding.LLVMGetVolatile(s.Ref())
 }
 
 // SetOrdering 设置原子内存序
 func (s Store) SetOrdering(o llvm.AtomicOrdering) {
 	const op = "ir.Store.SetOrdering"
-	s.Check(op)
 	preOrderingStore(op, o)
 	binding.LLVMSetOrdering(s.Ref(), binding.LLVMAtomicOrdering(o))
 }
 
 // Ordering 原子内存序（非原子访问为 AtomicNotAtomic）
 func (s Store) Ordering() llvm.AtomicOrdering {
-	s.Check("ir.Store.Ordering")
 	return llvm.AtomicOrdering(binding.LLVMGetOrdering(s.Ref()))
 }
 
@@ -184,7 +170,7 @@ func (b *Builder) gep(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT], 
 	for _, x := range idx {
 		v := x.AsValue()
 		b.checkVal(op, core(v))
-		refs = append(refs, v.Ref())
+		refs = append(refs, v.RawRef())
 	}
 	if !checks.Debug {
 		b.refs = refs

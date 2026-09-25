@@ -116,9 +116,21 @@ type preVal struct {
 	ok   bool
 }
 
-// core 由具体值构造校验视图（无装箱）
+// core 由具体值构造校验视图（无装箱）。
+// 取未校验句柄：由 checkVal 负责校验并保留 op/现场，避免 Ref() 先 panic 丢失 builder 上下文。
 func core[T llvm.Kind](v llvm.Value[T]) preVal {
-	return preVal{ref: v.Ref(), ty: rawType(v), ctx: v.Context(), life: v.Lifetime(), ok: true}
+	return preVal{ref: v.RawRef(), ty: rawType(v), ctx: v.Context(), life: v.Lifetime(), ok: true}
+}
+
+// rawRefer 值角色可提供不做校验的底层句柄（供预检在其自行校验前取用）
+type rawRefer interface{ RawRef() binding.LLVMValueRef }
+
+// rawRefOf 取未校验句柄（调用方已/即将自行校验）
+func rawRefOf(v llvm.AnyValue) binding.LLVMValueRef {
+	if rr, ok := v.(rawRefer); ok {
+		return rr.RawRef()
+	}
+	return v.Ref()
 }
 
 // rawTypeer 值角色可提供调试层缓存的类型句柄，避免预检查询 cgo
@@ -137,7 +149,7 @@ func coreAny(v llvm.AnyValue) preVal {
 	if v == nil {
 		return preVal{}
 	}
-	p := preVal{ref: v.Ref(), ctx: v.Context(), life: v.Lifetime(), ok: true}
+	p := preVal{ref: rawRefOf(v), ctx: v.Context(), life: v.Lifetime(), ok: true}
 	if checks.Debug {
 		if rt, ok := v.(rawTypeer); ok {
 			p.ty = rt.RawType()
@@ -291,7 +303,7 @@ func (b *Builder) valueRefs(vs []llvm.AnyValue) []binding.LLVMValueRef {
 	if checks.Debug {
 		refs := make([]binding.LLVMValueRef, len(vs))
 		for i, v := range vs {
-			refs[i] = v.Ref()
+			refs[i] = rawRefOf(v)
 		}
 		return refs
 	}
@@ -300,7 +312,7 @@ func (b *Builder) valueRefs(vs []llvm.AnyValue) []binding.LLVMValueRef {
 	}
 	refs := b.refs[:len(vs)]
 	for i, v := range vs {
-		refs[i] = v.Ref()
+		refs[i] = rawRefOf(v)
 	}
 	b.refs = refs
 	return refs

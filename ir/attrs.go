@@ -97,55 +97,46 @@ func removeStringAttrAt(ref binding.LLVMValueRef, idx llvm.AttrIndex, kind strin
 // AddAttr 在 idx 位置（返回/函数/参数）追加属性
 func (f Function) AddAttr(idx llvm.AttrIndex, a llvm.Attribute) {
 	const op = "ir.Function.AddAttr"
-	f.Check(op)
 	addAttr(op, f.Context(), f.Ref(), idx, a, false)
 }
 
 // AttrCount idx 位置的属性个数
 func (f Function) AttrCount(idx llvm.AttrIndex) uint32 {
-	f.Check("ir.Function.AttrCount")
 	return attrCount(f.Ref(), idx, false)
 }
 
 // Attrs idx 位置的全部属性
 func (f Function) Attrs(idx llvm.AttrIndex) []llvm.Attribute {
-	f.Check("ir.Function.Attrs")
 	return attrsAt(f.Context(), f.Ref(), idx, false)
 }
 
 // EnumAttr idx 位置的枚举属性（不存在返回 false）
 func (f Function) EnumAttr(idx llvm.AttrIndex, kind llvm.AttributeKind) (llvm.Attribute, bool) {
-	f.Check("ir.Function.EnumAttr")
 	return enumAttrAt(f.Context(), f.Ref(), idx, kind, false)
 }
 
 // StringAttr idx 位置的字符串属性（不存在返回 false）
 func (f Function) StringAttr(idx llvm.AttrIndex, kind string) (llvm.Attribute, bool) {
-	f.Check("ir.Function.StringAttr")
 	return stringAttrAt(f.Context(), f.Ref(), idx, kind, false)
 }
 
 // RemoveEnumAttr 移除 idx 位置的枚举属性
 func (f Function) RemoveEnumAttr(idx llvm.AttrIndex, kind llvm.AttributeKind) {
-	f.Check("ir.Function.RemoveEnumAttr")
 	removeEnumAttrAt(f.Ref(), idx, kind, false)
 }
 
 // RemoveStringAttr 移除 idx 位置的字符串属性
 func (f Function) RemoveStringAttr(idx llvm.AttrIndex, kind string) {
-	f.Check("ir.Function.RemoveStringAttr")
 	removeStringAttrAt(f.Ref(), idx, kind, false)
 }
 
 // CallConv 函数调用约定
 func (f Function) CallConv() llvm.CallConv {
-	f.Check("ir.Function.CallConv")
 	return llvm.CallConv(binding.LLVMGetFunctionCallConv(f.Ref()))
 }
 
 // SetCallConv 设置函数调用约定
 func (f Function) SetCallConv(cc llvm.CallConv) {
-	f.Check("ir.Function.SetCallConv")
 	binding.LLVMSetFunctionCallConv(f.Ref(), binding.LLVMCallConv(cc))
 }
 
@@ -154,7 +145,6 @@ func (f Function) SetCallConv(cc llvm.CallConv) {
 // Index 参数在函数中的序号（从 0 起）
 func (p Param) Index() uint32 {
 	const op = "ir.Param.Index"
-	p.Check(op)
 	fn := p.Belong()
 	n := uint32(fn.CountParams())
 	for i := uint32(0); i < n; i++ {
@@ -214,109 +204,91 @@ func (p Param) RemoveStringAttr(kind string) {
 // AddAttr 在 idx 位置（返回/函数/参数）追加调用点属性
 func (c Call[T]) AddAttr(idx llvm.AttrIndex, a llvm.Attribute) {
 	const op = "ir.Call.AddAttr"
-	c.Check(op)
 	addAttr(op, c.Context(), c.Ref(), idx, a, true)
 }
 
 // AttrCount idx 位置的属性个数
 func (c Call[T]) AttrCount(idx llvm.AttrIndex) uint32 {
-	c.Check("ir.Call.AttrCount")
 	return attrCount(c.Ref(), idx, true)
 }
 
 // Attrs idx 位置的全部属性
 func (c Call[T]) Attrs(idx llvm.AttrIndex) []llvm.Attribute {
-	c.Check("ir.Call.Attrs")
 	return attrsAt(c.Context(), c.Ref(), idx, true)
 }
 
 // EnumAttr idx 位置的枚举属性（不存在返回 false）
 func (c Call[T]) EnumAttr(idx llvm.AttrIndex, kind llvm.AttributeKind) (llvm.Attribute, bool) {
-	c.Check("ir.Call.EnumAttr")
 	return enumAttrAt(c.Context(), c.Ref(), idx, kind, true)
 }
 
 // StringAttr idx 位置的字符串属性（不存在返回 false）
 func (c Call[T]) StringAttr(idx llvm.AttrIndex, kind string) (llvm.Attribute, bool) {
-	c.Check("ir.Call.StringAttr")
 	return stringAttrAt(c.Context(), c.Ref(), idx, kind, true)
 }
 
 // RemoveEnumAttr 移除 idx 位置的枚举属性
 func (c Call[T]) RemoveEnumAttr(idx llvm.AttrIndex, kind llvm.AttributeKind) {
-	c.Check("ir.Call.RemoveEnumAttr")
 	removeEnumAttrAt(c.Ref(), idx, kind, true)
 }
 
 // RemoveStringAttr 移除 idx 位置的字符串属性
 func (c Call[T]) RemoveStringAttr(idx llvm.AttrIndex, kind string) {
-	c.Check("ir.Call.RemoveStringAttr")
 	removeStringAttrAt(c.Ref(), idx, kind, true)
 }
 
 // CallConv 调用点调用约定
 func (c Call[T]) CallConv() llvm.CallConv {
-	c.Check("ir.Call.CallConv")
 	return llvm.CallConv(binding.LLVMGetInstructionCallConv(c.Ref()))
 }
 
 // SetCallConv 设置调用点调用约定
 func (c Call[T]) SetCallConv(cc llvm.CallConv) {
-	c.Check("ir.Call.SetCallConv")
 	binding.LLVMSetInstructionCallConv(c.Ref(), binding.LLVMCallConv(cc))
 }
 
 // AddAttr 在 idx 位置（返回/函数/参数）追加调用点属性
 func (c Invoke[T]) AddAttr(idx llvm.AttrIndex, a llvm.Attribute) {
 	const op = "ir.Invoke.AddAttr"
-	c.Check(op)
 	addAttr(op, c.Context(), c.Ref(), idx, a, true)
 }
 
 // AttrCount idx 位置的属性个数
 func (c Invoke[T]) AttrCount(idx llvm.AttrIndex) uint32 {
-	c.Check("ir.Invoke.AttrCount")
 	return attrCount(c.Ref(), idx, true)
 }
 
 // Attrs idx 位置的全部属性
 func (c Invoke[T]) Attrs(idx llvm.AttrIndex) []llvm.Attribute {
-	c.Check("ir.Invoke.Attrs")
 	return attrsAt(c.Context(), c.Ref(), idx, true)
 }
 
 // EnumAttr idx 位置的枚举属性（不存在返回 false）
 func (c Invoke[T]) EnumAttr(idx llvm.AttrIndex, kind llvm.AttributeKind) (llvm.Attribute, bool) {
-	c.Check("ir.Invoke.EnumAttr")
 	return enumAttrAt(c.Context(), c.Ref(), idx, kind, true)
 }
 
 // StringAttr idx 位置的字符串属性（不存在返回 false）
 func (c Invoke[T]) StringAttr(idx llvm.AttrIndex, kind string) (llvm.Attribute, bool) {
-	c.Check("ir.Invoke.StringAttr")
 	return stringAttrAt(c.Context(), c.Ref(), idx, kind, true)
 }
 
 // RemoveEnumAttr 移除 idx 位置的枚举属性
 func (c Invoke[T]) RemoveEnumAttr(idx llvm.AttrIndex, kind llvm.AttributeKind) {
-	c.Check("ir.Invoke.RemoveEnumAttr")
 	removeEnumAttrAt(c.Ref(), idx, kind, true)
 }
 
 // RemoveStringAttr 移除 idx 位置的字符串属性
 func (c Invoke[T]) RemoveStringAttr(idx llvm.AttrIndex, kind string) {
-	c.Check("ir.Invoke.RemoveStringAttr")
 	removeStringAttrAt(c.Ref(), idx, kind, true)
 }
 
 // CallConv 调用点调用约定
 func (c Invoke[T]) CallConv() llvm.CallConv {
-	c.Check("ir.Invoke.CallConv")
 	return llvm.CallConv(binding.LLVMGetInstructionCallConv(c.Ref()))
 }
 
 // SetCallConv 设置调用点调用约定
 func (c Invoke[T]) SetCallConv(cc llvm.CallConv) {
-	c.Check("ir.Invoke.SetCallConv")
 	binding.LLVMSetInstructionCallConv(c.Ref(), binding.LLVMCallConv(cc))
 }

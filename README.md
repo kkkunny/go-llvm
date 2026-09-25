@@ -101,10 +101,13 @@ func main() {
     `panic` 消息附带最近操作现场、Context 关闭时的未释放资源报告、LLVM 诊断回调默认安装
     （把默认 handler 的进程退出变为日志）。
 * `Context`/`Module`/`Builder` implement `io.Closer`. Values are owned by their context/module;
-  every operation (builder calls plus module/block/instruction role methods) self-checks lifetime,
-  so use-after-free and double-close surface as `ErrUseAfterFree`/`ErrClosed` panics instead of
-  touching dangling handles. `MemoryBuffer`/`DataLayout` additionally carry a GC finalizer as a
-  safety net, so a forgotten `Close` leaks until the next GC instead of forever.
+  value/type role methods deliver handles through the `Value.Ref()`/`Type.Ref()` choke point, which
+  enforces the crash-class floor in one place (no per-method `Check` duplication; `RawRef()` is the
+  unchecked accessor used only by the pre-check layer). `Module.Check`/`Block.Check` guard their own
+  handles. Every operation self-checks lifetime, so use-after-free and double-close surface as
+  `ErrUseAfterFree`/`ErrClosed` panics instead of touching dangling handles. `MemoryBuffer`/`DataLayout`
+  additionally carry a GC finalizer as a safety net, so a forgotten `Close` leaks until the next GC
+  instead of forever.
 * Traversal APIs come in slice and lazy flavors: `Block.Insts()` / `Block.AllInsts()`,
   `Function.Blocks()` / `AllBlocks()` / `AllParams()`, `StructType.Elems()` / `AllElems()`.
   The `All*` variants are `iter.Seq` and allocate nothing (`for inst := range blk.AllInsts()`).

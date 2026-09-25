@@ -99,27 +99,23 @@ type Fence struct {
 
 // Ordering 内存序
 func (f Fence) Ordering() llvm.AtomicOrdering {
-	f.Check("ir.Fence.Ordering")
 	return llvm.AtomicOrdering(binding.LLVMGetOrdering(f.Ref()))
 }
 
 // SetOrdering 设置内存序
 func (f Fence) SetOrdering(o llvm.AtomicOrdering) {
 	const op = "ir.Fence.SetOrdering"
-	f.Check(op)
 	preOrderingFence(op, o)
 	binding.LLVMSetOrdering(f.Ref(), binding.LLVMAtomicOrdering(o))
 }
 
 // IsSingleThread 是否 syncscope("singlethread")
 func (f Fence) IsSingleThread() bool {
-	f.Check("ir.Fence.IsSingleThread")
 	return binding.LLVMIsAtomicSingleThread(f.Ref())
 }
 
 // SetSingleThread 设置 syncscope("singlethread")
 func (f Fence) SetSingleThread(v bool) {
-	f.Check("ir.Fence.SetSingleThread")
 	binding.LLVMSetAtomicSingleThread(f.Ref(), v)
 }
 
@@ -130,52 +126,44 @@ type AtomicRMW[T llvm.Kind] struct {
 
 // Op 读改写操作
 func (r AtomicRMW[T]) Op() llvm.RMWOp {
-	r.Check("ir.AtomicRMW.Op")
 	return llvm.RMWOp(binding.LLVMGetAtomicRMWBinOp(r.Ref()))
 }
 
 // SetOp 设置读改写操作
 func (r AtomicRMW[T]) SetOp(op llvm.RMWOp) {
-	r.Check("ir.AtomicRMW.SetOp")
 	binding.LLVMSetAtomicRMWBinOp(r.Ref(), binding.LLVMAtomicRMWBinOp(op))
 }
 
 // Ordering 内存序
 func (r AtomicRMW[T]) Ordering() llvm.AtomicOrdering {
-	r.Check("ir.AtomicRMW.Ordering")
 	return llvm.AtomicOrdering(binding.LLVMGetOrdering(r.Ref()))
 }
 
 // SetOrdering 设置内存序
 func (r AtomicRMW[T]) SetOrdering(o llvm.AtomicOrdering) {
 	const op = "ir.AtomicRMW.SetOrdering"
-	r.Check(op)
 	preOrderingRMW(op, o)
 	binding.LLVMSetOrdering(r.Ref(), binding.LLVMAtomicOrdering(o))
 }
 
 // IsVolatile 是否 volatile
 func (r AtomicRMW[T]) IsVolatile() bool {
-	r.Check("ir.AtomicRMW.IsVolatile")
 	return binding.LLVMGetVolatile(r.Ref())
 }
 
 // SetVolatile 设置 volatile
 func (r AtomicRMW[T]) SetVolatile(v bool) {
-	r.Check("ir.AtomicRMW.SetVolatile")
 	binding.LLVMSetVolatile(r.Ref(), v)
 }
 
 // Align 对齐字节数
 func (r AtomicRMW[T]) Align() uint32 {
-	r.Check("ir.AtomicRMW.Align")
 	return binding.LLVMGetAlignment(r.Ref())
 }
 
 // SetAlign 设置对齐字节数
 func (r AtomicRMW[T]) SetAlign(n uint32) {
 	const op = "ir.AtomicRMW.SetAlign"
-	r.Check(op)
 	preAlign(op, n)
 	binding.LLVMSetAlignment(r.Ref(), n)
 }
@@ -187,66 +175,56 @@ type CmpXchg struct {
 
 // SuccessOrdering 成功序
 func (x CmpXchg) SuccessOrdering() llvm.AtomicOrdering {
-	x.Check("ir.CmpXchg.SuccessOrdering")
 	return llvm.AtomicOrdering(binding.LLVMGetCmpXchgSuccessOrdering(x.Ref()))
 }
 
 // SetSuccessOrdering 设置成功序
 func (x CmpXchg) SetSuccessOrdering(o llvm.AtomicOrdering) {
 	const op = "ir.CmpXchg.SetSuccessOrdering"
-	x.Check(op)
 	preOrderingRMW(op, o)
 	binding.LLVMSetCmpXchgSuccessOrdering(x.Ref(), binding.LLVMAtomicOrdering(o))
 }
 
 // FailureOrdering 失败序
 func (x CmpXchg) FailureOrdering() llvm.AtomicOrdering {
-	x.Check("ir.CmpXchg.FailureOrdering")
 	return llvm.AtomicOrdering(binding.LLVMGetCmpXchgFailureOrdering(x.Ref()))
 }
 
 // SetFailureOrdering 设置失败序（不得强于成功序）
 func (x CmpXchg) SetFailureOrdering(o llvm.AtomicOrdering) {
 	const op = "ir.CmpXchg.SetFailureOrdering"
-	x.Check(op)
 	preOrderingCmpXchg(op, x.SuccessOrdering(), o)
 	binding.LLVMSetCmpXchgFailureOrdering(x.Ref(), binding.LLVMAtomicOrdering(o))
 }
 
 // IsWeak 是否 weak
 func (x CmpXchg) IsWeak() bool {
-	x.Check("ir.CmpXchg.IsWeak")
 	return binding.LLVMGetWeak(x.Ref())
 }
 
 // SetWeak 设置 weak
 func (x CmpXchg) SetWeak(v bool) {
-	x.Check("ir.CmpXchg.SetWeak")
 	binding.LLVMSetWeak(x.Ref(), v)
 }
 
 // IsVolatile 是否 volatile
 func (x CmpXchg) IsVolatile() bool {
-	x.Check("ir.CmpXchg.IsVolatile")
 	return binding.LLVMGetVolatile(x.Ref())
 }
 
 // SetVolatile 设置 volatile
 func (x CmpXchg) SetVolatile(v bool) {
-	x.Check("ir.CmpXchg.SetVolatile")
 	binding.LLVMSetVolatile(x.Ref(), v)
 }
 
 // Align 对齐字节数
 func (x CmpXchg) Align() uint32 {
-	x.Check("ir.CmpXchg.Align")
 	return binding.LLVMGetAlignment(x.Ref())
 }
 
 // SetAlign 设置对齐字节数
 func (x CmpXchg) SetAlign(n uint32) {
 	const op = "ir.CmpXchg.SetAlign"
-	x.Check(op)
 	preAlign(op, n)
 	binding.LLVMSetAlignment(x.Ref(), n)
 }

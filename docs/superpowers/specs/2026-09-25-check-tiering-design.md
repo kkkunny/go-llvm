@@ -128,9 +128,14 @@
 
 ## 9. 与初版设计的偏差
 
-1. **D-4 咽喉点收敛未完整实施**：`Ref()` 内建校验会与 Builder 路径的 `checkVal` 重复，
-   且需把根包内所有 `.ref` 直接读取改为 `Ref()`（大面积低风险但高churn）；当前保留
-   一行式 `Check`/`pre` 序言。后续可作为独立重构。
+1. **D-4 咽喉点收敛已完成（后续补充）**：`Value.Ref()`/`Type.Ref()` 内建崩溃类地板校验
+   （快路径保持可内联，慢路径 `checkFloor`），基于 `Value[T]`/`Type[T]` 的角色方法序言
+   `Check` 全部删除（ir 包字段不可达，天然只能经 `Ref()` 触达句柄）；根包 `type.go`/
+   `constant.go` 的 `.ref` 直读改为 `Ref()`。显式 `.Check(` 调用点 239 → 87，剩余集中在
+   自持句柄的容器类型（`Block`/`Module`/`Comdat`/`Metadata`/`Attribute`）与参数校验
+   （Argument `Attribute`），保留其显式 `Check`。`RawRef()` 仅供 `ir.preVal` 等预检内部
+   使用，避免 `Ref()` 先 panic 丢失 builder 现场（op + recent ops）。实测两种构建
+   benchmark 无回退。
 2. **FnType 参数缓存未做**：调试层用 `LLVMGetParamTypes` 单次调用 + `Value.ty` 已把
    实参类型校验降到 1 次 cgo；`FnType` 全量缓存需要改所有构造路径，收益不足。
 3. **A2 打印前 Verify 移除**：见 §8；B5 已覆盖真正的代码生成边界。

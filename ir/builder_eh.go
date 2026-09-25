@@ -14,26 +14,22 @@ type Invoke[T llvm.Kind] struct {
 
 // NormalBlock 正常出口块
 func (c Invoke[T]) NormalBlock() Block {
-	c.Check("ir.Invoke.NormalBlock")
 	return wrapBlock(c.Context(), c.Lifetime(), binding.LLVMGetSuccessor(c.Ref(), 0))
 }
 
 // UnwindBlock 异常出口块
 func (c Invoke[T]) UnwindBlock() Block {
-	c.Check("ir.Invoke.UnwindBlock")
 	return wrapBlock(c.Context(), c.Lifetime(), binding.LLVMGetSuccessor(c.Ref(), 1))
 }
 
 // ArgCount 实参个数
 func (c Invoke[T]) ArgCount() uint32 {
-	c.Check("ir.Invoke.ArgCount")
 	return binding.LLVMGetNumArgOperands(c.Ref())
 }
 
 // Arg 第 i 个实参（擦除种类）
 func (c Invoke[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.Invoke.Arg"
-	c.Check(op)
 	if i >= c.ArgCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
@@ -43,7 +39,6 @@ func (c Invoke[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 // SetArg 替换第 i 个实参
 func (c Invoke[T]) SetArg(i uint32, v llvm.AnyValue) {
 	const op = "ir.Invoke.SetArg"
-	c.Check(op)
 	if i >= c.ArgCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
@@ -53,7 +48,6 @@ func (c Invoke[T]) SetArg(i uint32, v llvm.AnyValue) {
 
 // CalledFunction 被调用函数（非间接 invoke 时）
 func (c Invoke[T]) CalledFunction() (llvm.Value[llvm.FnT], bool) {
-	c.Check("ir.Invoke.CalledFunction")
 	ref := binding.LLVMGetCalledValue(c.Ref())
 	if ref.IsNil() {
 		return llvm.Value[llvm.FnT]{}, false
@@ -70,7 +64,6 @@ type LandingPad[T llvm.Kind] struct {
 // 注：经 Dyn() 走 Value[DynT].IsConstant，避免 Global 角色遮蔽语义（全局常量标志）
 func (l LandingPad[T]) AddClause(v llvm.AnyValue) {
 	const op = "ir.LandingPad.AddClause"
-	l.Check(op)
 	l.Context().CheckValues(op, v)
 	if checks.Debug && !v.Dyn().IsConstant() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "clause must be a constant")
@@ -80,14 +73,12 @@ func (l LandingPad[T]) AddClause(v llvm.AnyValue) {
 
 // ClauseCount 子句数量
 func (l LandingPad[T]) ClauseCount() uint32 {
-	l.Check("ir.LandingPad.ClauseCount")
 	return binding.LLVMGetNumClauses(l.Ref())
 }
 
 // Clause 第 i 条子句（擦除种类）
 func (l LandingPad[T]) Clause(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.LandingPad.Clause"
-	l.Check(op)
 	if checks.Debug && i >= l.ClauseCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "clause index %d out of range", i)
 	}
@@ -96,13 +87,11 @@ func (l LandingPad[T]) Clause(i uint32) llvm.Value[llvm.DynT] {
 
 // SetCleanup 设置 cleanup 标志
 func (l LandingPad[T]) SetCleanup(v bool) {
-	l.Check("ir.LandingPad.SetCleanup")
 	binding.LLVMSetCleanup(l.Ref(), v)
 }
 
 // IsCleanup 是否 cleanup
 func (l LandingPad[T]) IsCleanup() bool {
-	l.Check("ir.LandingPad.IsCleanup")
 	return binding.LLVMIsCleanup(l.Ref())
 }
 
@@ -114,21 +103,18 @@ type CatchSwitch struct {
 // AddHandler 追加处理器入口块（须与 catchswitch 同函数）
 func (s CatchSwitch) AddHandler(blk Block) {
 	const op = "ir.CatchSwitch.AddHandler"
-	s.Check(op)
 	blk.Check(op)
 	binding.LLVMAddHandler(s.Ref(), blk.ref)
 }
 
 // HandlerCount 处理器数量
 func (s CatchSwitch) HandlerCount() uint32 {
-	s.Check("ir.CatchSwitch.HandlerCount")
 	return binding.LLVMGetNumHandlers(s.Ref())
 }
 
 // HandlerAt 第 i 个处理器入口块
 func (s CatchSwitch) HandlerAt(i uint32) Block {
 	const op = "ir.CatchSwitch.HandlerAt"
-	s.Check(op)
 	if checks.Debug && i >= s.HandlerCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "handler index %d out of range", i)
 	}
@@ -142,14 +128,12 @@ type FuncletPad struct {
 
 // ArgCount 实参个数（LLVMGetNumOperands 含末位 parent pad，故减 1）
 func (p FuncletPad) ArgCount() uint32 {
-	p.Check("ir.FuncletPad.ArgCount")
 	return uint32(binding.LLVMGetNumOperands(p.Ref())) - 1
 }
 
 // Arg 第 i 个实参（擦除种类）
 func (p FuncletPad) Arg(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.FuncletPad.Arg"
-	p.Check(op)
 	if checks.Debug && i >= p.ArgCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
@@ -159,7 +143,6 @@ func (p FuncletPad) Arg(i uint32) llvm.Value[llvm.DynT] {
 // SetArg 替换第 i 个实参
 func (p FuncletPad) SetArg(i uint32, v llvm.AnyValue) {
 	const op = "ir.FuncletPad.SetArg"
-	p.Check(op)
 	if checks.Debug && i >= p.ArgCount() {
 		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
@@ -169,7 +152,6 @@ func (p FuncletPad) SetArg(i uint32, v llvm.AnyValue) {
 
 // ParentCatchSwitch 所属 catchswitch（仅 catchpad 有意义）
 func (p FuncletPad) ParentCatchSwitch() CatchSwitch {
-	p.Check("ir.FuncletPad.ParentCatchSwitch")
 	return CatchSwitch{Value: llvm.NewValue[llvm.TokenT](p.Context(), p.Lifetime(), binding.LLVMGetParentCatchSwitch(p.Ref()))}
 }
 
