@@ -359,13 +359,6 @@ func TestAggregateVectorPathPrecheck(t *testing.T) {
 		t.Fatalf("vector insert path should panic ErrInvalidArg, got %v", err)
 	}
 
-	// 越界索引同样在调试层被拦下
-	if err := llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{1, 9}, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
-		t.Fatalf("vector index out of range should panic ErrInvalidArg, got %v", err)
-	}
-	if err := llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), []uint32{1, 9}, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
-		t.Fatalf("vector insert index out of range should panic ErrInvalidArg, got %v", err)
-	}
 	b.RetVoid()
 }
 

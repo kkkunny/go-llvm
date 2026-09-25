@@ -113,7 +113,7 @@ func SuccessorCount(term llvm.AnyValue) uint32 {
 	return binding.LLVMGetNumSuccessors(term.Ref())
 }
 
-// Successor 第 i 个后继块；越界校验仅调试层
+// Successor 第 i 个后继块；非终结指令 panic（崩溃类地板，两种构建均生效），越界校验仅调试层
 func Successor(term llvm.AnyValue, i uint32) Block {
 	const op = "ir.Successor"
 	requireTerminator(op, term)
@@ -123,7 +123,7 @@ func Successor(term llvm.AnyValue, i uint32) Block {
 	return wrapBlock(term.Context(), term.Lifetime(), binding.LLVMGetSuccessor(term.Ref(), i))
 }
 
-// SetSuccessor 替换第 i 个后继块
+// SetSuccessor 替换第 i 个后继块；非终结指令 panic（崩溃类地板，两种构建均生效），越界校验仅调试层
 func SetSuccessor(term llvm.AnyValue, i uint32, blk Block) {
 	const op = "ir.SetSuccessor"
 	requireTerminator(op, term)
@@ -144,7 +144,7 @@ func IsConditional(term llvm.AnyValue) bool {
 	return binding.LLVMIsConditional(term.Ref())
 }
 
-// Condition 条件值（非条件终结指令 panic，仅调试层）
+// Condition 条件值；非终结指令 panic（崩溃类地板，两种构建均生效），非条件终结指令仅调试层 panic
 func Condition(term llvm.AnyValue) llvm.Value[llvm.DynT] {
 	const op = "ir.Condition"
 	requireTerminator(op, term)
@@ -154,7 +154,7 @@ func Condition(term llvm.AnyValue) llvm.Value[llvm.DynT] {
 	return llvm.ValueOf(term.Context(), term.Lifetime(), binding.LLVMGetCondition(term.Ref()))
 }
 
-// SetCondition 替换条件值
+// SetCondition 替换条件值；非终结指令 panic（崩溃类地板，两种构建均生效），非条件终结指令仅调试层 panic
 func SetCondition(term llvm.AnyValue, cond llvm.AnyValue) {
 	const op = "ir.SetCondition"
 	requireTerminator(op, term)
