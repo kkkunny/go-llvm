@@ -50,7 +50,8 @@ func LLVMGetMDString(v LLVMValueRef) (string, bool) {
 	return C.GoStringN(ptr, C.int(length)), true
 }
 
-// LLVMIsAMDNode 返回非 nil 表示该 metadata-as-value 是 MDNode。
+// LLVMIsAMDNode returns non-nil for both MDNode and ValueAsMetadata (an upstream
+// LLVM-C behavior); combine with LLVMIsAValueAsMetadata to distinguish real nodes.
 func LLVMIsAMDNode(v LLVMValueRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMIsAMDNode(v.c)}
 }

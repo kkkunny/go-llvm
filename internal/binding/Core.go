@@ -2551,7 +2551,9 @@ func LLVMSetInstrParamAlignment(v LLVMValueRef, index uint32, align uint32) {
 	C.LLVMSetInstrParamAlignment(v.c, C.LLVMAttributeIndex(index), C.unsigned(align))
 }
 
-// LLVMGetSyncScopeID Get the sync scope ID for the given name (0 = system).
+// LLVMGetSyncScopeID Get the sync scope ID for the given name. LLVM recognizes
+// common names (e.g. "system", "singlethread") but assigns the IDs itself; do not
+// hardcode specific values.
 func LLVMGetSyncScopeID(c LLVMContextRef, name string) uint32 {
 	return string2CString(name, func(cs *C.char) uint32 {
 		return uint32(C.LLVMGetSyncScopeID(c.c, cs, C.size_t(len(name))))

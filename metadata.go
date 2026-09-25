@@ -101,7 +101,8 @@ func (ctx *Context) MDString(s string) Metadata {
 //
 // 注意：elems 只有一个 ValueAsMetadata 元素（经 [Context.ValueAsMetadata] 包装）时，
 // LLVM 直接返回该 ValueAsMetadata 而非节点，其 [Metadata.String] 形如 `i32 3` 而不是
-// `!{...}`；需要真正的节点时请传 ≥2 个元素。
+// `!{...}`；需要真正的节点时可传 ≥2 个元素，或改用非 [Context.ValueAsMetadata] 的
+// 单个元素。
 func (ctx *Context) MDNode(elems ...Metadata) Metadata {
 	const op = "llvm.Context.MDNode"
 	ctx.CheckAlive(op)
