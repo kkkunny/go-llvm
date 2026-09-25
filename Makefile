@@ -53,6 +53,7 @@ config:
 	@printf '#cgo CFLAGS: -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS\n' >> $(CGO_FILE)
 	@printf '#cgo CFLAGS: -I%s/include -I/usr/include -I/usr/local/include\n' '$(LLVM_PREFIX)' >> $(CGO_FILE)
 	@printf '#cgo CXXFLAGS: -std=c++17 -fexceptions -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS\n' >> $(CGO_FILE)
+	@printf '#cgo CXXFLAGS: -I%s/include -I/usr/include -I/usr/local/include\n' '$(LLVM_PREFIX)' >> $(CGO_FILE)
 	@printf '#cgo LDFLAGS: -L%s/lib -L/usr/lib64 -L/usr/lib -L/usr/local/lib -lLLVM\n' '$(LLVM_PREFIX)' >> $(CGO_FILE)
 	@printf '*/\nimport "C"\n' >> $(CGO_FILE)
 	@echo "wrote $(CGO_FILE) with $(LLVM_CONFIG_BIN) ($(LLVM_MAJOR))"
