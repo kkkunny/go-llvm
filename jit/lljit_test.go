@@ -1,6 +1,7 @@
 package jit
 
 import (
+	"math"
 	"sync"
 	"testing"
 	"unsafe"
@@ -105,6 +106,42 @@ func TestLLJITMapSymbol(t *testing.T) {
 
 	if _, err := j.Lookup("call_alias"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLLJITAddProcessSymbols(t *testing.T) {
+	j := newJIT(t)
+	defer j.Close()
+	if err := j.AddProcessSymbols(); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := llvm.NewContext()
+	m := ir.NewModule(ctx, "process_symbols")
+	f64 := ctx.Float(llvm.FloatDouble)
+	sin := m.NewFunction("sin", ctx.Fn(f64, []llvm.AnyType{f64}, false))
+	fn := m.NewFunction("neg_sin", ctx.Fn(f64, []llvm.AnyType{f64}, false))
+	b := ir.NewBuilder(ctx)
+	b.MoveToEnd(fn.NewBlock("entry"))
+	x := fn.ParamAs[llvm.FloatT](0)
+	res := b.Call[llvm.FloatT](sin, []llvm.AnyValue{x.Dyn()}, "")
+	b.Ret(b.FNeg(res.Value, ""))
+	if err := b.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Verify(); err != nil {
+		t.Fatal(err)
+	}
+	if err := j.AddIRModule(m); err != nil {
+		t.Fatal(err)
+	}
+
+	negSin, err := j.Func[func(float64) float64]("neg_sin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := negSin(math.Pi / 2); math.Abs(got+1) > 1e-9 {
+		t.Fatalf("neg_sin(pi/2) = %v, want -1", got)
 	}
 }
 

@@ -2,6 +2,7 @@ package jit
 
 import (
 	"reflect"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -134,6 +135,25 @@ func (j *LLJIT) Lookup(name string) (unsafe.Pointer, error) {
 		return nil, llvm.WrapError(llvm.ErrNotFound, op, err)
 	}
 	return addr, nil
+}
+
+// AddProcessSymbols 把宿主进程符号引入主 JITDylib 的解析范围：
+// extern 声明的函数/全局可在运行时解析到 libc/libm 等宿主符号。
+// 默认暴露全部进程符号；必须在 AddIRModule 之前调用。失败返回 ErrJIT。
+func (j *LLJIT) AddProcessSymbols() error {
+	const op = "jit.LLJIT.AddProcessSymbols"
+	j.check(op)
+	prefix := byte(0)
+	if t := j.Triple(); strings.Contains(t, "darwin") || strings.Contains(t, "apple") {
+		prefix = '_'
+	}
+	dg, err := binding.LLVMOrcCreateDynamicLibrarySearchGeneratorForProcess(prefix)
+	if err != nil {
+		return llvm.WrapError(llvm.ErrJIT, op, err)
+	}
+	// 所有权移交主 JITDylib
+	binding.LLVMOrcJITDylibAddGenerator(binding.LLVMOrcLLJITGetMainJITDylib(j.ref), dg)
+	return nil
 }
 
 // MapSymbol 把宿主地址定义为 JIT 符号（绝对符号）；失败返回 ErrJIT

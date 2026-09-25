@@ -44,6 +44,11 @@ type (
 	LLVMOrcMaterializationUnitRef struct {
 		c C.LLVMOrcMaterializationUnitRef
 	}
+
+	// LLVMOrcDefinitionGeneratorRef A reference to an orc::DefinitionGenerator instance.
+	LLVMOrcDefinitionGeneratorRef struct {
+		c C.LLVMOrcDefinitionGeneratorRef
+	}
 )
 
 func (ref LLVMOrcLLJITRef) IsNil() bool                   { return ref.c == nil }
@@ -56,6 +61,7 @@ func (ref LLVMOrcThreadSafeModuleRef) IsNil() bool        { return ref.c == nil 
 func (ref LLVMOrcThreadSafeContextRef) IsNil() bool       { return ref.c == nil }
 func (ref LLVMOrcJITTargetMachineBuilderRef) IsNil() bool { return ref.c == nil }
 func (ref LLVMOrcMaterializationUnitRef) IsNil() bool     { return ref.c == nil }
+func (ref LLVMOrcDefinitionGeneratorRef) IsNil() bool     { return ref.c == nil }
 
 // LLVMJITSymbolGenericFlags Represents generic linkage flags for a symbol definition.
 type LLVMJITSymbolGenericFlags uint8
@@ -264,6 +270,33 @@ func LLVMOrcJITDylibDefine(jd LLVMOrcJITDylibRef, mu LLVMOrcMaterializationUnitR
 // LLVMOrcDisposeMaterializationUnit Dispose of a MaterializationUnit.
 func LLVMOrcDisposeMaterializationUnit(mu LLVMOrcMaterializationUnitRef) {
 	C.LLVMOrcDisposeMaterializationUnit(mu.c)
+}
+
+// LLVMOrcCreateDynamicLibrarySearchGeneratorForProcess Get a DefinitionGenerator
+// that will reflect process symbols into a JITDylib.
+// On success the caller owns the generator until it is transferred to a JITDylib
+// via LLVMOrcJITDylibAddGenerator (or disposed with LLVMOrcDisposeDefinitionGenerator).
+// GlobalPrefix is the linker-mangling prefix of the target ('_' on MachO, 0 on ELF);
+// a nil filter exposes all process symbols.
+func LLVMOrcCreateDynamicLibrarySearchGeneratorForProcess(globalPrefix byte) (LLVMOrcDefinitionGeneratorRef, error) {
+	var out LLVMOrcDefinitionGeneratorRef
+	err := orcError2Error(C.LLVMOrcCreateDynamicLibrarySearchGeneratorForProcess(
+		&out.c, C.char(globalPrefix), nil, nil))
+	if err != nil {
+		return LLVMOrcDefinitionGeneratorRef{}, err
+	}
+	return out, nil
+}
+
+// LLVMOrcDisposeDefinitionGenerator Dispose of a DefinitionGenerator.
+func LLVMOrcDisposeDefinitionGenerator(dg LLVMOrcDefinitionGeneratorRef) {
+	C.LLVMOrcDisposeDefinitionGenerator(dg.c)
+}
+
+// LLVMOrcJITDylibAddGenerator Add a DefinitionGenerator to the given JITDylib.
+// The JITDylib takes ownership of the given generator.
+func LLVMOrcJITDylibAddGenerator(jd LLVMOrcJITDylibRef, dg LLVMOrcDefinitionGeneratorRef) {
+	C.LLVMOrcJITDylibAddGenerator(jd.c, dg.c)
 }
 
 // LLVMOrcJITDylibCreateResourceTracker Return a reference to a newly created resource tracker.
