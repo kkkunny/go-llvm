@@ -7,6 +7,65 @@ import (
 	"github.com/kkkunny/go-llvm"
 )
 
+// TestModuleAccessors 覆盖 Module/Builder 的 Context/Lifetime/Ref 访问器与关闭上下文上的创建。
+func TestModuleAccessors(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "acc")
+	defer m.Close()
+
+	if m.Context() != ctx {
+		t.Fatalf("Module.Context() = %v, want ctx", m.Context())
+	}
+	if life := m.Lifetime(); life == nil || !life.Alive() {
+		t.Fatalf("Module.Lifetime() = %v", life)
+	}
+	if m.Ref().IsNil() {
+		t.Fatal("Module.Ref() should not be nil")
+	}
+
+	b := NewBuilder(ctx)
+	defer b.Close()
+	if b.Context() != ctx {
+		t.Fatalf("Builder.Context() = %v, want ctx", b.Context())
+	}
+
+	// Context 关闭后不得再创建模块/构建器（崩溃类地板：始终校验）
+	dead := llvm.NewContext()
+	if err := dead.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := llvm.Catch(func() { NewModule(dead, "x") }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("NewModule on closed context should panic ErrUseAfterFree, got %v", err)
+	}
+	if err := llvm.Catch(func() { NewBuilder(dead) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("NewBuilder on closed context should panic ErrUseAfterFree, got %v", err)
+	}
+}
+
+// TestModuleMustVerifyOnLink 调试构建下链接非法模块必须在边界校验处 panic ErrVerify（不进入 LLVM 链接器）。
+func TestModuleMustVerifyOnLink(t *testing.T) {
+	requireDebug(t)
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	dst := NewModule(ctx, "dst")
+	defer dst.Close()
+	src := NewModule(ctx, "src")
+	defer src.Close()
+
+	// 制造非法 IR：全局初始化器类型与全局类型不符（SetInitializer 不做语义校验）
+	g := src.NewGlobal("bad", ctx.Int(32))
+	g.SetInitializer(ctx.ConstFloat(ctx.Float(llvm.FloatDouble), 1).Value)
+
+	if err := llvm.Catch(func() { _ = dst.Link(src) }); err == nil || err.Reason != llvm.ErrVerify {
+		t.Fatalf("linking invalid module should panic ErrVerify, got %v", err)
+	}
+	// 边界校验失败发生在 Disown 之前：源模块仍可用
+	if _, ok := src.GetGlobal("bad"); !ok {
+		t.Fatal("source module should stay usable after boundary verify failure")
+	}
+}
+
 func TestModuleFunctionGolden(t *testing.T) {
 	ctx := llvm.NewContext()
 	defer ctx.Close()

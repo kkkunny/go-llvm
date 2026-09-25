@@ -116,6 +116,57 @@ func TestBitcodeRoundTrip(t *testing.T) {
 	}
 }
 
+// TestParseBitcodeBytesAndPrecheck 覆盖 bitcode 字节入口与解析前置校验。
+func TestParseBitcodeBytesAndPrecheck(t *testing.T) {
+	ctx, m := buildRetModule(t, "bcbytes")
+	defer ctx.Close()
+	defer m.Close()
+
+	bc := m.Bitcode()
+	defer bc.Close()
+	parsed, err := ParseBitcodeBytes(ctx, bc.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer parsed.Close()
+	if stripModuleID(parsed.String()) != stripModuleID(m.String()) {
+		t.Fatalf("ParseBitcodeBytes round trip mismatch:\n%s\n---\n%s", parsed.String(), m.String())
+	}
+	if _, err := ParseBitcodeBytes(ctx, []byte("junk")); err == nil || err.(*llvm.Error).Reason != llvm.ErrParse {
+		t.Fatalf("invalid bitcode bytes should return ErrParse, got %v", err)
+	}
+
+	// 崩溃类地板：nil 缓冲 / 已关闭缓冲 / 已关闭 Context
+	if err := llvm.Catch(func() { _, _ = ParseIR(ctx, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("ParseIR(nil) should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { _, _ = ParseBitcode(ctx, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("ParseBitcode(nil) should panic ErrInvalidArg, got %v", err)
+	}
+	closed := llvm.NewMemoryBuffer([]byte("x"), "closed.ll")
+	if err := closed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := llvm.Catch(func() { _, _ = ParseIR(ctx, closed) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("ParseIR(closed buffer) should panic ErrUseAfterFree, got %v", err)
+	}
+	if err := llvm.Catch(func() { _, _ = ParseBitcode(ctx, closed) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("ParseBitcode(closed buffer) should panic ErrUseAfterFree, got %v", err)
+	}
+	deadCtx := llvm.NewContext()
+	if err := deadCtx.Close(); err != nil {
+		t.Fatal(err)
+	}
+	buf := llvm.NewMemoryBuffer([]byte("x"), "x.ll")
+	defer buf.Close()
+	if err := llvm.Catch(func() { _, _ = ParseIR(deadCtx, buf) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("ParseIR(closed context) should panic ErrUseAfterFree, got %v", err)
+	}
+	if err := llvm.Catch(func() { _, _ = ParseBitcode(deadCtx, buf) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("ParseBitcode(closed context) should panic ErrUseAfterFree, got %v", err)
+	}
+}
+
 func TestModuleWriteToFile(t *testing.T) {
 	ctx, m := buildRetModule(t, "writefile")
 	defer ctx.Close()

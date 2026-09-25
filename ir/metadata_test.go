@@ -98,6 +98,16 @@ func TestInstMetadata(t *testing.T) {
 	if err := llvm.Catch(func() { AttachMetadata(add, "bad.kind", ctx.MDString("x")) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("non-MDNode attachment should panic ErrInvalidArg, got %v", err)
 	}
+	if err := llvm.Catch(func() { AttachMetadata(nil, "my.kind", ctx.MDNode(ctx.MDString("x"))) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil instruction attachment should panic ErrInvalidArg, got %v", err)
+	}
+	ctx2 := llvm.NewContext()
+	defer ctx2.Close()
+	if err := llvm.Catch(func() {
+		AttachMetadata(add, "my.kind", ctx2.MDNode(ctx2.MDString("x")))
+	}); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("cross-context metadata should panic ErrCrossContext, got %v", err)
+	}
 
 	if err := m.Verify(); err != nil {
 		t.Fatalf("verify: %v", err)
@@ -174,6 +184,21 @@ func TestBlockAddress(t *testing.T) {
 	if got := m.String(); !strings.Contains(got, "blockaddress(@f, %next)") {
 		t.Fatalf("missing blockaddress:\n%s", got)
 	}
+
+	// 跨 Context 的函数/块（崩溃类地板：始终校验）
+	ctx2 := llvm.NewContext()
+	defer ctx2.Close()
+	m2 := NewModule(ctx2, "ba2")
+	defer m2.Close()
+	i32b := ctx2.Int(32)
+	fn2 := m2.NewFunction("f2", ctx2.Fn(i32b, nil, false))
+	blk2 := fn2.NewBlock("entry")
+	if err := llvm.Catch(func() { BlockAddress(fn2, next) }); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign block should panic ErrCrossContext, got %v", err)
+	}
+	if err := llvm.Catch(func() { BlockAddress(fn, blk2) }); err == nil || err.Reason != llvm.ErrCrossContext {
+		t.Fatalf("foreign function should panic ErrCrossContext, got %v", err)
+	}
 }
 
 func TestComdat(t *testing.T) {
@@ -213,5 +238,19 @@ func TestComdat(t *testing.T) {
 
 	if err := llvm.Catch(func() { m.GetOrInsertComdat("") }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("empty comdat name should panic ErrInvalidArg, got %v", err)
+	}
+
+	// 访问器：Ref/Context/Lifetime 与零值 Check
+	if c.Ref().IsNil() {
+		t.Fatal("comdat ref should not be nil")
+	}
+	if c.Context() != ctx || c.Lifetime() == nil || !c.Lifetime().Alive() {
+		t.Fatalf("comdat accessors = %v %v", c.Context(), c.Lifetime())
+	}
+	if err := llvm.Catch(func() { Comdat{}.Name() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("zero comdat should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { Comdat{}.SetSelectionKind(llvm.ComdatAny) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("zero comdat SetSelectionKind should panic ErrInvalidArg, got %v", err)
 	}
 }
