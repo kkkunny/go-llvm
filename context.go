@@ -37,10 +37,33 @@ var diagIDSeq atomic.Uint64
 // NewContext 创建上下文。
 // 默认安装诊断回调（A3）：LLVM 默认 handler 对 error 会退出/abort 进程，安装后
 // 转为日志输出，进程得以存活并由上层继续报错；用户可用 SetDiagnosticHandler 覆盖。
+// 调试构建下先做运行时版本校验（见 [checkLinkedVersion]）。
 func NewContext() *Context {
+	checkLinkedVersion()
 	ctx := &Context{ref: binding.LLVMContextCreate(), life: NewLifetime(), diagID: diagIDSeq.Add(1)}
 	ctx.SetDiagnosticHandler(defaultDiagnosticHandler)
 	return ctx
+}
+
+// checkLinkedVersion 校验运行时链接的 LLVM 库与编译期头文件的大版本一致。
+// 只在调试构建生效：release 下 `checks.Debug` 为常量 false，整段（含 cgo 调用）被编译期消除。
+// 大版本不一致时在创建 Context 前 panic [ErrVersionMismatch]，避免用错配的 ABI 继续执行。
+func checkLinkedVersion() {
+	if !checks.Debug {
+		return
+	}
+	checkVersionMatch(binding.LLVMGetVersion, uint32(binding.LLVM_VERSION_MAJOR), binding.LLVM_VERSION_STRING)
+}
+
+// checkVersionMatch 是 checkLinkedVersion 的可注入内核：get 返回运行时版本，
+// headerMajor/headerString 为编译期头文件信息；三者均可注入，便于单测构造错配场景。
+func checkVersionMatch(get func() (uint32, uint32, uint32), headerMajor uint32, headerString string) {
+	major, minor, patch := get()
+	if major != headerMajor {
+		Panicf(ErrVersionMismatch, "llvm.NewContext",
+			"linked LLVM library is %d.%d.%d but the headers were compiled against %s (major %d): install the development package matching the library or regenerate the cgo flags for that version",
+			major, minor, patch, headerString, headerMajor)
+	}
 }
 
 // Own 登记子资源（供 llvm/* 子包使用）；Context.Close 时按逆序级联 Close。

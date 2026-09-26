@@ -6,21 +6,22 @@ import "fmt"
 type ErrKind int
 
 const (
-	ErrTypeMismatch ErrKind = iota // 操作数/种类不匹配
-	ErrCrossContext                // 跨 Context 混用
-	ErrUseAfterFree                // 使用已释放资源
-	ErrClosed                      // 重复 Close
-	ErrNotFound                    // 查找失败
-	ErrInvalidArg                  // 参数非法
-	ErrVerify                      // IR 验证失败
-	ErrParse                       // IR/bitcode 解析失败（ir.ParseIR/ParseBitcode）
-	ErrUnsupported                 // 映射遇到不支持的类型
-	ErrCodeGen                     // 目标代码生成失败（target 包）
-	ErrJIT                         // JIT 构造/符号解析失败（jit 包）
-	ErrIO                          // 文件/内存缓冲读写失败（ir/target/jit）
-	ErrLink                        // 模块链接失败（ir.Module.Link）
-	ErrPass                        // 优化管线执行失败（pass 包）
-	ErrInternal                    // 兜底
+	ErrTypeMismatch    ErrKind = iota // 操作数/种类不匹配
+	ErrCrossContext                   // 跨 Context 混用
+	ErrUseAfterFree                   // 使用已释放资源
+	ErrClosed                         // 重复 Close
+	ErrNotFound                       // 查找失败
+	ErrInvalidArg                     // 参数非法
+	ErrVerify                         // IR 验证失败
+	ErrParse                          // IR/bitcode 解析失败（ir.ParseIR/ParseBitcode）
+	ErrUnsupported                    // 映射遇到不支持的类型
+	ErrCodeGen                        // 目标代码生成失败（target 包）
+	ErrJIT                            // JIT 构造/符号解析失败（jit 包）
+	ErrIO                             // 文件/内存缓冲读写失败（ir/target/jit）
+	ErrLink                           // 模块链接失败（ir.Module.Link）
+	ErrPass                           // 优化管线执行失败（pass 包）
+	ErrInternal                       // 兜底
+	ErrVersionMismatch                // 运行时 LLVM 库与编译期头文件版本不一致
 )
 
 // Error Go 化的 LLVM 错误；程序员错误经 panic 抛出，可用 Catch 收敛为 error

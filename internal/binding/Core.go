@@ -351,6 +351,15 @@ func LLVMDisposeMessage(message *C.char) {
 	C.LLVMDisposeMessage(message)
 }
 
+// LLVMGetVersion Return the major, minor, and patch version of the LLVM library linked at runtime.
+// Unlike the compile-time LLVM_VERSION_* constants, this reflects the library actually loaded,
+// so a header/library major mismatch can be detected before any LLVM call is made.
+func LLVMGetVersion() (major, minor, patch uint32) {
+	var majorC, minorC, patchC C.unsigned
+	C.LLVMGetVersion(&majorC, &minorC, &patchC)
+	return uint32(majorC), uint32(minorC), uint32(patchC)
+}
+
 type LLVMDiagnosticHandler func(LLVMDiagnosticInfoRef, unsafe.Pointer)
 
 // LLVMContextCreate Create a new context.
