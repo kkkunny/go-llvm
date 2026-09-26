@@ -36,6 +36,8 @@
 
 * 需要 **Go 1.27+**（API 使用了泛型方法）。
 * 仅支持 LLVM 22；不再提供 LLVM 21 及更早的版本线，如有需要可固定到历史提交。
+* 常见 Linux、macOS（Homebrew）与 FreeBSD 安装布局开箱即用；非标准前缀需要一次
+  生成步骤，见[非标准 LLVM 前缀](#非标准-llvm-前缀)。
 
 ## 包结构
 
@@ -56,6 +58,9 @@
 ```shell
 go get github.com/kkkunny/go-llvm
 ```
+
+标准 Linux/macOS/FreeBSD 布局开箱即用；其他安装前缀见
+[非标准 LLVM 前缀](#非标准-llvm-前缀)。
 
 ```go
 package main
@@ -187,18 +192,62 @@ go run ./examples/kaleidoscope -dl -dp -dc -e '1 + 2 * 2'   # dump tokens/AST/IR
 
 ### 非标准 LLVM 前缀
 
-`internal/binding/cgo.go` 内置了常见 Linux 布局（`/usr/lib/llvm-NN`、`/usr`、`/usr/local`、
-`/usr/lib64`）的 `#cgo` 标志，并使用不带版本号的 `-lLLVM`。如果你的 LLVM 安装在其他位置，
-可在构建时通过环境变量覆盖：
+`internal/binding/cgo.go` 内置一份可移植的 per-OS 候选列表（**A 层**），常见安装布局
+开箱即用、无需任何环境变量：
+
+| 平台 | 覆盖的布局 | 典型安装 |
+|---|---|---|
+| Linux | `/usr/lib/llvm-22`、`/usr/include/llvm-22`、`/usr/include/llvm-c-22`、`/usr/include`、`/usr/local`、`/usr/lib64` | Debian/Ubuntu 的 `llvm-22-dev`（apt.llvm.org）、Fedora、Arch |
+| macOS（Homebrew） | `/opt/homebrew/opt/llvm@22`（Apple Silicon）、`/usr/local/opt/llvm@22`（Intel） | `brew install llvm@22` |
+| FreeBSD | `/usr/local/llvm22` | `pkg install llvm22` |
+
+`-lLLVM` 有意不带版本号：它解析到第一个命中的库（Debian/Ubuntu 的 `llvm-22-dev`
+同时提供 `libLLVM-22.so` 与 `libLLVM.so`）。如果你的 LLVM 在别处（自定义
+`--prefix`、非标准多版本工具链、软件仓库式布局），走下面两条路之一。
+
+#### 本地检出 / vendor 副本（B 层）：生成机器专用 flags
 
 ```shell
-export CGO_CFLAGS="$(llvm-config --cflags)"
-export CGO_CXXFLAGS="$(llvm-config --cxxflags)"
-export CGO_LDFLAGS="$(llvm-config --ldflags --libs)"
+# 在仓库根目录（或任意嵌套目录）执行
+go generate ./internal/binding                        # 或：make config
+LLVM_CONFIG=/path/to/llvm-config go generate ./internal/binding
+LLVM_PREFIX=/path/to/prefix go generate ./internal/binding
+```
+
+`internal/cmd/llvmconfig` 依次探测 `$LLVM_CONFIG` → `$LLVM_PREFIX/bin/llvm-config` →
+`PATH` 中的 `llvm-config-22` → `PATH` 中的 `llvm-config`，查询
+`--includedir`/`--libdir`/`--libs`/`--system-libs`，并把结果**同时**写进 `CFLAGS` 与
+`CXXFLAGS`（C++ shim 也包含 LLVM 头文件）。生成结果是**机器专用**的：除非所有协作者
+布局一致，否则不要提交，版本库里应保留可移植候选列表。
+`go run ./internal/cmd/llvmconfig --check` 只打印探测结果、不写文件。
+
+#### 从 module cache 引用的消费者：用环境变量覆盖 cgo flags
+
+module cache 只读且由 `go` 命令管理，生成器会拒绝写入并给出指引。没有本地检出、
+直接 `go get` 的消费者需要自己导出 flags：
+
+```shell
+export CGO_CFLAGS="$(llvm-config-22 --cflags)"
+# --cxxflags 末尾带 -fno-exceptions，会破坏 C++ shim，先过滤掉再使用。
+export CGO_CXXFLAGS="$(llvm-config-22 --cxxflags | sed 's/-fno-exceptions//g')"
+export CGO_LDFLAGS="$(llvm-config-22 --ldflags --libs)"
 ```
 
 `CGO_CFLAGS`/`CGO_CXXFLAGS` 是全局的，因此同样会作用于 `internal/binding` 自身的编译；
-在自己 main 包里放一个 `#cgo` 文件则不会。
+在自己 main 包里放一个 `#cgo` 文件则不会。除环境变量外，也可以在 `go.mod` 中用
+`replace` 指向本地检出并在那里生成，或对 `vendor/` 副本做同样处理。
+
+#### 排障对照表
+
+| 现象 | 可能原因 | 处理 |
+|---|---|---|
+| `fatal error: llvm-c/Core.h: No such file or directory` | 候选列表未命中头文件路径 | 用生成器生成 flags（B 层），或同时设置 `CGO_CFLAGS` 与 `CGO_CXXFLAGS` |
+| `could not determine what C.X refers to` | 同上：cgo 编译时没有 LLVM 头文件 | 同上 |
+| `cannot find -lLLVM` / `LLVM*` 符号未定义 | 库路径（或库名）未命中 | 用生成器生成 flags（B 层），或设置 `CGO_LDFLAGS` |
+| `panic: llvm.NewContext: linked LLVM library is …`（`ErrVersionMismatch`，调试构建） | 运行时库的大版本与编译期头文件不一致 | 安装与库匹配的开发包，或按该版本重新生成 flags |
+
+检出内一键自查：`go run ./internal/cmd/llvmconfig --check`；没有检出时：
+`llvm-config --includedir --libdir --libs`（装了多个 LLVM 大版本时用 `llvm-config-22`）。
 
 ## 示例
 
@@ -231,7 +280,9 @@ make test test-release bench bench-release
 
 CI 在每次 push 与 pull request 时通过
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 运行：`gofmt` lint 检查，加上
-`ubuntu-24.04` 上的 `default`/`release` 测试矩阵，LLVM 22 来自 apt.llvm.org。
+`ubuntu-24.04` 上的 `default`/`release` 测试矩阵（LLVM 22 来自 apt.llvm.org，即 A 层
+Linux 布局）、验证 Homebrew 布局的 macOS job，以及用 B 层生成器重写 flags 并据此构建的
+自定义前缀 job。
 
 语义契约类负向测试（期望 panic 的误用测试）通过 `requireDebug(t)` 挂在调试构建，
 `llvm_release` 矩阵下自动跳过；崩溃类地板测试两种构建都必须通过。
@@ -245,9 +296,11 @@ CI 在每次 push 与 pull request 时通过
    `rg -o 'C\.[A-Za-z_]\w*' --glob '*.go'`，再用
    `grep -rw NAME /usr/include/llvm-c/` 逐一确认。
 3. 先冻结上一条版本线，再在 master 上更新版本相关位置：
-   `Makefile` 的 `MIN/MAX_SUPPORT_MAJOR_VERSION`、上面的支持矩阵，以及
-   本 README。用 `make config MAJOR_VERSION=NN` 重新生成
-   `internal/binding/cgo.go` 并审查 diff。
+   `Makefile` 的 `MIN/MAX_SUPPORT_MAJOR_VERSION`、上面的支持矩阵、本 README，以及
+   `internal/binding/cgo.go` 的 per-OS 候选路径。用
+   `LLVM_CONFIG=/path/to/llvm-config-NN go generate ./internal/binding`（或
+   `go run ./internal/cmd/llvmconfig --check`）核对本机 flags；生成结果是机器专用的，
+   提交里应保留可移植候选列表。
 
    ```shell
    git branch llvm-NN master     # 保持旧版本线可达

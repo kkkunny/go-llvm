@@ -38,6 +38,9 @@ Notes:
 * Requires **Go 1.27+** (the API uses generic methods).
 * Only LLVM 22 is supported; LLVM 21 and earlier are no longer provided. They can be
   pinned to historic commits if needed.
+* The common Linux, macOS (Homebrew) and FreeBSD install layouts work with no extra
+  setup; custom prefixes need a one-time step — see
+  [Non-standard LLVM prefixes](#non-standard-llvm-prefixes).
 
 ## Packages
 
@@ -59,6 +62,9 @@ Install a supported LLVM together with its development headers (for example
 ```shell
 go get github.com/kkkunny/go-llvm
 ```
+
+The standard Linux/macOS/FreeBSD layouts are covered out of the box; for other
+install prefixes see [Non-standard LLVM prefixes](#non-standard-llvm-prefixes).
 
 ```go
 package main
@@ -198,19 +204,67 @@ go run ./examples/kaleidoscope -dl -dp -dc -e '1 + 2 * 2'   # dump tokens/AST/IR
 
 ### Non-standard LLVM prefixes
 
-`internal/binding/cgo.go` ships `#cgo` flags for the common Linux layouts
-(`/usr/lib/llvm-NN`, `/usr`, `/usr/local`, `/usr/lib64`) with an unversioned
-`-lLLVM`. If your LLVM lives somewhere else, override via environment
-variables in your build:
+`internal/binding/cgo.go` carries a portable per-OS candidate list (the **A layer**),
+so the common install layouts work out of the box — no environment variables needed:
+
+| Platform | Layout covered | Typical install |
+|---|---|---|
+| Linux | `/usr/lib/llvm-22`, `/usr/include/llvm-22`, `/usr/include/llvm-c-22`, `/usr/include`, `/usr/local`, `/usr/lib64` | Debian/Ubuntu `llvm-22-dev` (apt.llvm.org), Fedora, Arch |
+| macOS (Homebrew) | `/opt/homebrew/opt/llvm@22` (Apple Silicon), `/usr/local/opt/llvm@22` (Intel) | `brew install llvm@22` |
+| FreeBSD | `/usr/local/llvm22` | `pkg install llvm22` |
+
+`-lLLVM` is intentionally unversioned: it resolves against the first matching library
+(Debian/Ubuntu `llvm-22-dev` ships both `libLLVM-22.so` and `libLLVM.so`). If your LLVM
+lives elsewhere (custom `--prefix`, a non-standard multi-version toolchain, a store
+layout), pick one of the two paths below.
+
+#### In a local checkout or vendored copy (B layer): generate machine-specific flags
 
 ```shell
-export CGO_CFLAGS="$(llvm-config --cflags)"
-export CGO_CXXFLAGS="$(llvm-config --cxxflags)"
-export CGO_LDFLAGS="$(llvm-config --ldflags --libs)"
+# from the repository root (or any nested directory)
+go generate ./internal/binding                        # or: make config
+LLVM_CONFIG=/path/to/llvm-config go generate ./internal/binding
+LLVM_PREFIX=/path/to/prefix go generate ./internal/binding
 ```
 
-`CGO_CFLAGS`/`CGO_CXXFLAGS` are global, so they also apply to `internal/binding`'s
-own compilation; a `#cgo` file in your own main package would not.
+`internal/cmd/llvmconfig` probes `$LLVM_CONFIG` → `$LLVM_PREFIX/bin/llvm-config` →
+`llvm-config-22` → `llvm-config` on `PATH`, queries `--includedir`/`--libdir`/`--libs`/
+`--system-libs`, and rewrites `internal/binding/cgo.go` with those flags in **both**
+`CFLAGS` and `CXXFLAGS` (the C++ shims include LLVM headers too). The result is
+**machine-specific**: do not commit it unless everyone shares the same layout — keep the
+portable candidate list in version control. `go run ./internal/cmd/llvmconfig --check`
+only prints what the generator detected, without writing anything.
+
+#### As a dependency from the module cache: override the cgo flags
+
+The module cache is read-only and managed by the `go` command; the generator refuses to
+write there and tells you so. Consumers who `go get` this library and have no local
+checkout must export the flags themselves:
+
+```shell
+export CGO_CFLAGS="$(llvm-config-22 --cflags)"
+# --cxxflags ends with -fno-exceptions, which would break the C++ shims; filter it out.
+export CGO_CXXFLAGS="$(llvm-config-22 --cxxflags | sed 's/-fno-exceptions//g')"
+export CGO_LDFLAGS="$(llvm-config-22 --ldflags --libs)"
+```
+
+`CGO_CFLAGS`/`CGO_CXXFLAGS` are global, so they also reach `internal/binding`'s own
+compilation; a `#cgo` file in your own main package would not. Instead of environment
+variables you can also `replace` the module with a local checkout and run the generator
+there, or patch a `vendor/` copy the same way.
+
+#### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `fatal error: llvm-c/Core.h: No such file or directory` | include path missed by the candidates | generate flags (B layer) or set `CGO_CFLAGS` **and** `CGO_CXXFLAGS` |
+| `could not determine what C.X refers to` | same — cgo compiled without the LLVM headers | same |
+| `cannot find -lLLVM` / undefined `LLVM*` symbols | library path (or library name) missed | generate flags (B layer) or set `CGO_LDFLAGS` |
+| `panic: llvm.NewContext: linked LLVM library is …` (`ErrVersionMismatch`, debug builds) | runtime library major ≠ compile-time headers major | install the dev package matching the library, or regenerate the flags for that version |
+
+Quick self-check inside a checkout: `go run ./internal/cmd/llvmconfig --check`. Without a
+checkout: `llvm-config --includedir --libdir --libs` (use `llvm-config-22` when several
+LLVM majors are installed).
 
 ## Examples
 
@@ -243,8 +297,10 @@ make test test-release bench bench-release
 
 CI runs on every push and pull request via
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `gofmt` lint check plus a
-`default`/`release` test matrix on `ubuntu-24.04`, with LLVM 22 installed from
-apt.llvm.org.
+`default`/`release` test matrix on `ubuntu-24.04` with LLVM 22 installed from
+apt.llvm.org (the A-layer Linux layout), a macOS job for the Homebrew layout, and a
+custom-prefix job that regenerates the cgo flags with the B-layer generator and builds
+against them.
 
 Negative tests for semantic-contract misuse are gated by `requireDebug(t)` and run in
 debug builds only (skipped under the `llvm_release` matrix); crash-class floor tests
@@ -259,9 +315,11 @@ must pass in both builds.
    `rg -o 'C\.[A-Za-z_]\w*' --glob '*.go'`, then verify each name with
    `grep -rw NAME /usr/include/llvm-c/`.
 3. Freeze the previous line first, then bump the version spots on master:
-   `Makefile` `MIN/MAX_SUPPORT_MAJOR_VERSION`, the support table above, and
-   this README. Regenerate `internal/binding/cgo.go` with
-   `make config MAJOR_VERSION=NN` and review the diff.
+   `Makefile` `MIN/MAX_SUPPORT_MAJOR_VERSION`, the support table above, this README,
+   and the per-OS candidate paths in `internal/binding/cgo.go`. Check the flags against
+   the local toolchain with `LLVM_CONFIG=/path/to/llvm-config-NN go generate
+   ./internal/binding` (or `go run ./internal/cmd/llvmconfig --check`); the generated
+   file is machine-specific, so keep the portable candidates in the commit.
 
    ```shell
    git branch llvm-NN master     # keep the old line reachable
