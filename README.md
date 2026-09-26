@@ -209,22 +209,29 @@ so the common install layouts work out of the box — no environment variables n
 
 | Platform | Layout covered | Typical install |
 |---|---|---|
-| Linux | `/usr/lib/llvm-22`, `/usr/include/llvm-22`, `/usr/include/llvm-c-22`, `/usr/include`, `/usr/local`, `/usr/lib64` | Debian/Ubuntu `llvm-22-dev` (apt.llvm.org), Fedora, Arch |
+| Linux | `/usr/lib/llvm-22`, `/usr/include/llvm-22`, `/usr/include/llvm-c-22`, `/usr/include`, `/usr/local`, `/usr/lib64` | Debian/Ubuntu `llvm-22-dev` (apt.llvm.org); Arch |
 | macOS (Homebrew) | `/opt/homebrew/opt/llvm@22` (Apple Silicon), `/usr/local/opt/llvm@22` (Intel) | `brew install llvm@22` |
-| FreeBSD | `/usr/local/llvm22` | `pkg install llvm22` |
+| FreeBSD | `/usr/local/llvm22` | `pkg install llvm22` (not confirmed on real hardware yet) |
+
+The Debian/Ubuntu layouts are exercised by CI and Arch has been verified locally; the Fedora and
+FreeBSD candidates are listed for convenience but have not been confirmed on real hardware yet —
+if they miss, the generator (B layer) below is the fallback.
 
 `-lLLVM` is intentionally unversioned: it resolves against the first matching library
 (Debian/Ubuntu `llvm-22-dev` ships both `libLLVM-22.so` and `libLLVM.so`). If your LLVM
 lives elsewhere (custom `--prefix`, a non-standard multi-version toolchain, a store
 layout), pick one of the two paths below.
 
-#### In a local checkout or vendored copy (B layer): generate machine-specific flags
+#### In a local checkout (B layer): generate machine-specific flags
 
 ```shell
-# from the repository root (or any nested directory)
+# from the repository root (./internal/binding is a cwd-relative package pattern)
 go generate ./internal/binding                        # or: make config
 LLVM_CONFIG=/path/to/llvm-config go generate ./internal/binding
 LLVM_PREFIX=/path/to/prefix go generate ./internal/binding
+
+# from any other directory inside this module: use the full package path
+go run github.com/kkkunny/go-llvm/internal/cmd/llvmconfig
 ```
 
 `internal/cmd/llvmconfig` probes `$LLVM_CONFIG` → `$LLVM_PREFIX/bin/llvm-config` →
@@ -250,8 +257,9 @@ export CGO_LDFLAGS="$(llvm-config-22 --ldflags --libs)"
 
 `CGO_CFLAGS`/`CGO_CXXFLAGS` are global, so they also reach `internal/binding`'s own
 compilation; a `#cgo` file in your own main package would not. Instead of environment
-variables you can also `replace` the module with a local checkout and run the generator
-there, or patch a `vendor/` copy the same way.
+variables you can `replace` the module with a local checkout and generate there, then copy
+`internal/binding/cgo.go` into the `vendor/` copy — `go mod vendor` overwrites `vendor/`,
+and a vendor tree has no `go.mod`, so the generator cannot run inside it.
 
 #### Troubleshooting
 
@@ -259,7 +267,7 @@ there, or patch a `vendor/` copy the same way.
 |---|---|---|
 | `fatal error: llvm-c/Core.h: No such file or directory` | include path missed by the candidates | generate flags (B layer) or set `CGO_CFLAGS` **and** `CGO_CXXFLAGS` |
 | `could not determine what C.X refers to` | same — cgo compiled without the LLVM headers | same |
-| `cannot find -lLLVM` / undefined `LLVM*` symbols | library path (or library name) missed | generate flags (B layer) or set `CGO_LDFLAGS` |
+| `cannot find -lLLVM` / undefined `LLVM*` symbols | library path (or library name) missed | generate flags (B layer) or set `CGO_LDFLAGS`; the generator may emit `-lLLVM-22` instead of `-lLLVM` — treat a miss on either the same way |
 | `panic: llvm.NewContext: linked LLVM library is …` (`ErrVersionMismatch`, debug builds) | runtime library major ≠ compile-time headers major | install the dev package matching the library, or regenerate the flags for that version |
 
 Quick self-check inside a checkout: `go run ./internal/cmd/llvmconfig --check`. Without a

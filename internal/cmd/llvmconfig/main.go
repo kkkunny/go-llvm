@@ -10,7 +10,7 @@
 // includedir/libdir/libs 原样采用，版本是否合适由使用者自行判断。
 //
 // 写文件前会检查目标是否位于 Go module cache（$GOMODCACHE 或 `go env GOMODCACHE`）内：
-// 那里由 go 命令管理且只读，生成器会拒绝并给出本地检出 / replace / vendor / CGO_* 的替代方案。
+// 那里由 go 命令管理且只读，生成器会拒绝并给出本地检出 / replace / 复制进 vendor / CGO_* 的替代方案。
 package main
 
 import (
@@ -136,7 +136,8 @@ func ensureWritableTarget(target string, gomodcache func() (string, error)) erro
 	}
 	return fmt.Errorf("目标文件 %s 位于 Go module cache（%s）之下：module cache 只读，生成结果会被 go 命令覆盖；"+
 		"请改用本地检出的仓库（go generate ./internal/binding 或 make config）、在 go.mod 中 replace 到本地检出、"+
-		"使用 vendor 目录，或用 CGO_CFLAGS/CGO_CXXFLAGS/CGO_LDFLAGS 环境变量覆盖编译链接 flags", target, cache)
+		"把本地生成的 cgo.go 复制进 vendor 副本（vendor 树内没有 go.mod，无法就地生成，且 go mod vendor 会覆盖），"+
+		"或用 CGO_CFLAGS/CGO_CXXFLAGS/CGO_LDFLAGS 环境变量覆盖编译链接 flags", target, cache)
 }
 
 // goModCache 返回当前 Go module cache 目录：优先 $GOMODCACHE（go env 读取同一变量），

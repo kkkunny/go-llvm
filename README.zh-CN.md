@@ -197,21 +197,27 @@ go run ./examples/kaleidoscope -dl -dp -dc -e '1 + 2 * 2'   # dump tokens/AST/IR
 
 | 平台 | 覆盖的布局 | 典型安装 |
 |---|---|---|
-| Linux | `/usr/lib/llvm-22`、`/usr/include/llvm-22`、`/usr/include/llvm-c-22`、`/usr/include`、`/usr/local`、`/usr/lib64` | Debian/Ubuntu 的 `llvm-22-dev`（apt.llvm.org）、Fedora、Arch |
+| Linux | `/usr/lib/llvm-22`、`/usr/include/llvm-22`、`/usr/include/llvm-c-22`、`/usr/include`、`/usr/local`、`/usr/lib64` | Debian/Ubuntu 的 `llvm-22-dev`（apt.llvm.org）；Arch |
 | macOS（Homebrew） | `/opt/homebrew/opt/llvm@22`（Apple Silicon）、`/usr/local/opt/llvm@22`（Intel） | `brew install llvm@22` |
-| FreeBSD | `/usr/local/llvm22` | `pkg install llvm22` |
+| FreeBSD | `/usr/local/llvm22` | `pkg install llvm22`（尚未实机确认） |
+
+Debian/Ubuntu 布局由 CI 全量验证，Arch 已本地验证；Fedora 与 FreeBSD 候选仅为便利列出，
+尚未实机确认——未命中时以生成器（B 层）兜底。
 
 `-lLLVM` 有意不带版本号：它解析到第一个命中的库（Debian/Ubuntu 的 `llvm-22-dev`
 同时提供 `libLLVM-22.so` 与 `libLLVM.so`）。如果你的 LLVM 在别处（自定义
 `--prefix`、非标准多版本工具链、软件仓库式布局），走下面两条路之一。
 
-#### 本地检出 / vendor 副本（B 层）：生成机器专用 flags
+#### 本地检出（B 层）：生成机器专用 flags
 
 ```shell
-# 在仓库根目录（或任意嵌套目录）执行
+# 在仓库根目录执行（./internal/binding 是相对当前目录的包模式）
 go generate ./internal/binding                        # 或：make config
 LLVM_CONFIG=/path/to/llvm-config go generate ./internal/binding
 LLVM_PREFIX=/path/to/prefix go generate ./internal/binding
+
+# 在模块内其他目录执行：用完整包路径
+go run github.com/kkkunny/go-llvm/internal/cmd/llvmconfig
 ```
 
 `internal/cmd/llvmconfig` 依次探测 `$LLVM_CONFIG` → `$LLVM_PREFIX/bin/llvm-config` →
@@ -235,7 +241,8 @@ export CGO_LDFLAGS="$(llvm-config-22 --ldflags --libs)"
 
 `CGO_CFLAGS`/`CGO_CXXFLAGS` 是全局的，因此同样会作用于 `internal/binding` 自身的编译；
 在自己 main 包里放一个 `#cgo` 文件则不会。除环境变量外，也可以在 `go.mod` 中用
-`replace` 指向本地检出并在那里生成，或对 `vendor/` 副本做同样处理。
+`replace` 指向本地检出并在那里生成，再把 `internal/binding/cgo.go` 复制进 `vendor/`
+副本——`go mod vendor` 会覆盖 `vendor/`，且 vendor 树内没有 `go.mod`，生成器无法就地运行。
 
 #### 排障对照表
 
@@ -243,7 +250,7 @@ export CGO_LDFLAGS="$(llvm-config-22 --ldflags --libs)"
 |---|---|---|
 | `fatal error: llvm-c/Core.h: No such file or directory` | 候选列表未命中头文件路径 | 用生成器生成 flags（B 层），或同时设置 `CGO_CFLAGS` 与 `CGO_CXXFLAGS` |
 | `could not determine what C.X refers to` | 同上：cgo 编译时没有 LLVM 头文件 | 同上 |
-| `cannot find -lLLVM` / `LLVM*` 符号未定义 | 库路径（或库名）未命中 | 用生成器生成 flags（B 层），或设置 `CGO_LDFLAGS` |
+| `cannot find -lLLVM` / `LLVM*` 符号未定义 | 库路径（或库名）未命中 | 用生成器生成 flags（B 层），或设置 `CGO_LDFLAGS`；生成器可能产出 `-lLLVM-22`，同样按未命中处理 |
 | `panic: llvm.NewContext: linked LLVM library is …`（`ErrVersionMismatch`，调试构建） | 运行时库的大版本与编译期头文件不一致 | 安装与库匹配的开发包，或按该版本重新生成 flags |
 
 检出内一键自查：`go run ./internal/cmd/llvmconfig --check`；没有检出时：
