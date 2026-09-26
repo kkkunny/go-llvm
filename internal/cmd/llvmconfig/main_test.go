@@ -2,7 +2,11 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"go/format"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 	"os/exec"
@@ -78,21 +82,38 @@ func envMap(values map[string]string) func(string) string {
 	return func(key string) string { return values[key] }
 }
 
-// assertIncludeSymmetric 校验 -I<dir> 同时出现在 CFLAGS 与 CXXFLAGS 行：
+// assertIncludeSymmetric 校验 -I"<dir>" 同时出现在 CFLAGS 与 CXXFLAGS 行：
 // C++ shim 也包含 LLVM 头文件，不对称曾导致 Ubuntu CI 构建失败。
+// 路径统一加引号（go/build 的 splitQuoted 支持），含空格的前缀才能落到单个 flag。
 func assertIncludeSymmetric(t *testing.T, content, include string) {
 	t.Helper()
+	quoted := "-I\"" + include + "\""
 	var inC, inCXX bool
 	for _, line := range strings.Split(content, "\n") {
 		switch {
-		case strings.HasPrefix(line, "#cgo CFLAGS:") && strings.Contains(line, "-I"+include):
+		case strings.HasPrefix(line, "#cgo CFLAGS:") && strings.Contains(line, quoted):
 			inC = true
-		case strings.HasPrefix(line, "#cgo CXXFLAGS:") && strings.Contains(line, "-I"+include):
+		case strings.HasPrefix(line, "#cgo CXXFLAGS:") && strings.Contains(line, quoted):
 			inCXX = true
 		}
 	}
 	if !inC || !inCXX {
-		t.Errorf("CFLAGS/CXXFLAGS 未对称携带 -I%s（CFLAGS=%v，CXXFLAGS=%v）：\n%s", include, inC, inCXX, content)
+		t.Errorf("CFLAGS/CXXFLAGS 未对称携带 %s（CFLAGS=%v，CXXFLAGS=%v）：\n%s", quoted, inC, inCXX, content)
+	}
+}
+
+// assertValidGo 断言生成内容是合法且 gofmt 稳定的 Go 源码。
+func assertValidGo(t *testing.T, content string) {
+	t.Helper()
+	if _, err := parser.ParseFile(token.NewFileSet(), "cgo.go", content, 0); err != nil {
+		t.Errorf("go/parser 解析失败：%v\n%s", err, content)
+	}
+	formatted, err := format.Source([]byte(content))
+	if err != nil {
+		t.Fatalf("生成内容不是合法 Go 源码：%v\n%s", err, content)
+	}
+	if string(formatted) != content {
+		t.Errorf("生成内容不是 gofmt 稳定格式：\n--- got ---\n%s\n--- formatted ---\n%s", content, formatted)
 	}
 }
 
@@ -121,7 +142,7 @@ func TestRunGeneratesMachineSpecificCgo(t *testing.T) {
 		"package binding",
 		"#cgo CFLAGS: -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS",
 		"#cgo CXXFLAGS: -std=c++17 -fexceptions -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1",
-		"#cgo LDFLAGS: -L/opt/llvm-22/lib -lLLVM-22 -lz -lstdc++",
+		"#cgo LDFLAGS: -L\"/opt/llvm-22/lib\" -lLLVM-22 -lz -lstdc++",
 		"import \"C\"",
 	} {
 		if !strings.Contains(got, want) {
@@ -132,6 +153,7 @@ func TestRunGeneratesMachineSpecificCgo(t *testing.T) {
 		t.Errorf("不应照抄 llvm-config --cxxflags 的 -fno-exceptions：\n%s", got)
 	}
 	assertIncludeSymmetric(t, got, "/opt/llvm-22/include")
+	assertValidGo(t, got)
 	if !strings.Contains(stdout.String(), "wrote "+filepath.Join(root, filepath.FromSlash(cgoFile))) {
 		t.Errorf("stdout 未报告写入路径：%s", stdout.String())
 	}
@@ -303,7 +325,102 @@ func TestFindModuleRoot(t *testing.T) {
 // TestLinkFlagsOmitsEmptySystemLibs 覆盖 --system-libs 为空时不留多余空格。
 func TestLinkFlagsOmitsEmptySystemLibs(t *testing.T) {
 	cfg := llvmConfig{libDir: "/usr/lib", libs: "-lLLVM-22"}
-	if got := linkFlags(cfg); got != "-L/usr/lib -lLLVM-22" {
-		t.Errorf("got=%q，期望 %q", got, "-L/usr/lib -lLLVM-22")
+	if got := linkFlags(cfg); got != "-L\"/usr/lib\" -lLLVM-22" {
+		t.Errorf("got=%q，期望 %q", got, "-L\"/usr/lib\" -lLLVM-22")
+	}
+}
+
+// TestRunGeneratesCgoWithSpacePrefix 覆盖含空格的非标准前缀：include/lib 路径必须
+// 加引号才能通过 go/build 的 splitQuoted 落到单个 flag，否则生成文件不可编译。
+func TestRunGeneratesCgoWithSpacePrefix(t *testing.T) {
+	const (
+		includeDir = "/opt/llvm 22/include"
+		libDir     = "/opt/llvm 22/lib"
+	)
+	outputs := map[string]string{
+		"--version":     "22.1.8",
+		"--includedir":  includeDir,
+		"--libdir":      libDir,
+		"--libs":        "-lLLVM-22",
+		"--system-libs": "",
+	}
+	root := writeTempModule(t, "package binding\n")
+	binary := writeFakeLLVMConfig(t, t.TempDir(), outputs)
+
+	if err := run(options{
+		cwd:      root,
+		getenv:   envMap(map[string]string{"LLVM_CONFIG": binary}),
+		lookPath: exec.LookPath,
+		runCmd:   execCommand,
+		stdout:   io.Discard,
+	}); err != nil {
+		t.Fatalf("run 失败：%v", err)
+	}
+
+	got := readTempFile(t, filepath.Join(root, filepath.FromSlash(cgoFile)))
+	for _, want := range []string{
+		"#cgo CFLAGS: -I\"" + includeDir + "\"",
+		"#cgo CXXFLAGS: -I\"" + includeDir + "\"",
+		"#cgo LDFLAGS: -L\"" + libDir + "\" -lLLVM-22",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("含空格路径未按引号包裹：缺少 %q：\n%s", want, got)
+		}
+	}
+	assertIncludeSymmetric(t, got, includeDir)
+	assertValidGo(t, got)
+}
+
+// TestQueryLLVMConfigErrors 覆盖查询阶段的错误分支：路径为空、libs 为空、命令执行失败。
+func TestQueryLLVMConfigErrors(t *testing.T) {
+	base := map[string]string{
+		"--version":     "22.1.8",
+		"--includedir":  "/opt/llvm-22/include",
+		"--libdir":      "/opt/llvm-22/lib",
+		"--libs":        "-lLLVM-22",
+		"--system-libs": "-lz",
+	}
+	// override 基于 base 复制并覆盖指定参数，保证各子用例只偏离一个维度。
+	override := func(key, value string) map[string]string {
+		out := make(map[string]string, len(base))
+		for k, v := range base {
+			out[k] = v
+		}
+		out[key] = value
+		return out
+	}
+
+	cases := []struct {
+		name    string
+		outputs map[string]string
+		failArg string
+		wantErr string
+	}{
+		{"includedir 为空", override("--includedir", ""), "", "未返回 includedir"},
+		{"libdir 为空", override("--libdir", ""), "", "未返回 libdir"},
+		{"libs 为空", override("--libs", ""), "", "--libs 为空"},
+		{"命令执行失败", base, "--libdir", "fake-llvm-config --libdir: exit status 1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runCmd := func(_ string, args ...string) (string, error) {
+				arg := args[0]
+				if arg == tc.failArg {
+					return "", errors.New("exit status 1")
+				}
+				out, ok := tc.outputs[arg]
+				if !ok {
+					return "", fmt.Errorf("unsupported arg: %s", arg)
+				}
+				return out, nil
+			}
+			_, err := queryLLVMConfig(runCmd, "fake-llvm-config")
+			if err == nil {
+				t.Fatal("应返回错误")
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("错误信息应包含 %q：%v", tc.wantErr, err)
+			}
+		})
 	}
 }

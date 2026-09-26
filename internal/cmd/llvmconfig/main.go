@@ -161,8 +161,11 @@ func queryLLVMConfig(runCmd func(name string, args ...string) (string, error), b
 		}
 		*q.dst = strings.TrimSpace(out)
 	}
-	if cfg.includeDir == "" || cfg.libDir == "" {
-		return llvmConfig{}, fmt.Errorf("%s 未返回 includedir/libdir，无法生成 flags", binary)
+	if cfg.includeDir == "" {
+		return llvmConfig{}, fmt.Errorf("%s 未返回 includedir，无法生成 include flags", binary)
+	}
+	if cfg.libDir == "" {
+		return llvmConfig{}, fmt.Errorf("%s 未返回 libdir，无法生成链接 flags", binary)
 	}
 	if cfg.libs == "" {
 		return llvmConfig{}, fmt.Errorf("%s --libs 为空，无法生成链接 flags", binary)
@@ -235,22 +238,29 @@ func renderCgo(cfg llvmConfig) []byte {
 	b.WriteString("\n")
 	b.WriteString("/*\n")
 	fmt.Fprintf(&b, "#cgo CFLAGS: %s\n", commonCFlags)
-	fmt.Fprintf(&b, "#cgo CFLAGS: -I%s\n", cfg.includeDir)
+	fmt.Fprintf(&b, "#cgo CFLAGS: -I%s\n", quotedPath(cfg.includeDir))
 	fmt.Fprintf(&b, "#cgo CXXFLAGS: %s\n", commonCXXFlags)
-	fmt.Fprintf(&b, "#cgo CXXFLAGS: -I%s\n", cfg.includeDir)
+	fmt.Fprintf(&b, "#cgo CXXFLAGS: -I%s\n", quotedPath(cfg.includeDir))
 	fmt.Fprintf(&b, "#cgo LDFLAGS: %s\n", linkFlags(cfg))
 	b.WriteString("*/\n")
 	b.WriteString("import \"C\"\n")
 	return []byte(b.String())
 }
 
-// linkFlags 拼出 LDFLAGS：-L<libdir> 后接 --libs 与 --system-libs（后者可为空）。
+// linkFlags 拼出 LDFLAGS：-L"<libdir>" 后接 --libs 与 --system-libs（后者可为空）。
 func linkFlags(cfg llvmConfig) string {
-	flags := []string{"-L" + cfg.libDir, cfg.libs}
+	flags := []string{"-L" + quotedPath(cfg.libDir), cfg.libs}
 	if cfg.systemLibs != "" {
 		flags = append(flags, cfg.systemLibs)
 	}
 	return strings.Join(flags, " ")
+}
+
+// quotedPath 用双引号包裹路径：go/build 的 splitQuoted 支持引号，含空格的非标准
+// 前缀（如 /opt/llvm 22）才能作为单个 -I/-L flag 传给编译器/链接器。
+// 只用于 includedir/libdir 这两个受控路径；--libs/--system-libs 的原样 flags 不动。
+func quotedPath(path string) string {
+	return `"` + path + `"`
 }
 
 // execCommand 运行外部命令并返回其标准输出；失败时附带 stderr 便于定位。
