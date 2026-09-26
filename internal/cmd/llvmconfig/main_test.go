@@ -371,6 +371,97 @@ func TestRunGeneratesCgoWithSpacePrefix(t *testing.T) {
 	assertValidGo(t, got)
 }
 
+// TestRunRefusesModuleCacheTarget 覆盖 module cache 保护：目标路径位于 $GOMODCACHE 之下时
+// 拒绝写入并给出替代方案，cgo.go 保持原样。
+func TestRunRefusesModuleCacheTarget(t *testing.T) {
+	const sentinel = "package binding\n// sentinel\n"
+	root := writeTempModule(t, sentinel)
+	target := filepath.Join(root, filepath.FromSlash(cgoFile))
+	binary := writeFakeLLVMConfig(t, t.TempDir(), fakeLLVMConfigOutputs)
+
+	err := run(options{
+		cwd:        root,
+		getenv:     envMap(map[string]string{"LLVM_CONFIG": binary}),
+		lookPath:   exec.LookPath,
+		runCmd:     execCommand,
+		gomodcache: func() (string, error) { return root, nil },
+		stdout:     io.Discard,
+	})
+	if err == nil {
+		t.Fatal("目标位于 module cache 内时应拒绝写入")
+	}
+	for _, want := range []string{"module cache", "make config", "replace", "vendor", "CGO_CFLAGS"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("错误信息应包含 %q：%v", want, err)
+		}
+	}
+	if got := readTempFile(t, target); got != sentinel {
+		t.Errorf("拒绝写入时不应改写 cgo.go：\n%s", got)
+	}
+}
+
+// TestEnsureWritableTargetErrors 覆盖 module cache 查询的边界：nil 跳过、空值放行、
+// 查询失败原样返回（宁可不写也不猜），以及自身/子路径的包含判定。
+func TestEnsureWritableTargetErrors(t *testing.T) {
+	if err := ensureWritableTarget("/x/y", nil); err != nil {
+		t.Errorf("nil 检查函数应跳过：%v", err)
+	}
+	if err := ensureWritableTarget("/x/y", func() (string, error) { return "", nil }); err != nil {
+		t.Errorf("空 cache 应放行：%v", err)
+	}
+	sentinel := errors.New("no go")
+	if err := ensureWritableTarget("/x/y", func() (string, error) { return "", sentinel }); !errors.Is(err, sentinel) {
+		t.Errorf("应原样返回查询错误，got %v", err)
+	}
+	if err := ensureWritableTarget("/mod/cache/example.com/lib/cgo.go", func() (string, error) { return "/mod/cache", nil }); err == nil {
+		t.Error("cache 内目标应被拒绝")
+	}
+}
+
+// TestPathWithin 覆盖 module cache 边界判定：包含自身与子路径，拒绝同前缀的兄弟目录与父目录。
+func TestPathWithin(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		dir  string
+		want bool
+	}{
+		{"同一路径", "/mod/cache", "/mod/cache", true},
+		{"子路径", "/mod/cache/example.com/lib/file.go", "/mod/cache", true},
+		{"同前缀兄弟目录", "/mod/cache-other/file.go", "/mod/cache", false},
+		{"父目录", "/mod", "/mod/cache", false},
+		{"相对路径", "internal/binding/cgo.go", ".", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := pathWithin(tc.path, tc.dir); got != tc.want {
+				t.Errorf("pathWithin(%q, %q) = %v，期望 %v", tc.path, tc.dir, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestGoModCachePrefersEnv 覆盖 module cache 目录的解析：显式 GOMODCACHE 优先，
+// 未设置时回退 `go env GOMODCACHE`（默认 $GOPATH/pkg/mod）。
+func TestGoModCachePrefersEnv(t *testing.T) {
+	t.Setenv("GOMODCACHE", "/custom/modcache")
+	got, err := goModCache()
+	if err != nil || got != "/custom/modcache" {
+		t.Fatalf("got=%q err=%v，期望 /custom/modcache", got, err)
+	}
+
+	t.Run("未设置时回退 go env", func(t *testing.T) {
+		t.Setenv("GOMODCACHE", "")
+		got, err := goModCache()
+		if err != nil {
+			t.Fatalf("go env GOMODCACHE 失败：%v", err)
+		}
+		if !filepath.IsAbs(got) {
+			t.Errorf("go env GOMODCACHE 应返回绝对路径：%q", got)
+		}
+	})
+}
+
 // TestQueryLLVMConfigErrors 覆盖查询阶段的错误分支：路径为空、libs 为空、命令执行失败。
 func TestQueryLLVMConfigErrors(t *testing.T) {
 	base := map[string]string{

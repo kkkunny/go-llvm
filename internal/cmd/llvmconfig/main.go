@@ -8,6 +8,9 @@
 // 探测顺序：$LLVM_CONFIG > $LLVM_PREFIX/bin/llvm-config > PATH 中的 llvm-config-22
 // > PATH 中的 llvm-config。生成器不做 LLVM 大版本校验：所选 llvm-config 报告的
 // includedir/libdir/libs 原样采用，版本是否合适由使用者自行判断。
+//
+// 写文件前会检查目标是否位于 Go module cache（$GOMODCACHE 或 `go env GOMODCACHE`）内：
+// 那里由 go 命令管理且只读，生成器会拒绝并给出本地检出 / replace / vendor / CGO_* 的替代方案。
 package main
 
 import (
@@ -47,12 +50,13 @@ type llvmConfig struct {
 
 // options 汇总 run 的注入点，便于测试替换 cwd/env/命令执行与输出。
 type options struct {
-	check    bool   // 只报告，不写文件
-	cwd      string // 启动目录，用于向上查找 module 根
-	getenv   func(string) string
-	lookPath func(string) (string, error)
-	runCmd   func(name string, args ...string) (string, error)
-	stdout   io.Writer
+	check      bool   // 只报告，不写文件
+	cwd        string // 启动目录，用于向上查找 module 根
+	getenv     func(string) string
+	lookPath   func(string) (string, error)
+	runCmd     func(name string, args ...string) (string, error)
+	gomodcache func() (string, error) // 返回 Go module cache；nil 表示跳过写入位置检查（单测构造用）
+	stdout     io.Writer
 }
 
 func main() {
@@ -67,12 +71,13 @@ func main() {
 		fatal(err)
 	}
 	err = run(options{
-		check:    *check,
-		cwd:      cwd,
-		getenv:   os.Getenv,
-		lookPath: exec.LookPath,
-		runCmd:   execCommand,
-		stdout:   os.Stdout,
+		check:      *check,
+		cwd:        cwd,
+		getenv:     os.Getenv,
+		lookPath:   exec.LookPath,
+		runCmd:     execCommand,
+		gomodcache: goModCache,
+		stdout:     os.Stdout,
 	})
 	if err != nil {
 		fatal(err)
@@ -104,11 +109,64 @@ func run(opts options) error {
 		return err
 	}
 	target := filepath.Join(root, filepath.FromSlash(cgoFile))
+	if err := ensureWritableTarget(target, opts.gomodcache); err != nil {
+		return err
+	}
 	if err := os.WriteFile(target, renderCgo(cfg), 0o644); err != nil {
 		return fmt.Errorf("写入 %s: %w", target, err)
 	}
 	fmt.Fprintf(opts.stdout, "wrote %s (llvm-config: %s, version: %s)\n", target, cfg.binary, cfg.version)
 	return nil
+}
+
+// ensureWritableTarget 在写文件前拒绝 Go module cache 内的目标路径：module cache 由
+// go 命令管理（只读、可能被清理或重建），在其中生成 flags 无意义。gomodcache 为 nil
+// 表示跳过检查（单测构造用；CLI 始终注入 goModCache）。
+func ensureWritableTarget(target string, gomodcache func() (string, error)) error {
+	if gomodcache == nil {
+		return nil
+	}
+	cache, err := gomodcache()
+	if err != nil {
+		return err
+	}
+	cache = strings.TrimSpace(cache)
+	if cache == "" || !pathWithin(target, cache) {
+		return nil
+	}
+	return fmt.Errorf("目标文件 %s 位于 Go module cache（%s）之下：module cache 只读，生成结果会被 go 命令覆盖；"+
+		"请改用本地检出的仓库（go generate ./internal/binding 或 make config）、在 go.mod 中 replace 到本地检出、"+
+		"使用 vendor 目录，或用 CGO_CFLAGS/CGO_CXXFLAGS/CGO_LDFLAGS 环境变量覆盖编译链接 flags", target, cache)
+}
+
+// goModCache 返回当前 Go module cache 目录：优先 $GOMODCACHE（go env 读取同一变量），
+// 未设置时用 `go env GOMODCACHE` 解析默认值（$GOPATH/pkg/mod 等）。
+func goModCache() (string, error) {
+	if p := os.Getenv("GOMODCACHE"); p != "" {
+		return p, nil
+	}
+	out, err := exec.Command("go", "env", "GOMODCACHE").Output()
+	if err != nil {
+		return "", fmt.Errorf("go env GOMODCACHE: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// pathWithin 报告 path 是否等于 dir 或位于 dir 之下（两侧先取绝对路径再比较）。
+func pathWithin(path, dir string) bool {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absDir, absPath)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 // discoverLLVMConfig 按固定优先级选择 llvm-config 可执行文件。
