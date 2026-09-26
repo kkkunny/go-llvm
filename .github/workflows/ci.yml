@@ -72,3 +72,144 @@ jobs:
       - name: Test (llvm_release)
         if: matrix.mode == 'release'
         run: go test -tags=llvm_release ./...
+
+  # macOS A 层布局验证：Homebrew 安装位于 /opt/homebrew/opt/llvm@22（Apple Silicon；
+  # Intel runner 为 /usr/local/opt/llvm@22），即 cgo.go 的 darwin 候选路径。
+  # 本 job 无法在开发机上端到端验证，首次 push 由 CI 首跑确认。
+  test-macos:
+    name: test (macos, ${{ matrix.mode }})
+    runs-on: macos-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [default, release]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.x
+          cache: true
+
+      # Homebrew 的版本化公式（llvm@22）可能尚未发布或滞后于上游；缺失时退回未版本化的
+      # llvm 公式。两种情况下都把实际前缀经 LLVM_CONFIG 暴露给后续步骤；只有 llvm@22
+      # 命中时 A 层候选路径才存在，退回时由下一步用生成器（B 层）按实际前缀重写 cgo flags，
+      # 保证 macOS 构建与测试仍被覆盖。
+      - name: Install LLVM
+        id: llvm
+        run: |
+          if brew install llvm@22; then
+            echo "prefix=$(brew --prefix llvm@22)" >> "$GITHUB_OUTPUT"
+            echo "versioned=true" >> "$GITHUB_OUTPUT"
+          else
+            brew install llvm
+            echo "prefix=$(brew --prefix llvm)" >> "$GITHUB_OUTPUT"
+            echo "versioned=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Point LLVM_CONFIG at the installed toolchain
+        run: echo "LLVM_CONFIG=${{ steps.llvm.outputs.prefix }}/bin/llvm-config" >> "$GITHUB_ENV"
+
+      - name: Regenerate cgo flags (unversioned formula fallback)
+        if: steps.llvm.outputs.versioned == 'false'
+        run: go run ./internal/cmd/llvmconfig
+
+      - name: Check gofmt
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "$files"
+            exit 1
+          fi
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (default)
+        if: matrix.mode == 'default'
+        run: go test ./...
+
+      - name: Test (llvm_release)
+        if: matrix.mode == 'release'
+        run: go test -tags=llvm_release ./...
+
+  # B 层逃生舱验证：把 apt 安装的 LLVM 22 挂到非标准前缀 /opt/llvm-custom——
+  # include/lib 为指向真实目录的符号链接，bin/llvm-config 是包装脚本（只改写
+  # --includedir/--libdir，其余查询透传 llvm-config-22）——再用生成器把 cgo flags
+  # 重写为该前缀并构建链接。本 job 无法在开发机上端到端验证，首次 push 由 CI 首跑确认。
+  test-custom-prefix:
+    name: test (custom prefix)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.x
+          cache: true
+
+      # 与 test job 相同的 apt.llvm.org 安装步骤。
+      - name: Install LLVM 22
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+          echo "deb https://apt.llvm.org/noble/ llvm-toolchain-noble-22 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm-apt.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y llvm-22-dev
+
+      - name: Build a non-standard prefix
+        run: |
+          sudo mkdir -p /opt/llvm-custom/bin
+          sudo ln -s "$(llvm-config-22 --includedir)" /opt/llvm-custom/include
+          sudo ln -s "$(llvm-config-22 --libdir)" /opt/llvm-custom/lib
+          sudo tee /opt/llvm-custom/bin/llvm-config >/dev/null <<'EOF'
+          #!/bin/sh
+          # 只把 includedir/libdir 改写为自定义前缀，其余查询原样转发真实 llvm-config-22。
+          # --libs 返回的是库名（如 -lLLVM-22），链接目录由 --libdir 派生的 -L 指向自定义前缀，无需改写。
+          case "$1" in
+            --includedir) echo /opt/llvm-custom/include ;;
+            --libdir) echo /opt/llvm-custom/lib ;;
+            *) exec llvm-config-22 "$@" ;;
+          esac
+          EOF
+          sudo chmod +x /opt/llvm-custom/bin/llvm-config
+
+      - name: Regenerate cgo flags for the custom prefix
+        env:
+          LLVM_CONFIG: /opt/llvm-custom/bin/llvm-config
+        run: |
+          go run ./internal/cmd/llvmconfig --check
+          go run ./internal/cmd/llvmconfig
+          # CFLAGS/CXXFLAGS 必须对称携带 include（不对称曾导致 CI 构建失败），LDFLAGS 指向自定义 lib。
+          grep -F '#cgo CFLAGS: -I"/opt/llvm-custom/include"' internal/binding/cgo.go
+          grep -F '#cgo CXXFLAGS: -I"/opt/llvm-custom/include"' internal/binding/cgo.go
+          grep -F '#cgo LDFLAGS: -L"/opt/llvm-custom/lib"' internal/binding/cgo.go
+
+      - name: Check gofmt
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "$files"
+            exit 1
+          fi
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # go build 不会链接最终二进制，这里跑一条根包冒烟测试，真正链接 libLLVM，
+      # 验证 -L/opt/llvm-custom/lib 在链接期生效。
+      - name: Link smoke test
+        run: go test -count=1 -run TestLinkedLLVMVersion .
