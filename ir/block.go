@@ -88,6 +88,29 @@ func (b Block) LastInst() (llvm.Value[llvm.DynT], bool) {
 	return llvm.ValueOf(b.ctx, b.life, ref), true
 }
 
+// Terminator 终结指令；块尚未被终结（尚无终结指令）时返回 false。
+// 与 [Block.LastInst] 不同，这是"块已被终结"的可靠判断：void 调用等非终结指令不会误判。
+// 返回指令可用 [OpOf]、[Successor] 等继续处理；块失效 panic
+// [github.com/kkkunny/go-llvm.ErrUseAfterFree]。
+func (b Block) Terminator() (llvm.Value[llvm.DynT], bool) {
+	b.Check("ir.Block.Terminator")
+	ref := binding.LLVMGetBasicBlockTerminator(b.ref)
+	if ref.IsNil() {
+		return llvm.Value[llvm.DynT]{}, false
+	}
+	return llvm.ValueOf(b.ctx, b.life, ref), true
+}
+
+// IsTerminating 块是否已有终结指令（ret/br/switch/indirectbr/invoke/unreachable/
+// resume/cleanupret/catchret/catchswitch/callbr）；没有终结指令的块不能直接交给
+// 代码生成/校验，需先补终结指令。
+// 要看具体的终结指令用 [Block.Terminator]；块失效 panic
+// [github.com/kkkunny/go-llvm.ErrUseAfterFree]。
+func (b Block) IsTerminating() bool {
+	b.Check("ir.Block.IsTerminating")
+	return !binding.LLVMGetBasicBlockTerminator(b.ref).IsNil()
+}
+
 // Next 下一个基本块
 func (b Block) Next() (Block, bool) {
 	b.Check("ir.Block.Next")

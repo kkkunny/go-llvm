@@ -100,3 +100,79 @@ func TestBlockStructure(t *testing.T) {
 		t.Fatalf("verify: %v", err)
 	}
 }
+
+// TestBlockTerminator 覆盖终结指令查询：Terminator/IsTerminating 必须区分
+// "已有终结指令"与"仅含普通指令"（含 void 调用，LastInst 类型无法区分的情形），空块返回 false。
+func TestBlockTerminator(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "terminator")
+	defer m.Close()
+
+	void := ctx.Void()
+	i32 := ctx.Int(32)
+	nop := m.NewFunction("nop", ctx.Fn(void, nil, false))
+	fn := m.NewFunction("f", ctx.Fn(void, []llvm.AnyType{i32}, false))
+	entry := fn.NewBlock("entry")
+	mid := fn.NewBlock("mid")
+	exit := fn.NewBlock("exit")
+
+	b := NewBuilderAt(entry)
+	defer b.Close()
+	a := fn.ParamAs[llvm.IntT](0)
+
+	// 未终结：只有 add 与 void 调用（后者类型为 void，不能靠 LastInst 类型判断）
+	b.Add(a, a, "x")
+	b.Call[llvm.VoidT](nop, nil, "")
+	if term, ok := entry.Terminator(); ok {
+		t.Fatalf("block with only non-terminator instructions has terminator %s", term.String())
+	}
+	if entry.IsTerminating() {
+		t.Fatal("block with only non-terminator instructions should not be terminating")
+	}
+
+	// 终结后：Terminator 必须与刚插入的 br 一致，OpOf 分类正确
+	br := b.Br(mid)
+	term, ok := entry.Terminator()
+	if !ok {
+		t.Fatal("terminated block should report a terminator")
+	}
+	if !term.Ref().Equal(br.Ref()) {
+		t.Fatalf("Terminator = %s, want br %s", term.String(), br.String())
+	}
+	if op, ok := OpOf(term); !ok || op != OpBr {
+		t.Fatalf("terminator opcode = %v %v, want br", op, ok)
+	}
+	if !entry.IsTerminating() {
+		t.Fatal("terminated block should report IsTerminating")
+	}
+
+	// 空块：尚未终结，Terminator 返回 false
+	if term, ok := mid.Terminator(); ok {
+		t.Fatalf("empty block has terminator %s", term.String())
+	}
+	if mid.IsTerminating() {
+		t.Fatal("empty block should not be terminating")
+	}
+
+	// ret 终结的块
+	b.MoveToEnd(mid)
+	ret := b.RetVoid()
+	term, ok = mid.Terminator()
+	if !ok {
+		t.Fatal("ret block should report a terminator")
+	}
+	if !term.Ref().Equal(ret.Ref()) {
+		t.Fatalf("mid Terminator = %s, want ret", term.String())
+	}
+	if !mid.IsTerminating() {
+		t.Fatal("ret block should report IsTerminating")
+	}
+
+	// 补上 exit 的终结指令，模块必须通过校验
+	b.MoveToEnd(exit)
+	b.Unreachable()
+	if err := m.Verify(); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+}

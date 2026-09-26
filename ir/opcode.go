@@ -116,6 +116,19 @@ func (o Op) String() string {
 	return "op" + strconv.Itoa(int(o))
 }
 
+// IsTerminator 操作码是否为终结指令：必然位于基本块末尾并决定控制流走向。
+// 与底层 LLVMIsATerminatorInst（见 [SuccessorCount] 的拒绝路径）一致；
+// 判断"块是否已被终结"用 [Block.IsTerminating]，不要只查最后一条指令的操作码。
+func (o Op) IsTerminator() bool {
+	switch o {
+	case OpRet, OpBr, OpSwitch, OpIndirectBr, OpInvoke, OpUnreachable,
+		OpResume, OpCleanupRet, OpCatchRet, OpCatchSwitch, OpCallBr:
+		return true
+	default:
+		return false
+	}
+}
+
 // OpOf 指令的操作码；非指令值（常量/参数/全局等）返回 false
 func OpOf(inst llvm.AnyValue) (Op, bool) {
 	const op = "ir.OpOf"

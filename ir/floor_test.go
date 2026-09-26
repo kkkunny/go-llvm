@@ -86,6 +86,20 @@ func TestValueHelperFloorChecks(t *testing.T) {
 		t.Fatalf("BlockAddress on dead function should panic ErrUseAfterFree, got %v", err)
 	}
 
+	// Block 查询方法：模块关闭后必须走容器句柄地板（ErrUseAfterFree），零值块为 ErrInvalidArg
+	if err := llvm.Catch(func() { blk.Terminator() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("Terminator on dead block should panic ErrUseAfterFree, got %v", err)
+	}
+	if err := llvm.Catch(func() { blk.IsTerminating() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("IsTerminating on dead block should panic ErrUseAfterFree, got %v", err)
+	}
+	if err := llvm.Catch(func() { (Block{}).Terminator() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("Terminator on zero block should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { (Block{}).IsTerminating() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("IsTerminating on zero block should panic ErrInvalidArg, got %v", err)
+	}
+
 	// nil 接口同样必须被地板拦下
 	nilCases := map[string]func(){
 		"OperandCount": func() { OperandCount(nil) },
