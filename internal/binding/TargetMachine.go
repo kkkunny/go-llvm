@@ -157,6 +157,18 @@ func LLVMTargetMachineEmitToFile(t LLVMTargetMachineRef, m LLVMModuleRef, filena
 	})
 }
 
+// LLVMTargetMachineEmitToMemoryBuffer Emits an asm or object file for the given module to a memory buffer.
+func LLVMTargetMachineEmitToMemoryBuffer(t LLVMTargetMachineRef, m LLVMModuleRef, codegen LLVMCodeGenFileType) (LLVMMemoryBufferRef, error) {
+	var out LLVMMemoryBufferRef
+	err := llvmError2Error(func(errstr **C.char) C.LLVMBool {
+		return C.LLVMTargetMachineEmitToMemoryBuffer(t.c, m.c, C.LLVMCodeGenFileType(codegen), errstr, &out.c)
+	})
+	if err != nil {
+		return LLVMMemoryBufferRef{}, err
+	}
+	return out, nil
+}
+
 // LLVMGetDefaultTargetTriple Get a triple for the host machine as a string.
 func LLVMGetDefaultTargetTriple() string {
 	cstring := C.LLVMGetDefaultTargetTriple()

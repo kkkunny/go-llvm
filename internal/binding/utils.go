@@ -10,21 +10,20 @@ import (
 	"unsafe"
 )
 
-// covert LLVMBool to bool
+// llvmBool2bool converts LLVMBool to bool
 func llvmBool2bool(v C.LLVMBool) bool {
 	return v == 1
 }
 
-// covert LLVMBool to bool
+// bool2LLVMBool converts bool to LLVMBool
 func bool2LLVMBool(v bool) C.LLVMBool {
 	if v {
 		return 1
-	} else {
-		return 0
 	}
+	return 0
 }
 
-// covert slice to c pointer
+// slice2Ptr converts a slice to a C pointer and element count
 func slice2Ptr[T, F any](v []T) (*F, C.unsigned) {
 	var ptr *F
 	if len(v) > 0 {
@@ -33,13 +32,24 @@ func slice2Ptr[T, F any](v []T) (*F, C.unsigned) {
 	return ptr, C.unsigned(len(v))
 }
 
-// covert string to c char *
+// emptyCString is a static empty-string buffer (for C parameters such as Name that may be empty).
+// LLVM only reads such arguments and never retains them; the static buffer avoids a C heap
+// allocation and two extra cgo crossings per call.
+var emptyCString = C.CString("")
+
+// string2CString passes a temporary C string to f and frees it afterwards.
+// Empty strings use the static buffer directly; non-empty strings still go through CString/free
+// to guarantee NUL termination and lifetime safety.
 func string2CString[T any](v string, f func(v *C.char) T) T {
+	if len(v) == 0 {
+		return f(emptyCString)
+	}
 	cstring := C.CString(v)
 	defer C.free(unsafe.Pointer(cstring))
 	return f(cstring)
 }
 
+// llvmError2Error converts the out-error pattern of LLVM-C APIs to a Go error
 func llvmError2Error(f func(outError **C.char) C.LLVMBool) error {
 	var outError *C.char
 	if llvmBool2bool(f(&outError)) {
@@ -49,16 +59,17 @@ func llvmError2Error(f func(outError **C.char) C.LLVMBool) error {
 	return nil
 }
 
+// FuncPtr wraps a C function pointer; T must be a function type.
 type FuncPtr[T any] struct {
 	ptr unsafe.Pointer
 }
 
-// NewFuncPtr
-// 必须是函数指针，不能是lambda和方法
+// NewFuncPtr wraps a C function pointer; f must point to a function, not a lambda or method.
 func NewFuncPtr[T any](f unsafe.Pointer) FuncPtr[T] {
 	return FuncPtr[T]{ptr: f}
 }
 
+// Func returns the typed function pointer.
 func (f FuncPtr[T]) Func() T {
 	return *(*T)(unsafe.Pointer(&f.ptr))
 }

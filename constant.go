@@ -1,286 +1,250 @@
 package llvm
 
 import (
-	"fmt"
-	"strconv"
-
-	"github.com/samber/lo"
-
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
-type Constant interface {
-	Value
-	constant()
+// IntConst 整数常量角色
+type IntConst struct{ Value[IntT] }
+
+// SignedValue 有符号值
+func (c IntConst) SignedValue() int64 {
+	return binding.LLVMConstIntGetSExtValue(c.Ref())
 }
 
-func lookupConstant(ref binding.LLVMValueRef) Constant {
-	if ref.IsNil() {
-		return nil
-	}
-
-	switch constKind := binding.LLVMGetValueKind(ref); constKind {
-	case binding.LLVMGlobalVariableValueKind:
-		return GlobalValue(ref)
-	case binding.LLVMConstantIntValueKind:
-		return ConstInteger(ref)
-	case binding.LLVMConstantFPValueKind:
-		return ConstFloat(ref)
-	case binding.LLVMConstantArrayValueKind:
-		return ConstArray(ref)
-	case binding.LLVMConstantStructValueKind:
-		return ConstStruct(ref)
-	case binding.LLVMConstantPointerNullValueKind:
-		return ConstPointer(ref)
-	case binding.LLVMConstantAggregateZeroValueKind:
-		switch typeKind := binding.LLVMGetTypeKind(binding.LLVMTypeOf(ref)); typeKind {
-		case binding.LLVMArrayTypeKind:
-			return ConstArray(ref)
-		case binding.LLVMStructTypeKind:
-			return ConstStruct(ref)
-		default:
-			panic(fmt.Errorf("unknown type `%d`", typeKind))
-		}
-	case binding.LLVMConstantExprValueKind:
-		switch opcode := binding.LLVMGetConstOpcode(ref); opcode {
-		case binding.LLVMExtractElement:
-			return ConstExtractElement(ref)
-		case binding.LLVMGetElementPtr:
-			return ConstGetElementPtr(ref)
-		default:
-			return fallbackConstant{fallbackValue{ref}}
-		}
-	default:
-		return fallbackConstant{fallbackValue{ref}}
-	}
+// UnsignedValue 无符号值
+func (c IntConst) UnsignedValue() uint64 {
+	return binding.LLVMConstIntGetZExtValue(c.Ref())
 }
 
-// fallbackConstant 未知种类常量的通用降级值
-type fallbackConstant struct{ fallbackValue }
-
-func (fallbackConstant) constant() {}
-
-func (ctx Context) ConstNull(t Type) Constant {
-	return lookupConstant(binding.LLVMConstNull(t.binding()))
+// IsNegative 是否有符号语义下为负
+func (c IntConst) IsNegative() bool {
+	return c.SignedValue() < 0
 }
 
-func (ctx Context) ConstAggregateZero(t AggregateType) Constant {
-	return lookupConstant(binding.LLVMConstAggregateZero(t.binding()))
-}
+// FloatConst 浮点常量角色
+type FloatConst struct{ Value[FloatT] }
 
-func (ctx Context) ConstZero(t Type) Constant {
-	return ctx.ConstNull(t)
-}
-
-type ConstInteger binding.LLVMValueRef
-
-func (ctx Context) ConstIntegerFromString(t IntegerType, s string, radix uint8) ConstInteger {
-	return ConstInteger(binding.LLVMConstIntOfString(t.binding(), s, radix))
-}
-
-func (ctx Context) ConstInteger(t IntegerType, v int64) ConstInteger {
-	return ctx.ConstIntegerFromString(t, strconv.FormatInt(v, 10), 10)
-}
-
-func (ctx Context) ConstBoolean(v bool) ConstInteger {
-	if v {
-		return ctx.ConstInteger(ctx.BooleanType(), 1)
-	} else {
-		return ctx.ConstInteger(ctx.BooleanType(), 0)
-	}
-}
-
-func (c ConstInteger) String() string {
-	return binding.LLVMPrintValueToString(c.binding())
-}
-
-func (c ConstInteger) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(c)
-}
-
-func (c ConstInteger) Type() Type {
-	return lookupType(binding.LLVMTypeOf(c.binding()))
-}
-
-func (ConstInteger) constant() {}
-
-func (c ConstInteger) SignedValue() int64 {
-	return binding.LLVMConstIntGetSExtValue(c.binding())
-}
-
-func (c ConstInteger) UnsignedValue() uint64 {
-	return binding.LLVMConstIntGetZExtValue(c.binding())
-}
-
-type ConstFloat binding.LLVMValueRef
-
-func (ctx Context) ConstFloatFromString(t FloatType, s string) ConstFloat {
-	return ConstFloat(binding.LLVMConstRealOfString(t.binding(), s))
-}
-
-func (ctx Context) ConstFloat(t FloatType, v float64) ConstFloat {
-	return ConstFloat(binding.LLVMConstReal(t.binding(), v))
-}
-
-func (c ConstFloat) String() string {
-	return binding.LLVMPrintValueToString(c.binding())
-}
-
-func (c ConstFloat) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(c)
-}
-
-func (c ConstFloat) Type() Type {
-	return lookupType(binding.LLVMTypeOf(c.binding()))
-}
-
-func (ConstFloat) constant() {}
-
-func (c ConstFloat) Value() float64 {
-	v, _ := binding.LLVMConstRealGetDouble(c.binding())
+// FloatValue 浮点值（方法名避开内嵌字段 Value）
+func (c FloatConst) FloatValue() float64 {
+	v, _ := binding.LLVMConstRealGetDouble(c.Ref())
 	return v
 }
 
-type ConstArray binding.LLVMValueRef
+// ConstInt 构造整数常量（值按无符号截断；负数请用 ConstSInt）
+func (ctx *Context) ConstInt(t IntType, v uint64) IntConst {
+	ctx.CheckType("llvm.Context.ConstInt", t)
+	return IntConst{newValue[IntT](ctx, ctx.life, binding.LLVMConstInt(t.ref, v, false))}
+}
 
-func (ctx Context) ConstArray(et Type, elem ...Constant) ConstArray {
-	var es []binding.LLVMValueRef
-	if len(elem) > 0 {
-		es = lo.Map(elem, func(item Constant, index int) binding.LLVMValueRef {
-			return item.binding()
-		})
+// ConstSInt 构造有符号整数常量（负数与超宽值按符号扩展）
+func (ctx *Context) ConstSInt(t IntType, v int64) IntConst {
+	ctx.CheckType("llvm.Context.ConstSInt", t)
+	return IntConst{newValue[IntT](ctx, ctx.life, binding.LLVMConstInt(t.ref, uint64(v), true))}
+}
+
+// Const 该类型的整数常量（类型导向糖：i32.Const(5)）
+func (t IntType) Const(v uint64) IntConst { return t.ctx.ConstInt(t, v) }
+
+// ConstS 该类型的有符号整数常量（类型导向糖：i32.ConstS(-1)）
+func (t IntType) ConstS(v int64) IntConst { return t.ctx.ConstSInt(t, v) }
+
+// Const 该类型的浮点常量（类型导向糖：f64.Const(3.14)）
+func (t FloatType) Const(v float64) FloatConst { return t.ctx.ConstFloat(t, v) }
+
+// ConstIntOfString 按进制解析字符串构造整数常量
+func (ctx *Context) ConstIntOfString(t IntType, s string, radix uint8) IntConst {
+	ctx.CheckType("llvm.Context.ConstIntOfString", t)
+	return IntConst{newValue[IntT](ctx, ctx.life, binding.LLVMConstIntOfString(t.ref, s, radix))}
+}
+
+// ConstBool 构造布尔常量
+func (ctx *Context) ConstBool(v bool) Value[IntT] {
+	var n uint64
+	if v {
+		n = 1
 	}
-	return ConstArray(binding.LLVMConstArray(et.binding(), es))
+	return newValue[IntT](ctx, ctx.life, binding.LLVMConstInt(ctx.Bool().ref, n, false))
 }
 
-func (ctx Context) ConstString(s string) ConstArray {
-	return ConstArray(binding.LLVMConstStringInContext(ctx.binding(), s, false))
+// ConstFloat 构造浮点常量
+func (ctx *Context) ConstFloat(t FloatType, v float64) FloatConst {
+	ctx.CheckType("llvm.Context.ConstFloat", t)
+	return FloatConst{newValue[FloatT](ctx, ctx.life, binding.LLVMConstReal(t.ref, v))}
 }
 
-func (c ConstArray) String() string {
-	return binding.LLVMPrintValueToString(c.binding())
+// ConstNull 构造指定类型的 null 常量（泛型方法，接受类型角色或裸 Type[T]）
+func (ctx *Context) ConstNull[T Kind](t TypeRef[T]) Value[T] {
+	tt := t.AsType()
+	ctx.CheckType("llvm.Context.ConstNull", tt)
+	return newValue[T](ctx, ctx.life, binding.LLVMConstNull(tt.ref))
 }
 
-func (c ConstArray) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(c)
-}
-
-func (c ConstArray) Type() Type {
-	return lookupType(binding.LLVMTypeOf(c.binding()))
-}
-
-func (ConstArray) constant() {}
-
-func (c ConstArray) GetElem(i uint) Constant {
-	return lookupConstant(binding.LLVMGetAggregateElement(c.binding(), uint32(i)))
-}
-
-type ConstStruct binding.LLVMValueRef
-
-func (ctx Context) ConstStruct(packed bool, elem ...Constant) ConstStruct {
-	var es []binding.LLVMValueRef
-	if len(elem) > 0 {
-		es = lo.Map(elem, func(item Constant, index int) binding.LLVMValueRef {
-			return item.binding()
-		})
+// ConstZero 构造指定类型的零值常量（泛型方法）；聚合类型得到 zeroinitializer
+func (ctx *Context) ConstZero[T Kind](t TypeRef[T]) Value[T] {
+	tt := t.AsType()
+	ctx.CheckType("llvm.Context.ConstZero", tt)
+	var ref binding.LLVMValueRef
+	switch kindOfType(tt.ref).(type) {
+	case StructT, ArrayT, VecT:
+		ref = binding.LLVMConstAggregateZero(tt.ref)
+	default:
+		ref = binding.LLVMConstNull(tt.ref)
 	}
-	return ConstStruct(binding.LLVMConstStructInContext(ctx.binding(), es, packed))
+	return newValue[T](ctx, ctx.life, ref)
 }
 
-func (ctx Context) ConstNamedStruct(t StructType, elem ...Constant) ConstStruct {
-	var es []binding.LLVMValueRef
-	if len(elem) > 0 {
-		es = lo.Map(elem, func(item Constant, index int) binding.LLVMValueRef {
-			return item.binding()
-		})
+// Null 该类型的 null 常量（角色经内嵌 Type[T] 自动继承）
+func (t Type[T]) Null() Value[T] {
+	return t.ctx.ConstNull(t)
+}
+
+// Zero 该类型的零值常量（角色经内嵌 Type[T] 自动继承）
+func (t Type[T]) Zero() Value[T] {
+	return t.ctx.ConstZero(t)
+}
+
+// Undef 该类型的 undef 常量（角色经内嵌 Type[T] 自动继承）
+func (t Type[T]) Undef() Value[T] {
+	t.Check("llvm.Type.Undef")
+	return newValue[T](t.ctx, t.ctx.life, binding.LLVMGetUndef(t.ref))
+}
+
+// Poison 该类型的 poison 常量（角色经内嵌 Type[T] 自动继承）
+func (t Type[T]) Poison() Value[T] {
+	t.Check("llvm.Type.Poison")
+	return newValue[T](t.ctx, t.ctx.life, binding.LLVMGetPoison(t.ref))
+}
+
+// ConstString 构造字符串常量；nullTerminate 为 true 时末尾附加 \00
+func (ctx *Context) ConstString(s string, nullTerminate bool) Value[ArrayT] {
+	ctx.CheckAlive("llvm.Context.ConstString")
+	ref := binding.LLVMConstStringInContext(ctx.ref, s, !nullTerminate)
+	return newValue[ArrayT](ctx, ctx.life, ref)
+}
+
+// ConstArray 构造数组常量；元素类型/归属不符则 panic
+func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
+	const op = "llvm.Context.ConstArray"
+	ctx.CheckType(op, elem)
+	ctx.CheckValues(op, elems...)
+	elemRef := elem.Ref()
+	for _, e := range elems {
+		if ref := binding.LLVMTypeOf(e.Ref()); !elemRef.Equal(ref) {
+			errPanic(ErrTypeMismatch, op,
+				"element type %s does not match array element type %s", TypeOfRef(ctx, ref), elem)
+		}
 	}
-	return ConstStruct(binding.LLVMConstNamedStruct(t.binding(), es))
+	ref := binding.LLVMConstArray(elemRef, AnyValuesToRefs(elems))
+	return newValue[ArrayT](ctx, ctx.life, ref)
 }
 
-func (c ConstStruct) String() string {
-	return binding.LLVMPrintValueToString(c.binding())
+// ConstVector 构造向量常量；元素类型/归属不符则 panic
+func (ctx *Context) ConstVector(elem AnyType, elems ...AnyValue) Value[VecT] {
+	const op = "llvm.Context.ConstVector"
+	ctx.CheckType(op, elem)
+	ctx.CheckValues(op, elems...)
+	elemRef := elem.Ref()
+	for i, e := range elems {
+		if ref := binding.LLVMTypeOf(e.Ref()); !elemRef.Equal(ref) {
+			errPanic(ErrTypeMismatch, op,
+				"element %d type %s does not match vector element type %s", i, TypeOfRef(ctx, ref), elem)
+		}
+	}
+	ref := binding.LLVMConstVector(AnyValuesToRefs(elems))
+	return newValue[VecT](ctx, ctx.life, ref)
 }
 
-func (c ConstStruct) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(c)
+// ConstStruct 构造字面量结构体常量
+func (ctx *Context) ConstStruct(packed bool, elems ...AnyValue) Value[StructT] {
+	ctx.CheckValues("llvm.Context.ConstStruct", elems...)
+	ref := binding.LLVMConstStructInContext(ctx.ref, AnyValuesToRefs(elems), packed)
+	return newValue[StructT](ctx, ctx.life, ref)
 }
 
-func (c ConstStruct) Type() Type {
-	return lookupType(binding.LLVMTypeOf(c.binding()))
+// ConstNamedStruct 构造命名结构体常量；元素个数/类型不符则 panic
+func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[StructT] {
+	const op = "llvm.Context.ConstNamedStruct"
+	ctx.CheckType(op, t)
+	ctx.CheckValues(op, elems...)
+	if got, want := len(elems), int(binding.LLVMCountStructElementTypes(t.ref)); got != want {
+		errPanic(ErrTypeMismatch, op, "expect %d elements, got %d", want, got)
+	}
+	for i, e := range elems {
+		want := binding.LLVMStructGetTypeAtIndex(t.ref, uint32(i))
+		if ref := binding.LLVMTypeOf(e.Ref()); !want.Equal(ref) {
+			errPanic(ErrTypeMismatch, op,
+				"element %d type %s does not match field type %s", i, TypeOfRef(ctx, ref), TypeOfRef(ctx, want))
+		}
+	}
+	ref := binding.LLVMConstNamedStruct(t.ref, AnyValuesToRefs(elems))
+	return newValue[StructT](ctx, ctx.life, ref)
 }
 
-func (ConstStruct) constant() {}
-
-func (c ConstStruct) GetElem(i uint) Constant {
-	return lookupConstant(binding.LLVMGetAggregateElement(c.binding(), uint32(i)))
+// ConstGEP 构造常量 GEP 表达式；elem 为源元素类型，base 必须是指针值
+func (ctx *Context) ConstGEP(elem AnyType, base ValueRef[PtrT], inBounds bool, idx ...ValueRef[IntT]) Value[PtrT] {
+	const op = "llvm.Context.ConstGEP"
+	ctx.CheckType(op, elem)
+	baseV := base.AsValue()
+	ctx.checkValueOwn(op, baseV.ref, baseV.life, baseV.ctx)
+	idxRefs := make([]binding.LLVMValueRef, len(idx))
+	for i, x := range idx {
+		v := x.AsValue()
+		ctx.checkValueOwn(op, v.ref, v.life, v.ctx)
+		idxRefs[i] = v.ref
+	}
+	var ref binding.LLVMValueRef
+	if inBounds {
+		ref = binding.LLVMConstInBoundsGEP2(elem.Ref(), baseV.ref, idxRefs)
+	} else {
+		ref = binding.LLVMConstGEP2(elem.Ref(), baseV.ref, idxRefs)
+	}
+	return newValue[PtrT](ctx, ctx.life, ref)
 }
 
-type ConstPointer binding.LLVMValueRef
-
-func (ctx Context) ConstPointer(t Type) ConstPointer {
-	return ConstPointer(binding.LLVMConstPointerNull(t.binding()))
+// ConstIntToPtr 构造 inttoptr 常量表达式
+func (ctx *Context) ConstIntToPtr(v ValueRef[IntT], to PtrType) Value[PtrT] {
+	const op = "llvm.Context.ConstIntToPtr"
+	vv := v.AsValue()
+	ctx.checkValueOwn(op, vv.ref, vv.life, vv.ctx)
+	ctx.CheckType(op, to)
+	ref := binding.LLVMConstIntToPtr(vv.Ref(), to.Ref())
+	return newValue[PtrT](ctx, ctx.life, ref)
 }
 
-func (c ConstPointer) String() string {
-	return binding.LLVMPrintValueToString(c.binding())
+// ===== 内部辅助 =====
+
+// CheckValues 校验值归属同一 Context 且存活
+func (ctx *Context) CheckValues(op string, vs ...AnyValue) {
+	for _, v := range vs {
+		if v == nil {
+			errPanic(ErrInvalidArg, op, "nil value")
+		}
+		ctx.checkValueOwn(op, v.Ref(), v.Lifetime(), v.Context())
+	}
 }
 
-func (c ConstPointer) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(c)
+// checkValueOwn 校验具体值句柄归属本 Context 且存活（无装箱）
+func (ctx *Context) checkValueOwn(op string, ref binding.LLVMValueRef, life *Lifetime, vctx *Context) {
+	if ref.IsNil() {
+		errPanic(ErrInvalidArg, op, "nil value")
+	}
+	if !ctx.life.Alive() {
+		errPanic(ErrUseAfterFree, op, "context is closed")
+	}
+	if life == nil || !life.Alive() {
+		errPanic(ErrUseAfterFree, op, "value is freed")
+	}
+	if vctx != ctx {
+		errPanic(ErrCrossContext, op, "value belongs to another context")
+	}
 }
 
-func (c ConstPointer) Type() Type {
-	return lookupType(binding.LLVMTypeOf(c.binding()))
+// AnyValuesToRefs 将值列表转换为底层句柄列表（供 llvm/* 子包桥接使用）
+func AnyValuesToRefs(values []AnyValue) []binding.LLVMValueRef {
+	refs := make([]binding.LLVMValueRef, len(values))
+	for i, v := range values {
+		refs[i] = v.Ref()
+	}
+	return refs
 }
-
-func (ConstPointer) constant() {}
-
-type ConstGetElementPtr binding.LLVMValueRef
-
-func (ctx Context) ConstGEP(t Type, v Constant, indice ...Constant) ConstGetElementPtr {
-	indices := lo.Map(indice, func(item Constant, _ int) binding.LLVMValueRef {
-		return item.binding()
-	})
-	return ConstGetElementPtr(binding.LLVMConstGEP(t.binding(), v.binding(), indices))
-}
-
-func (ctx Context) ConstInBoundsGEP(t Type, v Constant, indice ...Constant) ConstGetElementPtr {
-	indices := lo.Map(indice, func(item Constant, _ int) binding.LLVMValueRef {
-		return item.binding()
-	})
-	return ConstGetElementPtr(binding.LLVMConstInBoundsGEP(t.binding(), v.binding(), indices))
-}
-
-func (c ConstGetElementPtr) String() string {
-	return binding.LLVMPrintValueToString(c.binding())
-}
-
-func (c ConstGetElementPtr) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(c)
-}
-
-func (c ConstGetElementPtr) Type() Type {
-	return lookupType(binding.LLVMTypeOf(c.binding()))
-}
-
-func (ConstGetElementPtr) constant() {}
-
-type ConstExtractElement binding.LLVMValueRef
-
-func (ctx Context) ConstExtractElement(v, index Constant) ConstExtractElement {
-	return ConstExtractElement(binding.LLVMConstExtractElement(v.binding(), index.binding()))
-}
-
-func (c ConstExtractElement) String() string {
-	return binding.LLVMPrintValueToString(c.binding())
-}
-
-func (c ConstExtractElement) binding() binding.LLVMValueRef {
-	return binding.LLVMValueRef(c)
-}
-
-func (c ConstExtractElement) Type() Type {
-	return lookupType(binding.LLVMTypeOf(c.binding()))
-}
-
-func (ConstExtractElement) constant() {}
