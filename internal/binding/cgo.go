@@ -8,6 +8,8 @@
 // Nonexistent -I/-L directories are ignored by the compiler and linker, so several
 // candidate layouts can be listed at once.
 
+//go:generate go run ../cmd/llvmconfig
+
 package binding
 
 /*
