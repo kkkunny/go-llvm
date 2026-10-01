@@ -215,6 +215,28 @@ func (ctx *Context) ConstGEP(elem AnyType, base ValueRef[PtrT], inBounds bool, i
 	return newValue[PtrT](ctx, ctx.life, ref)
 }
 
+// SizeOf 构造类型分配大小的 i64 常量表达式（语义对应 C API 的 LLVMSizeOf）。
+//
+// 结果是目标无关的常量表达式，在代码生成期按值所在模块的数据布局折叠为分配大小
+// （getTypeAllocSize，byte）；t 须在代码生成前 sized，否则该表达式无法折叠。
+// t 为 nil 或属于其他 Context 时 panic。
+func (ctx *Context) SizeOf(t AnyType) Value[IntT] {
+	const op = "llvm.Context.SizeOf"
+	ctx.CheckType(op, t)
+	return newValue[IntT](ctx, ctx.life, binding.LLVMSizeOf(t.Ref()))
+}
+
+// AlignOf 构造类型对齐的 i64 常量表达式（语义对应 C API 的 LLVMAlignOf）。
+//
+// 结果是目标无关的常量表达式，在代码生成期按值所在模块的数据布局折叠为 ABI 对齐
+// （getTypeABIAlignment，byte）；t 须在代码生成前 sized，否则该表达式无法折叠。
+// t 为 nil 或属于其他 Context 时 panic。
+func (ctx *Context) AlignOf(t AnyType) Value[IntT] {
+	const op = "llvm.Context.AlignOf"
+	ctx.CheckType(op, t)
+	return newValue[IntT](ctx, ctx.life, binding.LLVMAlignOf(t.Ref()))
+}
+
 // ConstIntToPtr 构造 inttoptr 常量表达式
 func (ctx *Context) ConstIntToPtr(v ValueRef[IntT], to PtrType) Value[PtrT] {
 	const op = "llvm.Context.ConstIntToPtr"

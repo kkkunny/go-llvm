@@ -204,6 +204,60 @@ func TestConstGEP(t *testing.T) {
 	}
 }
 
+func TestSizeOfAlignOf(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	i64 := ctx.Int(64)
+	size := ctx.SizeOf(i64)
+	if got := size.Type().String(); got != "i64" {
+		t.Fatalf("SizeOf(i64) type = %q, want i64", got)
+	}
+	if !size.IsConstant() {
+		t.Fatalf("SizeOf(i64) 应为常量表达式, got %s", size.String())
+	}
+	if got := size.String(); !strings.Contains(got, "getelementptr") || !strings.Contains(got, "ptrtoint") {
+		t.Fatalf("SizeOf(i64) = %q", got)
+	}
+
+	align := ctx.AlignOf(i64)
+	if got := align.Type().String(); got != "i64" {
+		t.Fatalf("AlignOf(i64) type = %q, want i64", got)
+	}
+	if !align.IsConstant() {
+		t.Fatalf("AlignOf(i64) 应为常量表达式, got %s", align.String())
+	}
+	if got := align.String(); !strings.Contains(got, "getelementptr") || !strings.Contains(got, "ptrtoint") {
+		t.Fatalf("AlignOf(i64) = %q", got)
+	}
+}
+
+func TestSizeOfAlignOfChecks(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+	ctx2 := NewContext()
+	defer ctx2.Close()
+
+	if err := errs.Catch(func() { ctx.SizeOf(nil) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("SizeOf(nil) 应 panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() { ctx.AlignOf(nil) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("AlignOf(nil) 应 panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() { ctx.SizeOf(Type[IntT]{}) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("SizeOf(nil 句柄) 应 panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() { ctx.AlignOf(Type[IntT]{}) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("AlignOf(nil 句柄) 应 panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() { ctx.SizeOf(ctx2.Int(32)) }); err == nil || err.Reason != ErrCrossContext {
+		t.Fatalf("SizeOf(跨 Context) 应 panic ErrCrossContext, got %v", err)
+	}
+	if err := errs.Catch(func() { ctx.AlignOf(ctx2.Int(32)) }); err == nil || err.Reason != ErrCrossContext {
+		t.Fatalf("AlignOf(跨 Context) 应 panic ErrCrossContext, got %v", err)
+	}
+}
+
 func TestConstMismatchPanic(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
