@@ -7,6 +7,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
 	"github.com/kkkunny/go-llvm/pass"
+	"github.com/kkkunny/go-llvm/target"
 )
 
 // buildAddModule 构造 f() { return 1 + 2 }
@@ -85,5 +86,56 @@ func TestRunPassesOptions(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatalf("RunPasses with options: %v", err)
+	}
+}
+
+// newNativeMachine 创建宿主目标机器供管线测试使用。
+func newNativeMachine(t *testing.T) *target.TargetMachine {
+	t.Helper()
+	if err := target.InitNative(); err != nil {
+		t.Fatal(err)
+	}
+	native, err := target.NativeTarget()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm, err := target.NewTargetMachine(native, target.DefaultTriple(), target.HostCPUName(),
+		target.HostCPUFeatures(), target.OptDefault, target.RelocPIC, target.CodeModelDefault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tm
+}
+
+func TestRunPassesWithTargetMachine(t *testing.T) {
+	tm := newNativeMachine(t)
+	defer tm.Close()
+
+	ctx, m, _ := buildAddModule(t, "opt-tm")
+	defer ctx.Close()
+	defer m.Close()
+	tm.ApplyTo(m)
+
+	if err := pass.AutoOpt(m, pass.O2, pass.WithTargetMachine(tm)); err != nil {
+		t.Fatalf("AutoOpt with target machine: %v", err)
+	}
+	if got := m.String(); !strings.Contains(got, "ret i32 3") {
+		t.Fatalf("expected constant fold after O2 with target machine:\n%s", got)
+	}
+}
+
+func TestRunPassesClosedTargetMachine(t *testing.T) {
+	tm := newNativeMachine(t)
+	tm.Close()
+
+	ctx, m, _ := buildAddModule(t, "opt-closed-tm")
+	defer ctx.Close()
+	defer m.Close()
+
+	err := llvm.Catch(func() {
+		_ = pass.AutoOpt(m, pass.O2, pass.WithTargetMachine(tm))
+	})
+	if err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("closed target machine should panic ErrUseAfterFree, got %v", err)
 	}
 }

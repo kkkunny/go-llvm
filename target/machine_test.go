@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/checks"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -197,5 +198,72 @@ func TestTargetMachineChecks(t *testing.T) {
 		if err := llvm.Catch(fn); err == nil || err.Reason != llvm.ErrUseAfterFree {
 			t.Fatalf("%s after close should panic ErrUseAfterFree, got %v", name, err)
 		}
+	}
+}
+
+// newMachine 只建宿主目标机器（不涉及模块），供布局契约测试使用。
+func newMachine(t *testing.T) *TargetMachine {
+	t.Helper()
+	if err := InitNative(); err != nil {
+		t.Fatal(err)
+	}
+	native, err := NativeTarget()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm, err := NewTargetMachine(native, DefaultTriple(), HostCPUName(), HostCPUFeatures(),
+		OptDefault, RelocPIC, CodeModelDefault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tm
+}
+
+// TestEmitRequiresAppliedLayout 调试构建下，忘记 ApplyTo（模块布局 ≠ 目标布局）时
+// Emit/EmitToFile 必须 panic ErrInvalidArg，而不是生成对齐取自默认布局的代码。
+func TestEmitRequiresAppliedLayout(t *testing.T) {
+	if !checks.Debug {
+		t.Skip("data layout contract is compiled out in llvm_release builds")
+	}
+	tm := newMachine(t)
+	defer tm.Close()
+
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := ir.NewModule(ctx, "no-layout")
+	defer m.Close()
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("main", ctx.Fn(i32, nil, false))
+	b := ir.NewBuilder(ctx)
+	b.MoveToEnd(fn.NewBlock("entry"))
+	b.Ret(ctx.ConstInt(i32, 0))
+	if err := b.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := llvm.Catch(func() { _, _ = tm.Emit(m, AsmFile) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("Emit without ApplyTo should panic ErrInvalidArg, got %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "m.s")
+	if err := llvm.Catch(func() { _ = tm.EmitToFile(m, path, AsmFile) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("EmitToFile without ApplyTo should panic ErrInvalidArg, got %v", err)
+	}
+
+	// ApplyTo 后即可正常产出（重复调用安全）
+	tm.ApplyTo(m)
+	tm.ApplyTo(m)
+	if err := tm.EmitToFile(m, path, AsmFile); err != nil {
+		t.Fatalf("EmitToFile after ApplyTo: %v", err)
+	}
+}
+
+// TestTargetMachineNilCheck nil 接收者经 Check/Ref 路径时必须是可捕获的 ErrInvalidArg。
+func TestTargetMachineNilCheck(t *testing.T) {
+	var tm *TargetMachine
+	if err := llvm.Catch(func() { tm.Check("target.test") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil target machine Check should panic ErrInvalidArg, got %v", err)
+	}
+	if err := llvm.Catch(func() { tm.ApplyTo(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("nil target machine ApplyTo should panic ErrInvalidArg, got %v", err)
 	}
 }

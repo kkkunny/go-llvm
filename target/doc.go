@@ -16,6 +16,15 @@
 // to write the machine's triple and data layout into the
 // [github.com/kkkunny/go-llvm/ir.Module].
 //
+// # Data layout ordering
+//
+// Call [TargetMachine.ApplyTo] *before* generating IR, not just before emitting: the alignment
+// and size information stamped into instructions by the builder comes from the module's data
+// layout at build time, so applying the layout afterwards cannot fix already-built IR. Without
+// ApplyTo the module uses LLVM's default data layout (e.g. i64 ABI alignment 4), not the host
+// target's. In debug builds [TargetMachine.EmitToFile] / [TargetMachine.Emit] verify that the
+// module layout matches the machine and panic otherwise.
+//
 // [TargetMachine] is an independent ownership root (not registered with
 // [github.com/kkkunny/go-llvm.Context]) and must be released with [TargetMachine.Close].
 package target

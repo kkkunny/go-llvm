@@ -1,6 +1,9 @@
 package llvm
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
@@ -58,7 +61,7 @@ func (ctx *Context) ConstIntOfString(t IntType, s string, radix uint8) IntConst 
 	return IntConst{newValue[IntT](ctx, ctx.life, binding.LLVMConstIntOfString(t.ref, s, radix))}
 }
 
-// ConstBool 构造布尔常量
+// ConstBool 构造布尔常量（i1，返回 Value[IntT]；LLVM 无独立 bool 类型，bool 即 i1）
 func (ctx *Context) ConstBool(v bool) Value[IntT] {
 	var n uint64
 	if v {
@@ -123,13 +126,14 @@ func (ctx *Context) ConstString(s string, nullTerminate bool) Value[ArrayT] {
 	return newValue[ArrayT](ctx, ctx.life, ref)
 }
 
-// ConstArray 构造数组常量；元素类型/归属不符则 panic
+// ConstArray 构造数组常量；元素非常量或类型/归属不符则 panic
 func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
 	const op = "llvm.Context.ConstArray"
 	ctx.CheckType(op, elem)
 	ctx.CheckValues(op, elems...)
 	elemRef := elem.Ref()
-	for _, e := range elems {
+	for i, e := range elems {
+		checkConstOperand(op, i, e)
 		if ref := binding.LLVMTypeOf(e.Ref()); !elemRef.Equal(ref) {
 			errPanic(ErrTypeMismatch, op,
 				"element type %s does not match array element type %s", TypeOfRef(ctx, ref), elem)
@@ -139,13 +143,14 @@ func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
 	return newValue[ArrayT](ctx, ctx.life, ref)
 }
 
-// ConstVector 构造向量常量；元素类型/归属不符则 panic
+// ConstVector 构造向量常量；元素非常量或类型/归属不符则 panic
 func (ctx *Context) ConstVector(elem AnyType, elems ...AnyValue) Value[VecT] {
 	const op = "llvm.Context.ConstVector"
 	ctx.CheckType(op, elem)
 	ctx.CheckValues(op, elems...)
 	elemRef := elem.Ref()
 	for i, e := range elems {
+		checkConstOperand(op, i, e)
 		if ref := binding.LLVMTypeOf(e.Ref()); !elemRef.Equal(ref) {
 			errPanic(ErrTypeMismatch, op,
 				"element %d type %s does not match vector element type %s", i, TypeOfRef(ctx, ref), elem)
@@ -155,14 +160,18 @@ func (ctx *Context) ConstVector(elem AnyType, elems ...AnyValue) Value[VecT] {
 	return newValue[VecT](ctx, ctx.life, ref)
 }
 
-// ConstStruct 构造字面量结构体常量
+// ConstStruct 构造字面量结构体常量；元素非常量则 panic
 func (ctx *Context) ConstStruct(packed bool, elems ...AnyValue) Value[StructT] {
-	ctx.CheckValues("llvm.Context.ConstStruct", elems...)
+	const op = "llvm.Context.ConstStruct"
+	ctx.CheckValues(op, elems...)
+	for i, e := range elems {
+		checkConstOperand(op, i, e)
+	}
 	ref := binding.LLVMConstStructInContext(ctx.ref, AnyValuesToRefs(elems), packed)
 	return newValue[StructT](ctx, ctx.life, ref)
 }
 
-// ConstNamedStruct 构造命名结构体常量；元素个数/类型不符则 panic
+// ConstNamedStruct 构造命名结构体常量；元素非常量或个数/类型不符则 panic
 func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[StructT] {
 	const op = "llvm.Context.ConstNamedStruct"
 	ctx.CheckType(op, t)
@@ -171,6 +180,7 @@ func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[Stru
 		errPanic(ErrTypeMismatch, op, "expect %d elements, got %d", want, got)
 	}
 	for i, e := range elems {
+		checkConstOperand(op, i, e)
 		want := binding.LLVMStructGetTypeAtIndex(t.ref, uint32(i))
 		if ref := binding.LLVMTypeOf(e.Ref()); !want.Equal(ref) {
 			errPanic(ErrTypeMismatch, op,
@@ -181,16 +191,18 @@ func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[Stru
 	return newValue[StructT](ctx, ctx.life, ref)
 }
 
-// ConstGEP 构造常量 GEP 表达式；elem 为源元素类型，base 必须是指针值
+// ConstGEP 构造常量 GEP 表达式；elem 为源元素类型，base 与索引都必须是常量
 func (ctx *Context) ConstGEP(elem AnyType, base ValueRef[PtrT], inBounds bool, idx ...ValueRef[IntT]) Value[PtrT] {
 	const op = "llvm.Context.ConstGEP"
 	ctx.CheckType(op, elem)
 	baseV := base.AsValue()
 	ctx.checkValueOwn(op, baseV.ref, baseV.life, baseV.ctx)
+	checkConstOperand(op, -1, baseV)
 	idxRefs := make([]binding.LLVMValueRef, len(idx))
 	for i, x := range idx {
 		v := x.AsValue()
 		ctx.checkValueOwn(op, v.ref, v.life, v.ctx)
+		checkConstOperand(op, i, v)
 		idxRefs[i] = v.ref
 	}
 	var ref binding.LLVMValueRef
@@ -207,12 +219,55 @@ func (ctx *Context) ConstIntToPtr(v ValueRef[IntT], to PtrType) Value[PtrT] {
 	const op = "llvm.Context.ConstIntToPtr"
 	vv := v.AsValue()
 	ctx.checkValueOwn(op, vv.ref, vv.life, vv.ctx)
+	checkConstOperand(op, -1, vv)
 	ctx.CheckType(op, to)
 	ref := binding.LLVMConstIntToPtr(vv.Ref(), to.Ref())
 	return newValue[PtrT](ctx, ctx.life, ref)
 }
 
+// ConstBitCast 构造 bitcast 常量表达式（源与目标须位宽一致，见 LLVM 常量转换规则）
+func (ctx *Context) ConstBitCast[U Kind](v AnyValue, to TypeRef[U]) Value[U] {
+	const op = "llvm.Context.ConstBitCast"
+	ctx.CheckValues(op, v)
+	checkConstOperand(op, -1, v)
+	tt := to.AsType()
+	ctx.CheckType(op, tt)
+	ref := binding.LLVMConstBitCast(v.Ref(), tt.Ref())
+	return newValue[U](ctx, ctx.life, ref)
+}
+
+// ConstPointerCast 构造指针 cast 常量表达式（不透明指针下等价于 bitcast，地址空间须相同）
+func (ctx *Context) ConstPointerCast(v ValueRef[PtrT], to PtrType) Value[PtrT] {
+	const op = "llvm.Context.ConstPointerCast"
+	vv := v.AsValue()
+	ctx.checkValueOwn(op, vv.ref, vv.life, vv.ctx)
+	checkConstOperand(op, -1, vv)
+	ctx.CheckType(op, to)
+	ref := binding.LLVMConstPointerCast(vv.Ref(), to.Ref())
+	return newValue[PtrT](ctx, ctx.life, ref)
+}
+
 // ===== 内部辅助 =====
+
+// checkConstOperand 校验常量构造的操作数是常量表达式；非常量则 panic。
+// 索引 i 为负表示单一操作数（如 GEP 的 base），消息里只说"operand"。
+// 常量构造器把操作数原样交给 LLVM：非常量会构造出"常量里包含指令"的畸形值，
+// 之后 Module.Verify 的报错指向那条指令本身而非构造调用处，定位成本极高，故在源头提前失败。
+// 与 ConstArray/ConstNamedStruct 的类型校验一致：冷路径，恒定校验（不加调试开关）。
+func checkConstOperand(op string, i int, v AnyValue) {
+	ref := v.Ref()
+	if binding.LLVMIsConstant(ref) {
+		return
+	}
+	desc := "operand"
+	if i >= 0 {
+		desc = fmt.Sprintf("operand %d", i)
+	}
+	if name := v.Name(); name != "" {
+		desc += " @" + name
+	}
+	errPanic(ErrInvalidArg, op, "%s is not a constant: %s", desc, strings.TrimSpace(binding.LLVMPrintValueToString(ref)))
+}
 
 // CheckValues 校验值归属同一 Context 且存活
 func (ctx *Context) CheckValues(op string, vs ...AnyValue) {

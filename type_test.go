@@ -332,3 +332,25 @@ func TestTypeCrossContextPanic(t *testing.T) {
 		t.Fatalf("want ErrCrossContext, got %v", err)
 	}
 }
+
+// TestStructSetBodyTwicePanics 二次 SetBody 必须是可捕获的 ErrInvalidArg，
+// 而不是 LLVM 的 report_fatal_error（release 构建下也会 abort 进程）。
+func TestStructSetBodyTwicePanics(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	named := ctx.NamedStruct("Pair")
+	named.SetBody([]AnyType{ctx.Int(32), ctx.Int(32)}, false)
+
+	err := Catch(func() { named.SetBody([]AnyType{ctx.Int(32), ctx.Int(32)}, false) })
+	if err == nil || err.Reason != ErrInvalidArg || err.Op != "llvm.StructType.SetBody" {
+		t.Fatalf("want ErrInvalidArg from SetBody, got %v", err)
+	}
+
+	// 字面量结构体同样已有 body
+	lit := ctx.Struct([]AnyType{ctx.Int(32)}, false)
+	err = Catch(func() { lit.SetBody([]AnyType{ctx.Int(32)}, false) })
+	if err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("literal struct SetBody should panic ErrInvalidArg, got %v", err)
+	}
+}

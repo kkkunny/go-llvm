@@ -32,7 +32,12 @@ func newModule(ctx *llvm.Context, ref binding.LLVMModuleRef) *Module {
 	return m
 }
 
-// NewModule 创建模块并登记到 Context 生命周期
+// NewModule 创建模块并登记到 Context 生命周期。
+//
+// 建议在生成 IR 之前先调用
+// [github.com/kkkunny/go-llvm/target.TargetMachine.ApplyTo]，把目标三元组与数据布局写入模块：
+// Builder 构建指令时固化的对齐/大小信息取决于当时的模块数据布局（未设置时是 LLVM 默认布局，
+// 例如 i64 ABI 对齐为 4），事后补设无法修正已生成的 IR。
 func NewModule(ctx *llvm.Context, name string) *Module {
 	if !ctx.Alive() {
 		llvm.Panicf(llvm.ErrUseAfterFree, "ir.NewModule", "context is closed")
@@ -93,7 +98,11 @@ func (m *Module) Ref() binding.LLVMModuleRef { return m.ref }
 
 // String 模块 IR 文本。
 // 注意：不自动 Verify——调试期常需导出构造中的（可能非法的）模块；
-// 打印非法 IR 有极低概率触发 LLVM 崩溃（inkwell #661），需要保险时显式调用 Verify。
+// 打印非法 IR 有极低概率触发 LLVM 崩溃（inkwell #661），而且非法 IR 打印出的文本
+// 可能"看起来合法"。需要确保文本合法时先显式调用 Verify：
+//
+//	if err := m.Verify(); err != nil { /* 处理非法 IR */ }
+//	text := m.String()
 func (m *Module) String() string {
 	m.Check("ir.Module.String")
 	return binding.LLVMPrintModuleToString(m.ref)
@@ -182,7 +191,8 @@ func (m *Module) Bitcode() *llvm.MemoryBuffer {
 	return llvm.MemoryBufferOf(binding.LLVMWriteBitcodeToMemoryBuffer(m.ref))
 }
 
-// NewFunction 按函数类型声明/定义函数
+// NewFunction 按函数类型声明/定义函数。
+// 同名函数已存在时 LLVM 会静默改名为 name.1；要复用既有函数请用 [Module.GetOrCreateFunction]。
 func (m *Module) NewFunction(name string, t llvm.FnType) Function {
 	const op = "ir.Module.NewFunction"
 	m.Check(op)
@@ -192,6 +202,25 @@ func (m *Module) NewFunction(name string, t llvm.FnType) Function {
 	}
 	ref := binding.LLVMAddFunction(m.ref, name, t.Ref())
 	return Function{Value: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}
+}
+
+// GetOrCreateFunction 按名称返回既有函数，不存在则按 t 新建；bool 表示是否新建。
+// 既有函数的签名与 t 不同时 panic [github.com/kkkunny/go-llvm.ErrTypeMismatch]：
+// 静默复用不同签名的同名函数会让调用方以错误签名生成 call。
+func (m *Module) GetOrCreateFunction(name string, t llvm.FnType) (Function, bool) {
+	const op = "ir.Module.GetOrCreateFunction"
+	m.Check(op)
+	t.Check(op)
+	if t.Context() != m.ctx {
+		llvm.Panicf(llvm.ErrCrossContext, op, "function type belongs to another context")
+	}
+	if fn, ok := m.GetFunction(name); ok {
+		if sig := fn.Signature(); !sig.Equal(t) {
+			llvm.Panicf(llvm.ErrTypeMismatch, op, "existing function %s has signature %s, want %s", name, sig, t)
+		}
+		return fn, false
+	}
+	return m.NewFunction(name, t), true
 }
 
 // GetFunction 按名称查找函数
@@ -204,7 +233,8 @@ func (m *Module) GetFunction(name string) (Function, bool) {
 	return Function{Value: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}, true
 }
 
-// NewGlobal 声明全局变量（无初始化器）
+// NewGlobal 声明全局变量（无初始化器）。
+// 同名全局变量已存在时 LLVM 会静默改名为 name.1；要复用既有全局量请用 [Module.GetOrCreateGlobal]。
 func (m *Module) NewGlobal(name string, t llvm.AnyType) Global {
 	const op = "ir.Module.NewGlobal"
 	m.Check(op)
@@ -232,6 +262,21 @@ func (m *Module) GetGlobal(name string) (Global, bool) {
 		return Global{}, false
 	}
 	return Global{Value: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}, true
+}
+
+// GetOrCreateGlobal 按名称返回既有全局变量，不存在则按内容类型 t 新建；bool 表示是否新建。
+// 既有全局量的内容类型与 t 不同时 panic [github.com/kkkunny/go-llvm.ErrTypeMismatch]。
+func (m *Module) GetOrCreateGlobal(name string, t llvm.AnyType) (Global, bool) {
+	const op = "ir.Module.GetOrCreateGlobal"
+	m.Check(op)
+	m.ctx.CheckType(op, t)
+	if g, ok := m.GetGlobal(name); ok {
+		if vt := g.ValueType(); !vt.Equal(t) {
+			llvm.Panicf(llvm.ErrTypeMismatch, op, "existing global %s has type %s, want %s", name, vt, t)
+		}
+		return g, false
+	}
+	return m.NewGlobal(name, t), true
 }
 
 // AllFunctions 模块内全部函数的惰性遍历（声明与定义都包含）

@@ -245,10 +245,24 @@ func (t StructType) Elem(i uint32) AnyType {
 	return TypeOfRef(t.ctx, binding.LLVMStructGetTypeAtIndex(t.Ref(), i))
 }
 
-// SetBody 设置结构体成员
+// SetBody 设置结构体成员；命名结构体只能设置一次，已定义（非 opaque）时 panic。
+//
+// LLVM 对二次 SetBody 会直接 report_fatal_error（release 构建也 abort 进程）；
+// 这里改为 panic [github.com/kkkunny/go-llvm.ErrInvalidArg]（可经
+// [github.com/kkkunny/go-llvm.Catch] 收敛），避免进程级崩溃。
+// 跨包共享 Context 的类型去重仍需调用方自行处理（先查 [StructType.IsOpaque]）。
 func (t StructType) SetBody(elems []AnyType, packed bool) {
-	t.ctx.CheckTypes("llvm.StructType.SetBody", elems)
-	binding.LLVMStructSetBody(t.Ref(), anyTypesToRefs(elems), packed)
+	const op = "llvm.StructType.SetBody"
+	t.ctx.CheckTypes(op, elems)
+	ref := t.Ref()
+	if !binding.LLVMIsOpaqueStruct(ref) {
+		name := t.Name()
+		if name != "" {
+			name = " " + name
+		}
+		errPanic(ErrInvalidArg, op, "struct%s body is already set", name)
+	}
+	binding.LLVMStructSetBody(ref, anyTypesToRefs(elems), packed)
 }
 
 // IsPacked 是否 packed
@@ -315,7 +329,8 @@ func (ctx *Context) Int(bits uint32) IntType {
 	return IntType{Type[IntT]{ref: binding.LLVMIntTypeInContext(ctx.ref, bits), ctx: ctx}}
 }
 
-// Bool 布尔类型（i1）
+// Bool 布尔类型（i1）；LLVM 没有独立的 bool 类型，bool 就是 i1 整数类型，
+// 配套常量为 [Context.ConstBool]（返回 Value[IntT]）。
 func (ctx *Context) Bool() IntType { return ctx.Int(1) }
 
 // Float 浮点类型

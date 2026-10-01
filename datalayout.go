@@ -22,7 +22,11 @@ type DataLayout struct {
 	closed bool
 }
 
-// NewDataLayout 由布局字符串创建数据布局（拥有句柄）
+// NewDataLayout 由布局字符串创建数据布局（拥有句柄）。
+//
+// 空字符串得到的是 LLVM 默认布局（例如 i64 ABI 对齐为 4），与宿主目标无关；
+// 需要宿主目标的真实布局请用
+// [github.com/kkkunny/go-llvm/target.TargetMachine.DataLayout]。
 func NewDataLayout(layout string) *DataLayout {
 	ref := binding.LLVMCreateTargetData(layout)
 	if ref.IsNil() {

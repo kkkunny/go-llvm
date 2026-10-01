@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
 	"github.com/kkkunny/go-llvm/pass"
+	"github.com/kkkunny/go-llvm/target"
 )
 
 // ExampleAutoOpt 演示按优化级别运行默认管线：O2 会把 f() { return 1 + 2 }
@@ -75,4 +76,45 @@ func ExampleRunPassesOnFunction() {
 	fmt.Printf("ok, insts=%d\n", insts)
 	// Output:
 	// ok, insts=1
+}
+
+// ExampleWithTargetMachine 演示把目标机器传给优化管线：default<O2> 等目标相关管线
+// 会据此使用 -mcpu/特性信息做目标相关优化与成本模型。
+func ExampleWithTargetMachine() {
+	if err := target.InitNative(); err != nil {
+		panic(err)
+	}
+	native, err := target.NativeTarget()
+	if err != nil {
+		panic(err)
+	}
+	tm, err := target.NewTargetMachine(native, target.DefaultTriple(), target.HostCPUName(),
+		target.HostCPUFeatures(), target.OptDefault, target.RelocPIC, target.CodeModelDefault)
+	if err != nil {
+		panic(err)
+	}
+	defer tm.Close()
+
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+
+	m := ir.NewModule(ctx, "opt-tm")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(i32, nil, false))
+	b := ir.NewBuilder(ctx)
+	b.MoveToEnd(fn.NewBlock("entry"))
+	b.Ret(ctx.ConstInt(i32, 0))
+	if err := b.Close(); err != nil {
+		panic(err)
+	}
+	tm.ApplyTo(m) // 生成 IR 前写入目标布局；emit 时调试构建会校验
+
+	if err := pass.AutoOpt(m, pass.O2, pass.WithTargetMachine(tm)); err != nil {
+		panic(err)
+	}
+	fmt.Println("ok")
+	// Output:
+	// ok
 }

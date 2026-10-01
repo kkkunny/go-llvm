@@ -234,3 +234,58 @@ func ExampleFunction_AllBlocks() {
 	// exit: 1
 	// blocks=3 insts=5
 }
+
+// ExampleModule_GetOrCreateFunction 演示同名函数的复用：重复调用只声明一次，
+// 返回的 bool 表示本次是否新建。注意 [ir.Module.NewFunction] 在同名时会把新函数
+// 静默改名为 f.1，跨模块/前向引用场景应使用 GetOrCreateFunction。
+func ExampleModule_GetOrCreateFunction() {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+
+	m := ir.NewModule(ctx, "goc")
+	defer m.Close()
+
+	sig := ctx.Fn(ctx.Int(32), []llvm.AnyType{ctx.Int(32), ctx.Int(32)}, false)
+	fn, created := m.GetOrCreateFunction("add", sig)
+	_, createdAgain := m.GetOrCreateFunction("add", sig)
+
+	fmt.Println(created, createdAgain, fn.Name())
+	// Output:
+	// true false add
+}
+
+// ExampleBuilder_SaveInsertPoint 演示嵌套函数生成：保存当前插入点，切换到另一个
+// 函数生成，再恢复原插入点继续。
+func ExampleBuilder_SaveInsertPoint() {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+
+	m := ir.NewModule(ctx, "ip")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	outer := m.NewFunction("outer", ctx.Fn(ctx.Void(), nil, false))
+	inner := m.NewFunction("inner", ctx.Fn(ctx.Void(), nil, false))
+
+	blk := outer.NewBlock("entry")
+	b := ir.NewBuilderAt(blk)
+	defer b.Close()
+
+	slot := b.Alloca(i32, "slot")
+	p := b.SaveInsertPoint() // 保存 outer 的插入点
+
+	b.MoveToEnd(inner.NewBlock("entry")) // 切去生成嵌套函数
+	b.RetVoid()
+
+	b.RestoreInsertPoint(p) // 回到 outer 继续
+	b.Load(slot, i32, "v")
+	b.RetVoid()
+
+	insts := 0
+	for range blk.AllInsts() {
+		insts++
+	}
+	fmt.Println(insts)
+	// Output:
+	// 3
+}

@@ -1,6 +1,9 @@
 package llvm
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
 )
@@ -122,7 +125,8 @@ func (v Value[T]) Type() Type[T] {
 	return Type[T]{ref: ty, ctx: v.ctx}
 }
 
-// As 运行时校验种类后转换类型参数；目标是 DynT 时始终成功
+// As 运行时校验种类后转换类型参数；目标是 DynT 时始终成功。
+// 失败返回的 [Error] 附带值的名字与 IR 文本，便于在动态代码中定位转换点。
 func (v Value[T]) As[U Kind]() (Value[U], error) {
 	ref := v.Ref()
 	ty := v.ty
@@ -130,10 +134,16 @@ func (v Value[T]) As[U Kind]() (Value[U], error) {
 		ty = binding.LLVMTypeOf(ref)
 	}
 	if !kindMatches[U](ty) {
+		name := binding.LLVMGetValueName(ref)
+		if name != "" {
+			name = " @" + name
+		}
 		return Value[U]{}, &Error{
 			Reason: ErrTypeMismatch,
 			Op:     "llvm.Value.As",
-			Msg:    "value kind mismatch: have " + kindName(kindOfType(ty)) + ", want " + kindName(kindOf[U]()),
+			Msg: fmt.Sprintf("value kind mismatch: have %s, want %s; value%s is %s",
+				kindName(kindOfType(ty)), kindName(kindOf[U]()), name,
+				strings.TrimSpace(binding.LLVMPrintValueToString(ref))),
 		}
 	}
 	return Value[U]{ref: ref, ty: v.ty, ctx: v.ctx, life: v.life}, nil

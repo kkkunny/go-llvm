@@ -4,8 +4,8 @@ import (
 	"github.com/kkkunny/go-llvm/internal/binding"
 )
 
-// foldPre 折叠操作前置校验：同上下文、同类型。
-// 与 ConstArray/ConstVector 一致不加调试开关——LLVM 对类型不符的折叠会 assert。
+// foldPre 折叠操作前置校验：同上下文、同类型、右操作数必须为常量。
+// 与 ConstArray/ConstVector 一致不加调试开关——LLVM 对类型不符或含指令的折叠会 assert。
 func (c IntConst) foldPre(op string, r ValueRef[IntT]) {
 	c.Check(op)
 	rv := r.AsValue()
@@ -16,6 +16,7 @@ func (c IntConst) foldPre(op string, r ValueRef[IntT]) {
 	if !c.Type().Equal(rv.Type()) {
 		errPanic(ErrTypeMismatch, op, "operand types differ: %s vs %s", c.Type(), rv.Type())
 	}
+	checkConstOperand(op, -1, rv)
 }
 
 func (c IntConst) wrapFold(ref binding.LLVMValueRef) IntConst {

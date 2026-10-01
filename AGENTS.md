@@ -3,6 +3,13 @@
 Go bindings to a **system-installed LLVM**. Public API is split across `llvm` and its
 sub-packages; all cgo lives in `internal/binding`.
 
+## Working principle: optimal solutions first
+
+Design and implementation decisions prioritize the best solution over convention compliance or
+minimal diffs. When the optimal solution violates a rule in this file or requires a large change,
+take it anyway — but call the deviation and the reason out explicitly (in the conversation, and in
+the commit message), and update the affected rule in this file.
+
 ## Hard prerequisites
 
 - **This ref targets LLVM 22** (`MIN/MAX_SUPPORT_MAJOR_VERSION = 22` in the Makefile); older majors are out of scope here (see the README support table). If `go build ./...` fails with cgo errors like `could not determine what C.X refers to`, you are compiling against the wrong LLVM major — check `llvm-config --version`. Debug builds also catch a header/library major mismatch at the first `NewContext` (`ErrVersionMismatch`, see *cgo / Makefile quirks*).
@@ -34,8 +41,9 @@ sub-packages; all cgo lives in `internal/binding`.
 | `internal/checks` | check-mode switch (`Debug` const via `llvm_release` build tag) | import project packages |
 
 Dependency direction is strictly one-way: `llvm` ← `llvm/ir` ← `llvm/target` ← `llvm/jit`,
-and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codegen and
-`ApplyTo` conveniences need `*ir.Module`; `llvm/ir` never imports target/JIT.
+and `llvm/ir` ← `llvm/pass` ← `llvm/target`. `llvm/target` may import `llvm/ir` because codegen
+and `ApplyTo` conveniences need `*ir.Module`; `llvm/pass` may import `llvm/target` so pipelines can
+receive a `*target.TargetMachine` (`pass.WithTargetMachine`); `llvm/ir` never imports target/JIT.
 
 ### Core conventions
 
@@ -56,6 +64,7 @@ and `llvm/ir` ← `llvm/pass`. `llvm/target` may import `llvm/ir` because codege
   1. *Compile-time kind safety* (`Value[T]`/`Type[T]`/`ValueRef`) — always on, prefer this when expressible.
   2. *Crash-class floor* — always on, **pure Go only** (`ref.IsNil()`, `Lifetime.Alive()`, ctx pointer compare, `closed` flags, insert-point tracking). These turn cgo SIGSEGV/UAF into catchable `panic(*llvm.Error)`. Never remove one; never add cgo to this layer.
   3. *Semantic contracts* — guard with `if checks.Debug { ... }` (`internal/checks`): operand/argument type equality, power-of-two alignment, index bounds, atomic orderings, call arity, result kinds, goroutine-owner sampling, boundary `Verify`, and JIT signature verification (`Func[F]`/`MapFunc[F]` are checked against signatures recorded by `AddIRModule`). In `-tags=llvm_release` these are dead-code-eliminated, so misuse falls back to LLVM asserts + `Module.Verify()` (same contract as C/Rust/inkwell).
+  A fourth consequence class exempts itself from the `checks.Debug` gate: **abort-prevention checks**. Checks whose absence makes LLVM call `report_fatal_error` (process death in *every* build mode) or silently build malformed IR that later verifies with a misleading diagnostic are unconditional even though they query cgo — e.g. `StructType.SetBody` on a defined struct, constant constructors given non-constant operands (`ConstStruct`/`ConstArray`/`ConstNamedStruct`/`ConstGEP`/`IntConst` folds/...), and `GetOrCreateFunction`/`GetOrCreateGlobal` signature/type conflicts. They are cold-path only; do not use this class to justify hot-path cgo checks.
   `ir.Builder` methods still start with `pre`/`preSameType`/`preBlock` (plus the package-level `preAlign`) — positioned builder, same context, live handles first; then the gated semantics; role methods on value/type roles rely on `Ref()`'s floor (see *Uniform lifetime checks / choke points*). Positioning methods use `preAlive` plus their own operand checks (`MoveToEnd`: `preBlockOwn`; `MoveBefore`: `pre` on the instruction). Debug builds add pending diagnostics (default handler installed in `NewContext`), `requireDebug(t)` for misuse tests, and resource/leak reports in `Context.Close`.
 - **Builder return types**: return a role wrapper only when the instruction has role-specific operations (`Alloca`/`Load`/`Store`/`Call`/`Invoke`/`Phi`/`Switch`/`LandingPad`/`CatchSwitch`/`FuncletPad`/`Fence`/`AtomicRMW`/`CmpXchg`); everything else returns the plain `Value[T]`.
 - **Concurrency**: `Context` (ownership registry), `Lifetime` (atomic), the `LLJIT` adapter cache and the bridge registry are lock-protected; all other handles (`Module`/`Builder`/`Value`/`Type`/`Block`/`TargetMachine`/`DataLayout`/`MemoryBuffer`) are not goroutine-safe and must be used from a single goroutine. Debug builds sample the owning goroutine in `Builder`/`Module` operations and panic on cross-goroutine use (the race detector cannot see C-side state). `LLJIT.Func`/`MapFunc`/`Lookup` may be called concurrently, but `Close` must be serialized by the caller.

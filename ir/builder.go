@@ -13,6 +13,7 @@ type Builder struct {
 	ref      binding.LLVMBuilderRef
 	ctx      *llvm.Context
 	inserted *Block
+	before   binding.LLVMValueRef // 非空表示插入点在 before 指令之前；空表示块末尾
 	unown    func()
 	closed   bool
 	refs     []binding.LLVMValueRef // 句柄转换 scratch（单 goroutine 使用）
@@ -60,6 +61,7 @@ func (b *Builder) Close() error {
 	checkOwner("ir.Builder.Close", &b.ownerGID, &b.ops, "builder", true)
 	b.closed = true
 	b.inserted = nil
+	b.before = binding.LLVMValueRef{}
 	b.unown()
 	binding.LLVMDisposeBuilder(b.ref)
 	return nil
@@ -68,6 +70,65 @@ func (b *Builder) Close() error {
 // Context 返回所属上下文
 func (b *Builder) Context() *llvm.Context { return b.ctx }
 
+// InsertPoint 构建器插入点的不可变快照，由 [Builder.SaveInsertPoint] 取得、
+// [Builder.RestoreInsertPoint] 恢复。零值表示"未定位"（构建器尚未定位到任何块）。
+type InsertPoint struct {
+	ok     bool
+	blk    Block
+	before llvm.Value[llvm.DynT] // 零值表示插入点在块末尾
+}
+
+// SaveInsertPoint 保存当前插入点（块末尾、某指令之前或未定位），供嵌套生成后恢复。
+// 构建器未定位（[Builder.CurrentBlock] 返回 false）时返回零值 InsertPoint，
+// [Builder.RestoreInsertPoint] 会把它恢复为未定位。
+func (b *Builder) SaveInsertPoint() InsertPoint {
+	const op = "ir.Builder.SaveInsertPoint"
+	b.preAlive(op)
+	checkOwner(op, &b.ownerGID, &b.ops, "builder", true)
+	if b.inserted == nil {
+		return InsertPoint{}
+	}
+	p := InsertPoint{ok: true, blk: *b.inserted}
+	if !b.before.IsNil() {
+		p.before = llvm.ValueOf(b.ctx, b.inserted.life, b.before)
+	}
+	return p
+}
+
+// RestoreInsertPoint 恢复由 [Builder.SaveInsertPoint] 保存的插入点（含"未定位"状态）。
+// 快照所属块/指令已释放，或指令已不在快照的块中时 panic
+// [github.com/kkkunny/go-llvm.ErrUseAfterFree] / [github.com/kkkunny/go-llvm.ErrInvalidArg]。
+func (b *Builder) RestoreInsertPoint(p InsertPoint) {
+	const op = "ir.Builder.RestoreInsertPoint"
+	b.preAlive(op)
+	checkOwner(op, &b.ownerGID, &b.ops, "builder", true)
+	if !p.ok {
+		b.inserted = nil
+		b.before = binding.LLVMValueRef{}
+		binding.LLVMClearInsertionPosition(b.ref)
+		return
+	}
+	b.preBlockOwn(op, p.blk)
+	if !p.before.IsNil() {
+		if p.before.Context() != b.ctx {
+			b.panicf(llvm.ErrCrossContext, op, "saved insert point belongs to another context")
+		}
+		if !p.before.Alive() {
+			b.panicf(llvm.ErrUseAfterFree, op, "saved insert point instruction is freed")
+		}
+		if parent := binding.LLVMGetInstructionParent(p.before.RawRef()); parent.IsNil() || parent != p.blk.Ref() {
+			b.panicf(llvm.ErrInvalidArg, op, "saved insert point instruction is no longer in its block")
+		}
+		b.inserted = &p.blk
+		b.before = p.before.RawRef()
+		binding.LLVMPositionBuilderBefore(b.ref, p.before.RawRef())
+		return
+	}
+	b.inserted = &p.blk
+	b.before = binding.LLVMValueRef{}
+	binding.LLVMPositionBuilderAtEnd(b.ref, p.blk.Ref())
+}
+
 // MoveToEnd 将插入点移到基本块末尾
 func (b *Builder) MoveToEnd(blk Block) {
 	const op = "ir.Builder.MoveToEnd"
@@ -75,6 +136,7 @@ func (b *Builder) MoveToEnd(blk Block) {
 	checkOwner(op, &b.ownerGID, &b.ops, "builder", true)
 	b.preBlockOwn(op, blk)
 	b.inserted = &blk
+	b.before = binding.LLVMValueRef{}
 	binding.LLVMPositionBuilderAtEnd(b.ref, blk.ref)
 }
 
@@ -87,6 +149,7 @@ func (b *Builder) MoveBefore(inst llvm.AnyValue) {
 	ref := binding.LLVMGetInstructionParent(inst.Ref())
 	blk := wrapBlock(b.ctx, inst.Lifetime(), ref)
 	b.inserted = &blk
+	b.before = rawRefOf(inst)
 	binding.LLVMPositionBuilderBefore(b.ref, inst.Ref())
 }
 

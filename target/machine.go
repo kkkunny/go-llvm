@@ -75,8 +75,17 @@ func NewTargetMachine(t Target, triple, cpu, features string, opt OptLevel, relo
 	return &TargetMachine{ref: ref}, nil
 }
 
-// check 前置校验：未释放
+// Check 校验目标机器未释放（供 llvm/* 子包使用；nil 接收者也会 panic）
+func (m *TargetMachine) Check(op string) { m.check(op) }
+
+// Ref 返回底层句柄（供 llvm/* 子包桥接使用；不做存活校验，业务路径请先用 [TargetMachine.Check]）
+func (m *TargetMachine) Ref() binding.LLVMTargetMachineRef { return m.ref }
+
+// check 前置校验：非 nil 且未释放
 func (m *TargetMachine) check(op string) {
+	if m == nil {
+		llvm.Panicf(llvm.ErrInvalidArg, op, "nil target machine")
+	}
 	if m.closed {
 		llvm.Panicf(llvm.ErrUseAfterFree, op, "target machine is closed")
 	}
@@ -128,7 +137,12 @@ func (m *TargetMachine) SetAsmVerbosity(verbose bool) {
 	binding.LLVMSetTargetMachineAsmVerbosity(m.ref, verbose)
 }
 
-// ApplyTo 把目标三元组与数据布局写入模块（旧 Module.SetTarget 的替代）
+// ApplyTo 把目标三元组与数据布局写入模块（重复调用安全）。
+//
+// 必须在生成 IR 之前调用：Builder 构建 load/store 等指令时固化的对齐与大小信息来自
+// 模块当时的数据布局；事后补调无法修正已生成的 IR（[TargetMachine.EmitToFile] /
+// [TargetMachine.Emit] 在调试构建下会校验模块布局与目标布局一致）。
+// 未调用时模块使用 LLVM 默认数据布局（例如 i64 ABI 对齐为 4），而非宿主目标的对齐。
 func (m *TargetMachine) ApplyTo(mod *ir.Module) {
 	const op = "target.TargetMachine.ApplyTo"
 	m.check(op)
@@ -139,7 +153,22 @@ func (m *TargetMachine) ApplyTo(mod *ir.Module) {
 	mod.SetDataLayout(dl.String())
 }
 
-// EmitToFile 将模块编译为汇编/目标文件；失败返回 ErrCodeGen
+// checkApplied 调试层校验模块数据布局与目标机器一致：把"忘记 ApplyTo"从静默的错误
+// 代码生成（对齐取自默认布局）变成显式 panic。
+func (m *TargetMachine) checkApplied(op string, mod *ir.Module) {
+	dl := m.DataLayout()
+	defer dl.Close()
+	mdl := mod.DataLayout()
+	defer mdl.Close()
+	if got, want := mdl.String(), dl.String(); got != want {
+		llvm.Panicf(llvm.ErrInvalidArg, op,
+			"module data layout %q does not match target machine layout %q; call TargetMachine.ApplyTo on the module before generating IR",
+			got, want)
+	}
+}
+
+// EmitToFile 将模块编译为汇编/目标文件；失败返回 ErrCodeGen。
+// 调试构建下先 Verify，并校验模块数据布局与目标机器一致（见 [TargetMachine.ApplyTo]）。
 func (m *TargetMachine) EmitToFile(mod *ir.Module, path string, ft FileType) error {
 	const op = "target.TargetMachine.EmitToFile"
 	m.check(op)
@@ -148,6 +177,7 @@ func (m *TargetMachine) EmitToFile(mod *ir.Module, path string, ft FileType) err
 		if err := mod.Verify(); err != nil {
 			llvm.Panicf(llvm.ErrVerify, op, "module verification failed before codegen: %s", err)
 		}
+		m.checkApplied(op, mod)
 	}
 	if err := binding.LLVMTargetMachineEmitToFile(m.ref, mod.Ref(), path, binding.LLVMCodeGenFileType(ft)); err != nil {
 		return llvm.WrapError(llvm.ErrCodeGen, op, err)
@@ -155,11 +185,15 @@ func (m *TargetMachine) EmitToFile(mod *ir.Module, path string, ft FileType) err
 	return nil
 }
 
-// Emit 将模块编译为汇编/目标代码内存缓冲
+// Emit 将模块编译为汇编/目标代码内存缓冲。
+// 调试构建下校验模块数据布局与目标机器一致（见 [TargetMachine.ApplyTo]）。
 func (m *TargetMachine) Emit(mod *ir.Module, ft FileType) (*llvm.MemoryBuffer, error) {
 	const op = "target.TargetMachine.Emit"
 	m.check(op)
 	mod.Check(op)
+	if checks.Debug {
+		m.checkApplied(op, mod)
+	}
 	buf, err := binding.LLVMTargetMachineEmitToMemoryBuffer(m.ref, mod.Ref(), binding.LLVMCodeGenFileType(ft))
 	if err != nil {
 		return nil, llvm.WrapError(llvm.ErrCodeGen, op, err)

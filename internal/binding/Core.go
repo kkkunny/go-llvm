@@ -1474,6 +1474,13 @@ func LLVMGetInsertBlock(builder LLVMBuilderRef) LLVMBasicBlockRef {
 	return LLVMBasicBlockRef{c: C.LLVMGetInsertBlock(builder.c)}
 }
 
+// LLVMClearInsertionPosition Clear the builder's insertion position, making the builder
+// unpositioned; it cannot create instructions until positioned again.
+// @see llvm::IRBuilderBase::clearIP()
+func LLVMClearInsertionPosition(builder LLVMBuilderRef) {
+	C.LLVMClearInsertionPosition(builder.c)
+}
+
 func LLVMDisposeBuilder(builder LLVMBuilderRef) {
 	C.LLVMDisposeBuilder(builder.c)
 }
