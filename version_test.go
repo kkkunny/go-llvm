@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // TestLinkedLLVMVersion 冒烟校验运行时链接的 LLVM 库大版本与编译期头文件一致。
@@ -22,7 +23,7 @@ func TestLinkedLLVMVersion(t *testing.T) {
 // panic [ErrVersionMismatch]，消息包含两侧版本信息。校验只在调试构建启用，故用 requireDebug 门控。
 func TestCheckVersionMatchMismatch(t *testing.T) {
 	requireDebug(t)
-	err := Catch(func() {
+	err := errs.Catch(func() {
 		checkVersionMatch(func() (uint32, uint32, uint32) { return 21, 1, 0 }, 22, "22.1.8")
 	})
 	if err == nil {

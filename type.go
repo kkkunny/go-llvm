@@ -4,6 +4,7 @@ import (
 	"iter"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // FloatKind 浮点类型种类
@@ -59,7 +60,7 @@ func (t Type[T]) Ref() binding.LLVMTypeRef {
 // checkFloor 崩溃类地板校验（任何构建都开，纯 Go）
 func (t Type[T]) checkFloor(op string) {
 	if t.ctx == nil || t.ref.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil type handle")
+		errs.Panicf(ErrInvalidArg, op, "nil type handle")
 	}
 	t.ctx.CheckAlive(op)
 }
@@ -136,36 +137,42 @@ func TypeOfRef(ctx *Context, ref binding.LLVMTypeRef) Type[DynT] {
 
 // ===== 类型角色转换（种类不符 panic，程序员错误） =====
 
-func asRole[T Kind](op string, t AnyType) Type[T] {
+func typeMustRole[T Kind](op string, t AnyType) Type[T] {
 	if t == nil {
-		errPanic(ErrInvalidArg, op, "nil type")
+		errs.Panicf(ErrInvalidArg, op, "nil type")
 	}
-	return Must(t.DynType().As[T]())
+	return errs.Must(t.DynType().As[T]())
 }
 
-// AsVoidType 提取 void 类型角色
-func AsVoidType(t AnyType) VoidType { return VoidType{asRole[VoidT]("llvm.AsVoidType", t)} }
+// MustVoidType 提取 void 类型角色
+func MustVoidType(t AnyType) VoidType { return VoidType{typeMustRole[VoidT]("llvm.AsVoidType", t)} }
 
-// AsIntType 提取整数类型角色
-func AsIntType(t AnyType) IntType { return IntType{asRole[IntT]("llvm.AsIntType", t)} }
+// MustIntType 提取整数类型角色
+func MustIntType(t AnyType) IntType { return IntType{typeMustRole[IntT]("llvm.AsIntType", t)} }
 
-// AsFloatType 提取浮点类型角色
-func AsFloatType(t AnyType) FloatType { return FloatType{asRole[FloatT]("llvm.AsFloatType", t)} }
+// MustFloatType 提取浮点类型角色
+func MustFloatType(t AnyType) FloatType {
+	return FloatType{typeMustRole[FloatT]("llvm.AsFloatType", t)}
+}
 
-// AsPtrType 提取指针类型角色
-func AsPtrType(t AnyType) PtrType { return PtrType{asRole[PtrT]("llvm.AsPtrType", t)} }
+// MustPtrType 提取指针类型角色
+func MustPtrType(t AnyType) PtrType { return PtrType{typeMustRole[PtrT]("llvm.AsPtrType", t)} }
 
-// AsStructType 提取结构体类型角色
-func AsStructType(t AnyType) StructType { return StructType{asRole[StructT]("llvm.AsStructType", t)} }
+// MustStructType 提取结构体类型角色
+func MustStructType(t AnyType) StructType {
+	return StructType{typeMustRole[StructT]("llvm.AsStructType", t)}
+}
 
-// AsArrayType 提取数组类型角色
-func AsArrayType(t AnyType) ArrayType { return ArrayType{asRole[ArrayT]("llvm.AsArrayType", t)} }
+// MustArrayType 提取数组类型角色
+func MustArrayType(t AnyType) ArrayType {
+	return ArrayType{typeMustRole[ArrayT]("llvm.AsArrayType", t)}
+}
 
-// AsVecType 提取向量类型角色
-func AsVecType(t AnyType) VecType { return VecType{asRole[VecT]("llvm.AsVecType", t)} }
+// MustVecType 提取向量类型角色
+func MustVecType(t AnyType) VecType { return VecType{typeMustRole[VecT]("llvm.AsVecType", t)} }
 
-// AsFnType 提取函数类型角色
-func AsFnType(t AnyType) FnType { return FnType{asRole[FnT]("llvm.AsFnType", t)} }
+// MustFnType 提取函数类型角色
+func MustFnType(t AnyType) FnType { return FnType{typeMustRole[FnT]("llvm.AsFnType", t)} }
 
 // ===== 类型角色 =====
 
@@ -248,8 +255,8 @@ func (t StructType) Elem(i uint32) AnyType {
 // SetBody 设置结构体成员；命名结构体只能设置一次，已定义（非 opaque）时 panic。
 //
 // LLVM 对二次 SetBody 会直接 report_fatal_error（release 构建也 abort 进程）；
-// 这里改为 panic [github.com/kkkunny/go-llvm.ErrInvalidArg]（可经
-// [github.com/kkkunny/go-llvm.Catch] 收敛），避免进程级崩溃。
+// 这里改为 panic [github.com/kkkunny/go-llvm.ErrInvalidArg]（可 recover 的 Go panic），
+// 避免进程级崩溃。
 // 跨包共享 Context 的类型去重仍需调用方自行处理（先查 [StructType.IsOpaque]）。
 func (t StructType) SetBody(elems []AnyType, packed bool) {
 	const op = "llvm.StructType.SetBody"
@@ -260,7 +267,7 @@ func (t StructType) SetBody(elems []AnyType, packed bool) {
 		if name != "" {
 			name = " " + name
 		}
-		errPanic(ErrInvalidArg, op, "struct%s body is already set", name)
+		errs.Panicf(ErrInvalidArg, op, "struct%s body is already set", name)
 	}
 	binding.LLVMStructSetBody(ref, anyTypesToRefs(elems), packed)
 }
@@ -353,7 +360,7 @@ func (ctx *Context) Float(kind FloatKind) FloatType {
 	case FloatPPCFP128:
 		ref = binding.LLVMPPCFP128TypeInContext(ctx.ref)
 	default:
-		errPanic(ErrInvalidArg, "llvm.Context.Float", "unknown float kind %d", kind)
+		errs.Panicf(ErrInvalidArg, "llvm.Context.Float", "unknown float kind %d", kind)
 	}
 	return FloatType{Type[FloatT]{ref: ref, ctx: ctx}}
 }
@@ -405,10 +412,10 @@ func (ctx *Context) Fn(ret AnyType, params []AnyType, vararg bool) FnType {
 func (ctx *Context) CheckType(op string, t AnyType) {
 	ctx.CheckAlive(op)
 	if t == nil || t.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil type")
+		errs.Panicf(ErrInvalidArg, op, "nil type")
 	}
 	if t.Context() != ctx {
-		errPanic(ErrCrossContext, op, "type belongs to another context")
+		errs.Panicf(ErrCrossContext, op, "type belongs to another context")
 	}
 }
 

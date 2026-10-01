@@ -6,6 +6,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestFunctionPersonality(t *testing.T) {
@@ -35,7 +36,7 @@ func TestFunctionPersonality(t *testing.T) {
 		t.Fatalf("module should contain personality:\n%s", m.String())
 	}
 
-	if err := llvm.Catch(func() { fn.SetPersonality(llvm.Value[llvm.FnT]{}) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { fn.SetPersonality(llvm.Value[llvm.FnT]{}) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil personality should panic ErrInvalidArg, got %v", err)
 	}
 	// 仅声明的函数没有入口块：LLVMGetEntryBasicBlock 对空函数是 UB，安全查询应返回 ok=false
@@ -141,7 +142,7 @@ func TestBuilderInvokePrecheck(t *testing.T) {
 	// 未定位
 	b2 := NewBuilder(ctx)
 	defer b2.Close()
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b2.Invoke[llvm.IntT](g, []llvm.AnyValue{fn.ParamAs[llvm.IntT](0)}, cont, lpad, "")
 	}); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("unpositioned invoke should panic ErrInvalidArg, got %v", err)
@@ -149,22 +150,22 @@ func TestBuilderInvokePrecheck(t *testing.T) {
 
 	// 实参下标越界（崩溃类地板：始终校验）
 	iv := b.Invoke[llvm.IntT](g, []llvm.AnyValue{fn.ParamAs[llvm.IntT](0)}, cont, lpad, "")
-	if err := llvm.Catch(func() { iv.Arg(9) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { iv.Arg(9) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Invoke.Arg out of range should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { iv.SetArg(9, ctx.ConstInt(i32, 1).Value) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { iv.SetArg(9, ctx.ConstInt(i32, 1).Value) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Invoke.SetArg out of range should panic ErrInvalidArg, got %v", err)
 	}
 
 	// 返回种类不符 / 实参个数不符（语义契约，仅调试层）
 	if checks.Debug {
-		if err := llvm.Catch(func() {
+		if err := errs.Catch(func() {
 			b.Invoke[llvm.FloatT](g, []llvm.AnyValue{fn.ParamAs[llvm.IntT](0)}, cont, lpad, "")
 		}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 			t.Fatalf("wrong return kind should panic ErrTypeMismatch, got %v", err)
 		}
 
-		if err := llvm.Catch(func() {
+		if err := errs.Catch(func() {
 			b.Invoke[llvm.IntT](g, nil, cont, lpad, "")
 		}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 			t.Fatalf("wrong arg count should panic ErrTypeMismatch, got %v", err)
@@ -249,17 +250,17 @@ func TestBuilderLandingPadPrecheck(t *testing.T) {
 	lp := b.LandingPad(padTy, "lp")
 
 	// 子句必须是常量
-	if err := llvm.Catch(func() { lp.AddClause(fn.Param(0)) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { lp.AddClause(fn.Param(0)) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("non-constant clause should panic ErrInvalidArg, got %v", err)
 	}
 	// 子句下标越界
-	if err := llvm.Catch(func() { lp.Clause(9) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { lp.Clause(9) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("clause out of range should panic ErrInvalidArg, got %v", err)
 	}
 	// 跨 Context 的 landingpad 类型（崩溃类地板：始终校验）
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.LandingPad(ctx2.Struct([]llvm.AnyType{ctx2.Ptr(0), ctx2.Int(32)}, false), "")
 	}); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign landingpad type should panic ErrCrossContext, got %v", err)
@@ -300,7 +301,7 @@ func TestBuilderInvokeIndirect(t *testing.T) {
 	defer ctx2.Close()
 	i32b := ctx2.Int(32)
 	sig2 := ctx2.Fn(i32b, []llvm.AnyType{i32b}, false)
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.InvokeIndirect[llvm.IntT](fn.ParamAs[llvm.PtrT](0), sig2, nil, cont, lpad, "")
 	}); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign signature should panic ErrCrossContext, got %v", err)
@@ -457,15 +458,15 @@ func TestBuilderFuncletPrecheck(t *testing.T) {
 	cs := b.CatchSwitch(nil, Block{}, "cs")
 
 	// handler 下标越界
-	if err := llvm.Catch(func() { cs.HandlerAt(3) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { cs.HandlerAt(3) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("handler out of range should panic ErrInvalidArg, got %v", err)
 	}
 	// funclet pad 实参下标越界
 	pad := b.CatchPad(cs, nil, "cp")
-	if err := llvm.Catch(func() { pad.Arg(0) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { pad.Arg(0) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("pad arg out of range should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { pad.SetArg(0, ctx.ConstInt(ctx.Int(32), 1).Value) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { pad.SetArg(0, ctx.ConstInt(ctx.Int(32), 1).Value) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("pad SetArg out of range should panic ErrInvalidArg, got %v", err)
 	}
 	b.Unreachable()

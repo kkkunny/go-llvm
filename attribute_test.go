@@ -3,6 +3,8 @@ package llvm
 import (
 	"fmt"
 	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestAttrParam(t *testing.T) {
@@ -127,30 +129,30 @@ func TestAttributeTypeAttr(t *testing.T) {
 // TestAttributeCrashFloor 崩溃类地板负向：nil 句柄、已释放 Context、跨 Context，
 // 两构建模式都必须 panic（不得跳过）。
 func TestAttributeCrashFloor(t *testing.T) {
-	if err := Catch(func() { Attribute{}.IsEnum() }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { Attribute{}.IsEnum() }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 属性应 panic ErrInvalidArg, got %v", err)
 	}
 
 	ctx := NewContext()
 	ref := ctx.EnumAttr(AttrCold, 0).Ref()
-	if err := Catch(func() { (Attribute{ref: ref}).IsEnum() }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { (Attribute{ref: ref}).IsEnum() }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("ctx 为 nil 的属性应 panic ErrInvalidArg, got %v", err)
 	}
 
 	attr := ctx.EnumAttr(AttrCold, 0)
 	_ = ctx.Close()
-	if err := Catch(func() { attr.IsEnum() }); err == nil || err.Reason != ErrUseAfterFree {
+	if err := errs.Catch(func() { attr.IsEnum() }); err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("已释放 Context 上的属性应 panic ErrUseAfterFree, got %v", err)
 	}
 
 	ctx2 := NewContext()
 	defer ctx2.Close()
-	if err := Catch(func() { ctx2.TypeAttr(AttrByVal, nil) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { ctx2.TypeAttr(AttrByVal, nil) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 类型应 panic ErrInvalidArg, got %v", err)
 	}
 	ctx3 := NewContext()
 	defer ctx3.Close()
-	if err := Catch(func() { ctx2.TypeAttr(AttrByVal, ctx3.Int(32)) }); err == nil || err.Reason != ErrCrossContext {
+	if err := errs.Catch(func() { ctx2.TypeAttr(AttrByVal, ctx3.Int(32)) }); err == nil || err.Reason != ErrCrossContext {
 		t.Fatalf("跨 Context 类型应 panic ErrCrossContext, got %v", err)
 	}
 }
@@ -182,7 +184,7 @@ func TestAttributeWrongKind(t *testing.T) {
 		{"MustAttributeKind(未知)", func() { MustAttributeKind("definitely-not-an-attribute") }, ErrNotFound},
 	}
 	for _, tc := range tests {
-		err := Catch(tc.fn)
+		err := errs.Catch(tc.fn)
 		if err == nil || err.Reason != tc.want {
 			t.Errorf("%s: want %v, got %v", tc.name, tc.want, err)
 		}

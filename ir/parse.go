@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // ParseIR 从内存缓冲解析 LLVM IR 文本；缓冲不被消费，仍由调用方 Close。
@@ -10,17 +11,17 @@ import (
 func ParseIR(ctx *llvm.Context, buf *llvm.MemoryBuffer) (*Module, error) {
 	const op = "ir.ParseIR"
 	if !ctx.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "context is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "context is closed")
 	}
 	if buf == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil memory buffer")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil memory buffer")
 	}
 	if !buf.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "memory buffer is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "memory buffer is closed")
 	}
 	ref, err := binding.LLVMParseIRInContext(ctx.Ref(), buf.Ref())
 	if err != nil {
-		return nil, llvm.WrapError(llvm.ErrParse, op, err)
+		return nil, errs.WrapError(llvm.ErrParse, op, err)
 	}
 	return newModule(ctx, ref), nil
 }
@@ -30,17 +31,17 @@ func ParseIR(ctx *llvm.Context, buf *llvm.MemoryBuffer) (*Module, error) {
 func ParseBitcode(ctx *llvm.Context, buf *llvm.MemoryBuffer) (*Module, error) {
 	const op = "ir.ParseBitcode"
 	if !ctx.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "context is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "context is closed")
 	}
 	if buf == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil memory buffer")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil memory buffer")
 	}
 	if !buf.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "memory buffer is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "memory buffer is closed")
 	}
 	ref, err := binding.LLVMParseBitcodeInContext(ctx.Ref(), buf.Ref())
 	if err != nil {
-		return nil, llvm.WrapError(llvm.ErrParse, op, err)
+		return nil, errs.WrapError(llvm.ErrParse, op, err)
 	}
 	return newModule(ctx, ref), nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -78,7 +79,7 @@ func (j *LLJIT) ensureGoChannel() error {
 		j.channelErr = j.MapSymbol("callGoChannel", binding.BridgeGoChannelAddr())
 	})
 	if j.channelErr != nil {
-		return llvm.WrapError(llvm.ErrJIT, "jit.LLJIT.ensureGoChannel", j.channelErr)
+		return errs.WrapError(llvm.ErrJIT, "jit.LLJIT.ensureGoChannel", j.channelErr)
 	}
 	return nil
 }
@@ -100,7 +101,7 @@ func (j *LLJIT) compileWrapper(name string, ft reflect.Type, idx int64) error {
 	sig, _, err := llvm.FnSignatureOfGo(ctx, ft)
 	if err != nil {
 		ctx.Close()
-		return llvm.WrapError(llvm.ErrUnsupported, op, err)
+		return errs.WrapError(llvm.ErrUnsupported, op, err)
 	}
 	fn := m.NewFunction(name, sig)
 	fn.SetLinkage(llvm.LinkageExternal)
@@ -128,11 +129,11 @@ func (j *LLJIT) compileWrapper(name string, ft reflect.Type, idx int64) error {
 	}
 	if err := b.Close(); err != nil {
 		ctx.Close()
-		return llvm.WrapError(llvm.ErrInternal, op, err)
+		return errs.WrapError(llvm.ErrInternal, op, err)
 	}
 	if err := m.Verify(); err != nil {
 		ctx.Close()
-		return llvm.WrapError(llvm.ErrInternal, op, err)
+		return errs.WrapError(llvm.ErrInternal, op, err)
 	}
 	return j.AddIRModule(m)
 }

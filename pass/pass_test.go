@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 	"github.com/kkkunny/go-llvm/pass"
 	"github.com/kkkunny/go-llvm/target"
@@ -132,7 +133,7 @@ func TestRunPassesClosedTargetMachine(t *testing.T) {
 	defer ctx.Close()
 	defer m.Close()
 
-	err := llvm.Catch(func() {
+	err := errs.Catch(func() {
 		_ = pass.AutoOpt(m, pass.O2, pass.WithTargetMachine(tm))
 	})
 	if err == nil || err.Reason != llvm.ErrUseAfterFree {

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // TestValueHelperFloorChecks 崩溃类地板：nil/已释放值进入包级辅助 API 必须 panic ErrInvalidArg，
@@ -74,7 +75,7 @@ func TestValueHelperFloorChecks(t *testing.T) {
 	}
 	for name, call := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := llvm.Catch(call)
+			err := errs.Catch(call)
 			if err == nil || err.Reason != llvm.ErrInvalidArg {
 				t.Fatalf("want ErrInvalidArg, got %v", err)
 			}
@@ -82,21 +83,21 @@ func TestValueHelperFloorChecks(t *testing.T) {
 	}
 
 	// 容器句柄（Function/Block）走 Ref 地板：模块关闭后为 ErrUseAfterFree
-	if err := llvm.Catch(func() { BlockAddress(fn, blk) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { BlockAddress(fn, blk) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("BlockAddress on dead function should panic ErrUseAfterFree, got %v", err)
 	}
 
 	// Block 查询方法：模块关闭后必须走容器句柄地板（ErrUseAfterFree），零值块为 ErrInvalidArg
-	if err := llvm.Catch(func() { blk.Terminator() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { blk.Terminator() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("Terminator on dead block should panic ErrUseAfterFree, got %v", err)
 	}
-	if err := llvm.Catch(func() { blk.IsTerminating() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { blk.IsTerminating() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("IsTerminating on dead block should panic ErrUseAfterFree, got %v", err)
 	}
-	if err := llvm.Catch(func() { (Block{}).Terminator() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { (Block{}).Terminator() }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Terminator on zero block should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { (Block{}).IsTerminating() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { (Block{}).IsTerminating() }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("IsTerminating on zero block should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -119,7 +120,7 @@ func TestValueHelperFloorChecks(t *testing.T) {
 	}
 	for name, call := range nilCases {
 		t.Run("nil/"+name, func(t *testing.T) {
-			err := llvm.Catch(call)
+			err := errs.Catch(call)
 			if err == nil || err.Reason != llvm.ErrInvalidArg {
 				t.Fatalf("want ErrInvalidArg, got %v", err)
 			}
@@ -159,7 +160,7 @@ func TestValueHelperCrossContextChecks(t *testing.T) {
 	}
 	for name, call := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := llvm.Catch(call)
+			err := errs.Catch(call)
 			if err == nil || err.Reason != llvm.ErrCrossContext {
 				t.Fatalf("want ErrCrossContext, got %v", err)
 			}

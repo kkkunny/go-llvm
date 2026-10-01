@@ -6,6 +6,7 @@ import (
 
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // AnyValue 值句柄的非泛型视图
@@ -51,13 +52,13 @@ func (v Value[T]) Ref() binding.LLVMValueRef {
 // checkFloor 崩溃类地板校验（任何构建都开，纯 Go）
 func (v Value[T]) checkFloor(op string) {
 	if v.ref.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil value handle")
+		errs.Panicf(ErrInvalidArg, op, "nil value handle")
 	}
 	if v.ctx == nil || !v.ctx.Alive() {
-		errPanic(ErrUseAfterFree, op, "context is closed")
+		errs.Panicf(ErrUseAfterFree, op, "context is closed")
 	}
 	if v.life == nil || !v.life.Alive() {
-		errPanic(ErrUseAfterFree, op, "value is freed")
+		errs.Panicf(ErrUseAfterFree, op, "value is freed")
 	}
 }
 

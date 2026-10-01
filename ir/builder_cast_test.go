@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestFreezeAndCasts(t *testing.T) {
@@ -22,8 +23,8 @@ func TestFreezeAndCasts(t *testing.T) {
 	a := fn.ParamAs[llvm.IntT](0)
 	fr := b.Freeze(a, "frozen")
 	iv := b.IntCast(a, ctx.Int(16), true, "narrow")
-	if llvm.AsIntType(iv.Type()).Bits() != 16 {
-		t.Fatalf("IntCast bits = %d", llvm.AsIntType(iv.Type()).Bits())
+	if llvm.MustIntType(iv.Type()).Bits() != 16 {
+		t.Fatalf("IntCast bits = %d", llvm.MustIntType(iv.Type()).Bits())
 	}
 	b.Ret(fr)
 
@@ -55,13 +56,13 @@ func TestCastTargetCrossContext(t *testing.T) {
 
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
-	if err := llvm.Catch(func() { b.Trunc(a, ctx2.Int(8), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.Trunc(a, ctx2.Int(8), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign trunc target should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { b.BitCast(a, ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.BitCast(a, ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign bitcast target should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { b.IntToPtr(a, ctx2.Ptr(0), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.IntToPtr(a, ctx2.Ptr(0), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign inttoptr target should panic ErrCrossContext, got %v", err)
 	}
 	b.Ret(a)

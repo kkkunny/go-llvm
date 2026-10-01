@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // ByteOrder 目标字节序
@@ -30,7 +31,7 @@ type DataLayout struct {
 func NewDataLayout(layout string) *DataLayout {
 	ref := binding.LLVMCreateTargetData(layout)
 	if ref.IsNil() {
-		errPanic(ErrInvalidArg, "llvm.NewDataLayout", "invalid data layout string %q", layout)
+		errs.Panicf(ErrInvalidArg, "llvm.NewDataLayout", "invalid data layout string %q", layout)
 	}
 	d := &DataLayout{ref: ref}
 	runtime.SetFinalizer(d, (*DataLayout).finalize)
@@ -56,10 +57,10 @@ func (d *DataLayout) finalize() {
 // check 前置校验：句柄非空且未释放
 func (d *DataLayout) check(op string) {
 	if d.ref.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil data layout")
+		errs.Panicf(ErrInvalidArg, op, "nil data layout")
 	}
 	if d.closed {
-		errPanic(ErrUseAfterFree, op, "data layout is closed")
+		errs.Panicf(ErrUseAfterFree, op, "data layout is closed")
 	}
 }
 
@@ -67,7 +68,7 @@ func (d *DataLayout) check(op string) {
 func (d *DataLayout) checkType(op string, t AnyType) {
 	d.check(op)
 	if t == nil || t.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil type")
+		errs.Panicf(ErrInvalidArg, op, "nil type")
 	}
 }
 
@@ -75,7 +76,7 @@ func (d *DataLayout) checkType(op string, t AnyType) {
 func (d *DataLayout) checkValue(op string, v AnyValue) {
 	d.check(op)
 	if v == nil || v.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil value")
+		errs.Panicf(ErrInvalidArg, op, "nil value")
 	}
 }
 

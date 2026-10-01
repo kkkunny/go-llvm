@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -30,7 +31,7 @@ func (j *LLJIT) ClearSymbols() error {
 	const op = "jit.LLJIT.ClearSymbols"
 	j.check(op)
 	if err := binding.LLVMOrcJITDylibClear(binding.LLVMOrcLLJITGetMainJITDylib(j.ref)); err != nil {
-		return llvm.WrapError(llvm.ErrJIT, op, err)
+		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	return nil
 }
@@ -38,10 +39,10 @@ func (j *LLJIT) ClearSymbols() error {
 // check 前置校验（崩溃类地板）
 func (rt *ResourceTracker) check(op string) {
 	if rt == nil || rt.ref.IsNil() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil resource tracker")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil resource tracker")
 	}
 	if rt.closed {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "resource tracker is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "resource tracker is closed")
 	}
 	rt.j.check(op)
 }
@@ -54,12 +55,12 @@ func (rt *ResourceTracker) AddIRModule(mod *ir.Module) error {
 	if checks.Debug {
 		rt.j.recordModuleSigs(mod)
 		if err := mod.Verify(); err != nil {
-			llvm.Panicf(llvm.ErrVerify, op, "module verification failed before JIT: %s", err)
+			errs.Panicf(llvm.ErrVerify, op, "module verification failed before JIT: %s", err)
 		}
 	}
 	tsm := consumeModule(mod)
 	if err := binding.LLVMOrcLLJITAddLLVMIRModuleWithRT(rt.j.ref, rt.ref, tsm); err != nil {
-		return llvm.WrapError(llvm.ErrJIT, op, err)
+		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	return nil
 }
@@ -69,12 +70,12 @@ func (rt *ResourceTracker) AddObjectFile(buf *llvm.MemoryBuffer) error {
 	const op = "jit.ResourceTracker.AddObjectFile"
 	rt.check(op)
 	if buf == nil || !buf.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or closed memory buffer")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or closed memory buffer")
 	}
 	b := buf.Ref()
 	buf.Disown()
 	if err := binding.LLVMOrcLLJITAddObjectFileWithRT(rt.j.ref, rt.ref, b); err != nil {
-		return llvm.WrapError(llvm.ErrJIT, op, err)
+		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	return nil
 }
@@ -87,7 +88,7 @@ func (rt *ResourceTracker) Remove() error {
 	rt.closed = true
 	binding.LLVMOrcReleaseResourceTracker(rt.ref)
 	if err != nil {
-		return llvm.WrapError(llvm.ErrJIT, op, err)
+		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestMetadata(t *testing.T) {
@@ -62,20 +63,20 @@ func TestMetadata(t *testing.T) {
 	}
 
 	// 非 MDString/MDNode 的操作数访问
-	if err := llvm.Catch(func() { _ = ctx.MDString("x").Operands() }); err == nil || err.Reason != llvm.ErrTypeMismatch {
+	if err := errs.Catch(func() { _ = ctx.MDString("x").Operands() }); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("Operands on MDString should panic ErrTypeMismatch, got %v", err)
 	}
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
-	if err := llvm.Catch(func() { ctx.MDNode(ctx2.MDString("x")) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { ctx.MDNode(ctx2.MDString("x")) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context MDNode should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		m.AddNamedMetadataOperand("my.md", ctx2.MDNode(ctx2.MDString("x")))
 	}); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context named md should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		m.AddModuleFlag(llvm.ModuleFlagOverride, "other.flag", ctx2.MDString("v"))
 	}); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context module flag should panic ErrCrossContext, got %v", err)
@@ -108,15 +109,15 @@ func TestInstMetadata(t *testing.T) {
 	}
 	b.Ret(add)
 
-	if err := llvm.Catch(func() { AttachMetadata(add, "bad.kind", ctx.MDString("x")) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { AttachMetadata(add, "bad.kind", ctx.MDString("x")) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("non-MDNode attachment should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { AttachMetadata(nil, "my.kind", ctx.MDNode(ctx.MDString("x"))) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { AttachMetadata(nil, "my.kind", ctx.MDNode(ctx.MDString("x"))) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil instruction attachment should panic ErrInvalidArg, got %v", err)
 	}
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		AttachMetadata(add, "my.kind", ctx2.MDNode(ctx2.MDString("x")))
 	}); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context metadata should panic ErrCrossContext, got %v", err)
@@ -206,10 +207,10 @@ func TestBlockAddress(t *testing.T) {
 	i32b := ctx2.Int(32)
 	fn2 := m2.NewFunction("f2", ctx2.Fn(i32b, nil, false))
 	blk2 := fn2.NewBlock("entry")
-	if err := llvm.Catch(func() { BlockAddress(fn2, next) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { BlockAddress(fn2, next) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign block should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { BlockAddress(fn, blk2) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { BlockAddress(fn, blk2) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign function should panic ErrCrossContext, got %v", err)
 	}
 }
@@ -249,7 +250,7 @@ func TestComdat(t *testing.T) {
 		t.Fatalf("missing comdat IR:\n%s", got)
 	}
 
-	if err := llvm.Catch(func() { m.GetOrInsertComdat("") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { m.GetOrInsertComdat("") }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("empty comdat name should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -260,10 +261,10 @@ func TestComdat(t *testing.T) {
 	if c.Context() != ctx || c.Lifetime() == nil || !c.Lifetime().Alive() {
 		t.Fatalf("comdat accessors = %v %v", c.Context(), c.Lifetime())
 	}
-	if err := llvm.Catch(func() { Comdat{}.Name() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { Comdat{}.Name() }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("zero comdat should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { Comdat{}.SetSelectionKind(llvm.ComdatAny) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { Comdat{}.SetSelectionKind(llvm.ComdatAny) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("zero comdat SetSelectionKind should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -274,7 +275,7 @@ func TestComdat(t *testing.T) {
 	defer m2.Close()
 	foreign := m2.GetOrInsertComdat("foreign")
 	g2 := m.NewGlobal("g2", i32)
-	if err := llvm.Catch(func() { g2.SetComdat(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { g2.SetComdat(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign comdat should panic ErrCrossContext, got %v", err)
 	}
 }

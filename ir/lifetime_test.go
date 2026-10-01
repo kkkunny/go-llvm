@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // TestUseAfterModuleClose 模块关闭后，各角色方法必须 panic ErrUseAfterFree，而不是把悬垂句柄交给 LLVM
@@ -82,7 +83,7 @@ func TestUseAfterModuleClose(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := llvm.Catch(tc.call)
+			err := errs.Catch(tc.call)
 			if err == nil || err.Reason != llvm.ErrUseAfterFree {
 				t.Fatalf("want ErrUseAfterFree, got %v", err)
 			}
@@ -93,7 +94,7 @@ func TestUseAfterModuleClose(t *testing.T) {
 // TestNilModuleCheck nil 模块句柄必须 panic ErrInvalidArg
 func TestNilModuleCheck(t *testing.T) {
 	var m *Module
-	if err := llvm.Catch(func() { _ = m.String() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { _ = m.String() }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("want ErrInvalidArg, got %v", err)
 	}
 }

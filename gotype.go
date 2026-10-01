@@ -4,6 +4,8 @@ import (
 	"errors"
 	"reflect"
 	"strconv"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // TypeOf 将 Go 类型映射为 LLVM 类型。
@@ -82,19 +84,11 @@ func typeOfGoUncached(ctx *Context, t reflect.Type) (AnyType, error) {
 			if err != nil {
 				var inner *Error
 				if errors.As(err, &inner) {
-					return nil, &Error{
-						Reason: inner.Reason,
-						Op:     "llvm.TypeOfGo",
-						Msg:    "struct field " + t.Field(i).Name + ": " + inner.Msg,
-						cause:  err,
-					}
+					return nil, errs.Errorf(inner.Reason, "llvm.TypeOfGo", err,
+						"struct field %s: %s", t.Field(i).Name, inner.Msg)
 				}
-				return nil, &Error{
-					Reason: ErrUnsupported,
-					Op:     "llvm.TypeOfGo",
-					Msg:    "struct field " + t.Field(i).Name + ": " + err.Error(),
-					cause:  err,
-				}
+				return nil, errs.Errorf(ErrUnsupported, "llvm.TypeOfGo", err,
+					"struct field %s: %s", t.Field(i).Name, err.Error())
 			}
 			fields[i] = ft
 		}
@@ -138,19 +132,19 @@ func constOfGo(ctx *Context, v reflect.Value) (AnyValue, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ctx.ConstSInt(AsIntType(t), v.Int()).Value, nil
+		return ctx.ConstSInt(MustIntType(t), v.Int()).Value, nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		t, err := typeOfGo(ctx, v.Type())
 		if err != nil {
 			return nil, err
 		}
-		return ctx.ConstInt(AsIntType(t), v.Uint()).Value, nil
+		return ctx.ConstInt(MustIntType(t), v.Uint()).Value, nil
 	case reflect.Float32, reflect.Float64:
 		t, err := typeOfGo(ctx, v.Type())
 		if err != nil {
 			return nil, err
 		}
-		return ctx.ConstFloat(AsFloatType(t), v.Float()).Value, nil
+		return ctx.ConstFloat(MustFloatType(t), v.Float()).Value, nil
 	case reflect.Pointer, reflect.UnsafePointer:
 		ptrTy := ctx.Ptr(0)
 		if v.IsNil() {

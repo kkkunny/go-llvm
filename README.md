@@ -118,12 +118,13 @@ func main() {
   type-directed sugar: `i32.Const(5)`, `i32.ConstS(-1)`, `f64.Const(3.14)`.
 * Dynamic sources (parsed IR, instruction iteration) yield `llvm.Value[llvm.DynT]`; recover the kind with
   the generic method `As[U]()` / `MustAs[U]()`.
-* Recoverable failures return `error`; programmer errors `panic(*llvm.Error)`, which `llvm.Catch` converts
-  back to an error and `llvm.Try` converts while also returning a value. Checks are layered:
+* Recoverable failures return `error`; programmer errors `panic(*llvm.Error)`, carrying
+  `Reason`/`Op`/`Msg` — recover them with ordinary Go and inspect via `errors.As`; there is no
+  public catch helper. Checks are layered:
   * **Crash-class floor (always on, pure Go)**: nil handles, freed handles (`ErrUseAfterFree`),
     cross-`Context` use, and closed `Context`/`Module`/`Builder` handles. Without it, an invalid handle
     inside cgo is a SIGSEGV — `recover` cannot catch it, the process dies without a Go stack. With it,
-    every misuse degrades to a catchable Go panic.
+    every misuse degrades to a recoverable Go panic.
   * **Semantic contracts (debug builds only)**: operand type agreement, power-of-two alignment,
     index bounds, atomic orderings, call arity/types, result kinds. Under `-tags=llvm_release` these are
     **compiled out entirely**; misuse falls back to LLVM asserts + `Module.Verify()` — the same contract

@@ -1,6 +1,10 @@
 package llvm
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
+)
 
 func TestIntConstFolding(t *testing.T) {
 	ctx := NewContext()
@@ -68,7 +72,7 @@ func TestConstFoldMismatchPanic(t *testing.T) {
 	i32 := ctx.Int(32)
 	i64 := ctx.Int(64)
 
-	err := Catch(func() {
+	err := errs.Catch(func() {
 		i32.Const(1).Add(i64.Const(1))
 	})
 	if err == nil || err.Reason != ErrTypeMismatch {
@@ -78,10 +82,10 @@ func TestConstFoldMismatchPanic(t *testing.T) {
 	// 跨 Context 操作数 / 目标类型
 	ctx2 := NewContext()
 	defer ctx2.Close()
-	if err := Catch(func() { i32.Const(1).Add(ctx2.Int(32).Const(1)) }); err == nil || err.Reason != ErrCrossContext {
+	if err := errs.Catch(func() { i32.Const(1).Add(ctx2.Int(32).Const(1)) }); err == nil || err.Reason != ErrCrossContext {
 		t.Fatalf("跨 Context 操作数应 panic ErrCrossContext, got %v", err)
 	}
-	if err := Catch(func() { i32.Const(1).Cast(ctx2.Int(64)) }); err == nil || err.Reason != ErrCrossContext {
+	if err := errs.Catch(func() { i32.Const(1).Cast(ctx2.Int(64)) }); err == nil || err.Reason != ErrCrossContext {
 		t.Fatalf("跨 Context 目标类型应 panic ErrCrossContext, got %v", err)
 	}
 }

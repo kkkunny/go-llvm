@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Module LLVM 模块；Close 后其下所有值失效
@@ -40,7 +41,7 @@ func newModule(ctx *llvm.Context, ref binding.LLVMModuleRef) *Module {
 // 例如 i64 ABI 对齐为 4），事后补设无法修正已生成的 IR。
 func NewModule(ctx *llvm.Context, name string) *Module {
 	if !ctx.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, "ir.NewModule", "context is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, "ir.NewModule", "context is closed")
 	}
 	return newModule(ctx, binding.LLVMModuleCreateWithNameInContext(name, ctx.Ref()))
 }
@@ -48,13 +49,13 @@ func NewModule(ctx *llvm.Context, name string) *Module {
 // Check 模块可用性前置校验（nil/所有权已移交/已关闭）
 func (m *Module) Check(op string) {
 	if m == nil || m.ref.IsNil() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil module")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil module")
 	}
 	if m.disowned {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "module ownership has been transferred")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "module ownership has been transferred")
 	}
 	if m.closed || !m.life.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "module is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "module is closed")
 	}
 	if checks.Debug {
 		checkOwner(op, &m.ownerGID, &m.ops, "module", false)
@@ -111,7 +112,7 @@ func (m *Module) String() string {
 // mustVerify 调试层在代码生成/链接等边界处校验模块；失败 panic ErrVerify（携带完整诊断）
 func (m *Module) mustVerify(op string) {
 	if err := m.Verify(); err != nil {
-		llvm.Panicf(llvm.ErrVerify, op, "module verification failed: %s", err)
+		errs.Panicf(llvm.ErrVerify, op, "module verification failed: %s", err)
 	}
 }
 
@@ -171,7 +172,7 @@ func (m *Module) DataLayout() *llvm.DataLayout {
 func (m *Module) WriteToFile(path string) error {
 	m.Check("ir.Module.WriteToFile")
 	if err := binding.LLVMPrintModuleToFile(m.ref, path); err != nil {
-		return llvm.WrapError(llvm.ErrIO, "ir.Module.WriteToFile", err)
+		return errs.WrapError(llvm.ErrIO, "ir.Module.WriteToFile", err)
 	}
 	return nil
 }
@@ -180,7 +181,7 @@ func (m *Module) WriteToFile(path string) error {
 func (m *Module) WriteBitcode(path string) error {
 	m.Check("ir.Module.WriteBitcode")
 	if err := binding.LLVMWriteBitcodeToFile(m.ref, path); err != nil {
-		return llvm.WrapError(llvm.ErrIO, "ir.Module.WriteBitcode", err)
+		return errs.WrapError(llvm.ErrIO, "ir.Module.WriteBitcode", err)
 	}
 	return nil
 }
@@ -198,7 +199,7 @@ func (m *Module) NewFunction(name string, t llvm.FnType) Function {
 	m.Check(op)
 	t.Check(op)
 	if t.Context() != m.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "function type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "function type belongs to another context")
 	}
 	ref := binding.LLVMAddFunction(m.ref, name, t.Ref())
 	return Function{Value: llvm.NewValue[llvm.FnT](m.ctx, m.life, ref)}
@@ -212,11 +213,11 @@ func (m *Module) GetOrCreateFunction(name string, t llvm.FnType) (Function, bool
 	m.Check(op)
 	t.Check(op)
 	if t.Context() != m.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "function type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "function type belongs to another context")
 	}
 	if fn, ok := m.GetFunction(name); ok {
 		if sig := fn.Signature(); !sig.Equal(t) {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "existing function %s has signature %s, want %s", name, sig, t)
+			errs.Panicf(llvm.ErrTypeMismatch, op, "existing function %s has signature %s, want %s", name, sig, t)
 		}
 		return fn, false
 	}
@@ -272,7 +273,7 @@ func (m *Module) GetOrCreateGlobal(name string, t llvm.AnyType) (Global, bool) {
 	m.ctx.CheckType(op, t)
 	if g, ok := m.GetGlobal(name); ok {
 		if vt := g.ValueType(); !vt.Equal(t) {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "existing global %s has type %s, want %s", name, vt, t)
+			errs.Panicf(llvm.ErrTypeMismatch, op, "existing global %s has type %s, want %s", name, vt, t)
 		}
 		return g, false
 	}
@@ -318,10 +319,10 @@ func (m *Module) Link(src *Module) error {
 	m.Check(op)
 	src.Check(op)
 	if src == m {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "cannot link a module into itself")
+		errs.Panicf(llvm.ErrInvalidArg, op, "cannot link a module into itself")
 	}
 	if src.ctx != m.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "source module belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "source module belongs to another context")
 	}
 	// 调试层边界校验（B5）：链接前确保双方模块合法
 	if checks.Debug {
@@ -331,7 +332,7 @@ func (m *Module) Link(src *Module) error {
 	// LLVMLinkModules2 无论成败都会销毁源模块：先失效 Go 侧句柄，避免双重释放
 	src.Disown()
 	if err := binding.LLVMLinkModules(m.ref, src.ref); err != nil {
-		return llvm.WrapError(llvm.ErrLink, op, err)
+		return errs.WrapError(llvm.ErrLink, op, err)
 	}
 	return nil
 }

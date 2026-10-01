@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/target"
 )
 
@@ -104,7 +105,7 @@ func TestResourceTrackerAddObjectFileChecks(t *testing.T) {
 	rt := j.NewResourceTracker()
 	defer func() { _ = rt.Close() }()
 
-	if err := llvm.Catch(func() { _ = rt.AddObjectFile(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { _ = rt.AddObjectFile(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil buffer should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -112,14 +113,14 @@ func TestResourceTrackerAddObjectFileChecks(t *testing.T) {
 	if err := closed.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := llvm.Catch(func() { _ = rt.AddObjectFile(closed) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { _ = rt.AddObjectFile(closed) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("closed buffer should panic ErrInvalidArg, got %v", err)
 	}
 
 	// 内容不是目标文件：JIT 解析失败应返回 ErrJIT 而非崩溃
 	bad := llvm.NewMemoryBuffer([]byte("definitely not an object file"), "bad.o")
 	var addErr error
-	if panicErr := llvm.Catch(func() { addErr = rt.AddObjectFile(bad) }); panicErr != nil {
+	if panicErr := errs.Catch(func() { addErr = rt.AddObjectFile(bad) }); panicErr != nil {
 		t.Fatalf("invalid object should return an error, got panic %v", panicErr)
 	}
 	if addErr == nil || addErr.(*llvm.Error).Reason != llvm.ErrJIT {

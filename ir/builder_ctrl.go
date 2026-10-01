@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Switch switch 终结指令角色（switch 指令本身为 void，内嵌 Value[VoidT]）
@@ -22,7 +23,7 @@ func (s Switch) AddCase(cond llvm.ValueRef[llvm.IntT], blk Block) {
 	cv := cond.AsValue()
 	blk.Check(op)
 	if checks.Debug && !cv.Type().Equal(s.CondType()) {
-		llvm.Panicf(llvm.ErrTypeMismatch, op, "case type %s differs from switch type %s", cv.Type(), s.CondType())
+		errs.Panicf(llvm.ErrTypeMismatch, op, "case type %s differs from switch type %s", cv.Type(), s.CondType())
 	}
 	binding.LLVMAddCase(s.Ref(), cv.Ref(), blk.ref)
 }
@@ -46,7 +47,7 @@ func (s Switch) DefaultBlock() Block {
 func (s Switch) CaseBlock(i uint32) Block {
 	const op = "ir.Switch.CaseBlock"
 	if checks.Debug && i >= s.Count() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
 	}
 	ref := binding.LLVMGetSuccessor(s.Ref(), i+1)
 	return wrapBlock(s.Context(), s.Lifetime(), ref)
@@ -56,7 +57,7 @@ func (s Switch) CaseBlock(i uint32) Block {
 func (s Switch) CaseValue(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.Switch.CaseValue"
 	if checks.Debug && i >= s.Count() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
 	}
 	ref := binding.LLVMGetSwitchCaseValue(s.Ref(), i+1)
 	return llvm.ValueOf(s.Context(), s.Lifetime(), ref)
@@ -97,8 +98,8 @@ func (b *Builder) CondBr(cond llvm.ValueRef[llvm.IntT], then, els Block) llvm.Va
 	b.preBlock(op, then)
 	b.preBlock(op, els)
 	if checks.Debug {
-		if bits := llvm.AsIntType(cv.Type()).Bits(); bits != 1 {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
+		if bits := llvm.MustIntType(cv.Type()).Bits(); bits != 1 {
+			errs.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
 		}
 	}
 	ref := binding.LLVMBuildCondBr(b.ref, cv.Ref(), then.ref, els.ref)

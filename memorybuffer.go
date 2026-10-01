@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // MemoryBuffer 内存缓冲；IR 解析、bitcode 读写、目标代码产出共用，用毕 Close
@@ -16,7 +17,7 @@ type MemoryBuffer struct {
 func ReadFile(path string) (*MemoryBuffer, error) {
 	ref, err := binding.LLVMCreateMemoryBufferWithContentsOfFile(path)
 	if err != nil {
-		return nil, WrapError(ErrIO, "llvm.ReadFile", err)
+		return nil, errs.WrapError(ErrIO, "llvm.ReadFile", err)
 	}
 	return MemoryBufferOf(ref), nil
 }
@@ -51,10 +52,10 @@ func (b *MemoryBuffer) Alive() bool { return !b.ref.IsNil() && !b.closed }
 // check 前置校验：句柄非空且未释放
 func (b *MemoryBuffer) check(op string) {
 	if b.ref.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil memory buffer")
+		errs.Panicf(ErrInvalidArg, op, "nil memory buffer")
 	}
 	if b.closed {
-		errPanic(ErrUseAfterFree, op, "memory buffer is closed")
+		errs.Panicf(ErrUseAfterFree, op, "memory buffer is closed")
 	}
 }
 

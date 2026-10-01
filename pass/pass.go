@@ -12,6 +12,7 @@ package pass
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 	"github.com/kkkunny/go-llvm/target"
 )
@@ -113,7 +114,7 @@ func RunPasses(m *ir.Module, pipeline string, opts ...Option) error {
 	defer binding.LLVMDisposePassBuilderOptions(cfg.opts)
 	tm := cfg.applyOptions(op, opts)
 	if err := binding.LLVMRunPasses(m.Ref(), pipeline, tm, cfg.opts); err != nil {
-		return llvm.WrapError(llvm.ErrPass, op, err)
+		return errs.WrapError(llvm.ErrPass, op, err)
 	}
 	return nil
 }
@@ -126,7 +127,7 @@ func RunPassesOnFunction(f ir.Function, pipeline string, opts ...Option) error {
 	defer binding.LLVMDisposePassBuilderOptions(cfg.opts)
 	tm := cfg.applyOptions(op, opts)
 	if err := binding.LLVMRunPassesOnFunction(f.Ref(), pipeline, tm, cfg.opts); err != nil {
-		return llvm.WrapError(llvm.ErrPass, op, err)
+		return errs.WrapError(llvm.ErrPass, op, err)
 	}
 	return nil
 }

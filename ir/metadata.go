@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // ===== 命名元数据 / 模块 flag =====
@@ -13,7 +14,7 @@ func (m *Module) AddNamedMetadataOperand(name string, md llvm.Metadata) {
 	m.Check(op)
 	md.Check(op)
 	if md.Context() != m.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "metadata belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "metadata belongs to another context")
 	}
 	binding.LLVMAddNamedMetadataOperand(m.ref, name, md.Value().Ref())
 }
@@ -44,7 +45,7 @@ func (m *Module) AddModuleFlag(behavior llvm.ModuleFlagBehavior, key string, val
 	m.Check(op)
 	val.Check(op)
 	if val.Context() != m.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "metadata belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "metadata belongs to another context")
 	}
 	binding.LLVMAddModuleFlag(m.ref, binding.LLVMModuleFlagBehavior(behavior), key, val.Ref())
 }
@@ -65,14 +66,14 @@ func (m *Module) ModuleFlag(key string) (llvm.Metadata, bool) {
 func AttachMetadata(inst llvm.AnyValue, kind string, md llvm.Metadata) {
 	const op = "ir.AttachMetadata"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead instruction")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead instruction")
 	}
 	md.Check(op)
 	if inst.Context() != md.Context() {
-		llvm.Panicf(llvm.ErrCrossContext, op, "metadata belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "metadata belongs to another context")
 	}
 	if !md.IsNode() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "instruction metadata must be an MDNode")
+		errs.Panicf(llvm.ErrInvalidArg, op, "instruction metadata must be an MDNode")
 	}
 	kindID := binding.LLVMGetMDKindIDInContext(inst.Context().Ref(), kind)
 	binding.LLVMSetMetadata(inst.Ref(), kindID, md.Value().Ref())
@@ -82,7 +83,7 @@ func AttachMetadata(inst llvm.AnyValue, kind string, md llvm.Metadata) {
 func InstMetadata(inst llvm.AnyValue, kind string) (llvm.Metadata, bool) {
 	const op = "ir.InstMetadata"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead instruction")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead instruction")
 	}
 	kindID := binding.LLVMGetMDKindIDInContext(inst.Context().Ref(), kind)
 	ref := binding.LLVMGetMetadata(inst.Ref(), kindID)
@@ -100,7 +101,7 @@ func BlockAddress(fn Function, blk Block) llvm.Value[llvm.PtrT] {
 	fn.Check(op)
 	blk.Check(op)
 	if fn.Context() != blk.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
 	}
 	ref := binding.LLVMBlockAddress(fn.Ref(), blk.ref)
 	return llvm.NewValue[llvm.PtrT](fn.Context(), fn.Lifetime(), ref)
@@ -110,7 +111,7 @@ func BlockAddress(fn Function, blk Block) llvm.Value[llvm.PtrT] {
 func BlockAddressFunction(ba llvm.AnyValue) Function {
 	const op = "ir.BlockAddressFunction"
 	if ba == nil || !ba.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead blockaddress")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead blockaddress")
 	}
 	ref := binding.LLVMGetBlockAddressFunction(ba.Ref())
 	return Function{Value: llvm.NewValue[llvm.FnT](ba.Context(), ba.Lifetime(), ref)}
@@ -120,7 +121,7 @@ func BlockAddressFunction(ba llvm.AnyValue) Function {
 func BlockAddressBlock(ba llvm.AnyValue) Block {
 	const op = "ir.BlockAddressBlock"
 	if ba == nil || !ba.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead blockaddress")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead blockaddress")
 	}
 	ref := binding.LLVMGetBlockAddressBasicBlock(ba.Ref())
 	return wrapBlock(ba.Context(), ba.Lifetime(), ref)

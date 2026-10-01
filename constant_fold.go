@@ -2,6 +2,7 @@ package llvm
 
 import (
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // foldPre 折叠操作前置校验：同上下文、同类型、右操作数必须为常量。
@@ -11,10 +12,10 @@ func (c IntConst) foldPre(op string, r ValueRef[IntT]) {
 	rv := r.AsValue()
 	rv.Check(op)
 	if c.Context() != rv.Context() {
-		errPanic(ErrCrossContext, op, "operand belongs to another context")
+		errs.Panicf(ErrCrossContext, op, "operand belongs to another context")
 	}
 	if !c.Type().Equal(rv.Type()) {
-		errPanic(ErrTypeMismatch, op, "operand types differ: %s vs %s", c.Type(), rv.Type())
+		errs.Panicf(ErrTypeMismatch, op, "operand types differ: %s vs %s", c.Type(), rv.Type())
 	}
 	checkConstOperand(op, -1, rv)
 }
@@ -95,7 +96,7 @@ func (c IntConst) Cast(to IntType) IntConst {
 	c.Check(op)
 	to.Check(op)
 	if c.Context() != to.Context() {
-		errPanic(ErrCrossContext, op, "target type belongs to another context")
+		errs.Panicf(ErrCrossContext, op, "target type belongs to another context")
 	}
 	return IntConst{newValue[IntT](to.Context(), to.Context().life, binding.LLVMConstTruncOrBitCast(c.Ref(), to.Ref()))}
 }

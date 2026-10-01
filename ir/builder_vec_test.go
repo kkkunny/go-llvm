@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestBuilderVectorInsts(t *testing.T) {
@@ -69,19 +70,19 @@ func TestBuilderVectorPrecheck(t *testing.T) {
 	idx := ctx.ConstInt(i32, 0).Value
 
 	// 元素类型不符
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.InsertElement(zero, ctx.ConstFloat(ctx.Float(llvm.FloatDouble), 1).Value, idx, "")
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("elem type mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 	// ExtractElement 种类不符
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.ExtractElement[llvm.FloatT](zero, idx, "")
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("kind mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 	// ShuffleVector v1/v2 类型不符
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.ShuffleVector(zero, ctx.ConstZero(ctx.Vec(ctx.Int(64), 2)), zero, "")
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("shuffle type mismatch should panic ErrTypeMismatch, got %v", err)
@@ -89,7 +90,7 @@ func TestBuilderVectorPrecheck(t *testing.T) {
 	// mask 元素必须是 i32
 	i64 := ctx.Int(64)
 	mask64 := ctx.ConstVector(i64, ctx.ConstInt(i64, 0).Value, ctx.ConstInt(i64, 0).Value)
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.ShuffleVector(zero, zero, mask64, "")
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("non-i32 mask should panic ErrTypeMismatch, got %v", err)
@@ -114,12 +115,12 @@ func TestVectorKindPrecheck(t *testing.T) {
 	fakeVec := llvm.NewValue[llvm.VecT](ctx, m.Lifetime(), one.Ref())
 	idx := ctx.ConstInt(i32, 0).Value
 
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.ExtractElement[llvm.IntT](fakeVec, idx, "")
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("non-vector value should panic ErrTypeMismatch, got %v", err)
 	}
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.ShuffleVector(fakeVec, fakeVec, fakeVec, "")
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("non-vector mask should panic ErrTypeMismatch, got %v", err)

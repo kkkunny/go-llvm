@@ -1,6 +1,10 @@
 package llvm
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
+)
 
 type closeRecorder struct{ closed *bool }
 
@@ -124,11 +128,11 @@ func TestTypeAliveCheck(t *testing.T) {
 	}
 	_ = ctx.Close()
 
-	err := Catch(func() { _ = i32.String() })
+	err := errs.Catch(func() { _ = i32.String() })
 	if err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("want ErrUseAfterFree, got %v", err)
 	}
-	err = Catch(func() { _ = i32.Bits() })
+	err = errs.Catch(func() { _ = i32.Bits() })
 	if err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("want ErrUseAfterFree from Bits, got %v", err)
 	}
@@ -137,7 +141,7 @@ func TestTypeAliveCheck(t *testing.T) {
 func TestContextConstructAfterClose(t *testing.T) {
 	ctx := NewContext()
 	_ = ctx.Close()
-	err := Catch(func() { _ = ctx.Int(32) })
+	err := errs.Catch(func() { _ = ctx.Int(32) })
 	if err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("want ErrUseAfterFree, got %v", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // TestAliasSetAliasee 覆盖别名的改指、查找失败与提前退出遍历。
@@ -52,7 +53,7 @@ func TestAliasSetAliasee(t *testing.T) {
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
 	foreign := ctx2.ConstInt(ctx2.Int(32), 1)
-	if err := llvm.Catch(func() { a.SetAliasee(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { a.SetAliasee(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign aliasee should panic ErrCrossContext, got %v", err)
 	}
 }

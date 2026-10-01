@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestDataLayoutQueries(t *testing.T) {
@@ -99,7 +100,7 @@ func TestDataLayoutFinalize(t *testing.T) {
 		t.Fatal("finalize 后应标记 closed")
 	}
 	dl.finalize() // 二次调用提前返回，不得重复释放
-	if err := Catch(func() { dl.PointerSize() }); err == nil || err.Reason != ErrUseAfterFree {
+	if err := errs.Catch(func() { dl.PointerSize() }); err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("finalize 后使用应 panic ErrUseAfterFree, got %v", err)
 	}
 	if err := dl.Close(); err == nil || err.(*Error).Reason != ErrClosed {
@@ -112,19 +113,19 @@ func TestDataLayoutCheckValue(t *testing.T) {
 	defer dl.Close()
 
 	// nil 接口与 nil 句柄都应被 checkValue 拦截
-	if err := Catch(func() { dl.PrefAlignOfGlobal(nil) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { dl.PrefAlignOfGlobal(nil) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 值应 panic ErrInvalidArg, got %v", err)
 	}
 	var nilVal Value[DynT]
-	if err := Catch(func() { dl.PrefAlignOfGlobal(nilVal) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { dl.PrefAlignOfGlobal(nilVal) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 句柄应 panic ErrInvalidArg, got %v", err)
 	}
 
 	// checkType：nil 接口与 nil 句柄
-	if err := Catch(func() { dl.SizeOfTypeInBits(nil) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { dl.SizeOfTypeInBits(nil) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 类型应 panic ErrInvalidArg, got %v", err)
 	}
-	if err := Catch(func() { dl.SizeOfTypeInBits(Type[IntT]{}) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { dl.SizeOfTypeInBits(Type[IntT]{}) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 句柄类型应 panic ErrInvalidArg, got %v", err)
 	}
 }
@@ -135,7 +136,7 @@ func TestDataLayoutClose(t *testing.T) {
 	if err := dl.Close(); err == nil || err.(*Error).Reason != ErrClosed {
 		t.Fatalf("double close should return ErrClosed, got %v", err)
 	}
-	if err := Catch(func() { dl.PointerSize() }); err == nil || err.Reason != ErrUseAfterFree {
+	if err := errs.Catch(func() { dl.PointerSize() }); err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("use after close should panic ErrUseAfterFree, got %v", err)
 	}
 }

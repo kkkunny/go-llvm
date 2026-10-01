@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestOpOf(t *testing.T) {
@@ -95,7 +96,7 @@ func TestOpIsTerminator(t *testing.T) {
 			t.Fatalf("%s IsTerminator = %v, want %v", name, got, want)
 		}
 		// SuccessorCount 对非终结指令 panic，以 LLVM 的判定作真值交叉验证
-		llvmTerm := llvm.Catch(func() { SuccessorCount(inst) }) == nil
+		llvmTerm := errs.Catch(func() { SuccessorCount(inst) }) == nil
 		if llvmTerm != want {
 			t.Fatalf("%s LLVM terminator = %v, want %v", name, llvmTerm, want)
 		}

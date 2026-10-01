@@ -3,6 +3,8 @@ package llvm
 import (
 	"strings"
 	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestInlineAsm(t *testing.T) {
@@ -35,7 +37,7 @@ func TestInlineAsm(t *testing.T) {
 	}
 
 	// 非函数类型（nil 类型角色）应 panic ErrInvalidArg
-	if err := Catch(func() { ctx.InlineAsm(FnType{}, "nop", "", false, false, InlineAsmATT, false) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { ctx.InlineAsm(FnType{}, "nop", "", false, false, InlineAsmATT, false) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 函数类型应 panic ErrInvalidArg, got %v", err)
 	}
 }

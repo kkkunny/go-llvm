@@ -7,6 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 	"github.com/kkkunny/go-llvm/target"
 )
@@ -82,7 +83,7 @@ func TestLLJITMapSymbol(t *testing.T) {
 	if err := j.MapSymbol("answer_alias", addr); err != nil {
 		t.Fatal(err)
 	}
-	if err := llvm.Catch(func() { j.MapSymbol("nil_symbol", nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { j.MapSymbol("nil_symbol", nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil symbol should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -214,7 +215,7 @@ func TestLLJITChecks(t *testing.T) {
 	if err := j.AddIRModule(m); err != nil {
 		t.Fatal(err)
 	}
-	if err := llvm.Catch(func() { j.AddIRModule(m) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { j.AddIRModule(m) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("re-adding transferred module should panic ErrUseAfterFree, got %v", err)
 	}
 	if err := j.Close(); err != nil {
@@ -223,13 +224,13 @@ func TestLLJITChecks(t *testing.T) {
 	if err := j.Close(); err == nil || err.(*llvm.Error).Reason != llvm.ErrClosed {
 		t.Fatalf("double close should return ErrClosed, got %v", err)
 	}
-	if err := llvm.Catch(func() { j.Triple() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { j.Triple() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("use after close should panic ErrUseAfterFree, got %v", err)
 	}
 
 	j2 := newJIT(t)
 	defer j2.Close()
-	if err := llvm.Catch(func() { j2.AddObjectFile(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { j2.AddObjectFile(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil object buffer should panic ErrInvalidArg, got %v", err)
 	}
 	_ = unsafe.Pointer(nil)

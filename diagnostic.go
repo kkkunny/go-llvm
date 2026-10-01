@@ -1,6 +1,9 @@
 package llvm
 
-import "github.com/kkkunny/go-llvm/internal/binding"
+import (
+	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
+)
 
 // DiagnosticSeverity 诊断严重级别
 type DiagnosticSeverity binding.LLVMDiagnosticSeverity
@@ -20,7 +23,7 @@ func (ctx *Context) SetDiagnosticHandler(handler func(severity DiagnosticSeverit
 	const op = "llvm.Context.SetDiagnosticHandler"
 	ctx.CheckAlive(op)
 	if handler == nil {
-		errPanic(ErrInvalidArg, op, "nil diagnostic handler")
+		errs.Panicf(ErrInvalidArg, op, "nil diagnostic handler")
 	}
 	binding.LLVMContextSetDiagnosticHandlerGo(ctx.ref, ctx.diagID, func(severity binding.LLVMDiagnosticSeverity, msg string) {
 		handler(DiagnosticSeverity(severity), msg)

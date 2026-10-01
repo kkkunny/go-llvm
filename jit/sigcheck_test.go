@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 	"github.com/kkkunny/go-llvm/target"
 )
@@ -58,7 +59,7 @@ func TestFuncSignatureCheck(t *testing.T) {
 	}
 
 	// 不匹配签名在注册期 panic ErrTypeMismatch，而非调用期 UB
-	if err := llvm.Catch(func() { _, _ = j.Func[func(int64) int32]("f") }); err == nil || err.Reason != llvm.ErrTypeMismatch {
+	if err := errs.Catch(func() { _, _ = j.Func[func(int64) int32]("f") }); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("mismatched signature should panic ErrTypeMismatch, got %v", err)
 	}
 
@@ -81,7 +82,7 @@ func TestMapFuncSignatureCheck(t *testing.T) {
 	}
 
 	// 不同签名：注册期 panic ErrTypeMismatch
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		_ = j.MapFunc[func(float64) float64]("g", func(x float64) float64 { return x })
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("mismatched MapFunc should panic ErrTypeMismatch, got %v", err)

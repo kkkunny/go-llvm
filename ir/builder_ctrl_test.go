@@ -6,6 +6,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func buildAddModule(t *testing.T) (*llvm.Context, *Module, *Builder) {
@@ -26,7 +27,7 @@ func TestBuilderPrecheck(t *testing.T) {
 	b := NewBuilder(ctx)
 	defer b.Close()
 
-	if err := llvm.Catch(func() { b.RetVoid() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.RetVoid() }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("unpositioned builder should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -39,19 +40,19 @@ func TestBuilderPrecheck(t *testing.T) {
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
 	other := ctx2.ConstInt(ctx2.Int(32), 1)
-	if err := llvm.Catch(func() { b.Ret(other) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.Ret(other) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context operand should panic ErrCrossContext, got %v", err)
 	}
 
 	life := llvm.NewLifetime()
 	dead := llvm.NewValue[llvm.IntT](ctx, life, ctx.ConstInt(i32, 1).Ref())
 	life.Kill()
-	if err := llvm.Catch(func() { b.Ret(dead) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { b.Ret(dead) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("dead operand should panic ErrUseAfterFree, got %v", err)
 	}
 
 	// nil 操作数（崩溃类地板）
-	if err := llvm.Catch(func() { b.Ret(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.Ret(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil operand should panic ErrInvalidArg, got %v", err)
 	}
 }
@@ -67,7 +68,7 @@ func TestBuilderMovePrecheck(t *testing.T) {
 	b := NewBuilder(ctx)
 	defer b.Close()
 
-	if err := llvm.Catch(func() { b.MoveToEnd(Block{}) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.MoveToEnd(Block{}) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil block should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -76,7 +77,7 @@ func TestBuilderMovePrecheck(t *testing.T) {
 	m2 := NewModule(ctx2, "other")
 	fn2 := m2.NewFunction("g", ctx2.Fn(ctx2.Int(32), nil, false))
 	blk2 := fn2.NewBlock("entry")
-	if err := llvm.Catch(func() { b.MoveToEnd(blk2) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.MoveToEnd(blk2) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context block should panic ErrCrossContext, got %v", err)
 	}
 
@@ -84,7 +85,7 @@ func TestBuilderMovePrecheck(t *testing.T) {
 	if err := b.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := llvm.Catch(func() { b.MoveToEnd(blk) }); err == nil || err.Reason != llvm.ErrClosed {
+	if err := errs.Catch(func() { b.MoveToEnd(blk) }); err == nil || err.Reason != llvm.ErrClosed {
 		t.Fatalf("closed builder MoveToEnd should panic ErrClosed, got %v", err)
 	}
 }
@@ -116,7 +117,7 @@ func TestBuilderClosePrecheck(t *testing.T) {
 	defer ctx.Close()
 	b := NewBuilder(ctx)
 	_ = b.Close()
-	if err := llvm.Catch(func() { b.RetVoid() }); err == nil || err.Reason != llvm.ErrClosed {
+	if err := errs.Catch(func() { b.RetVoid() }); err == nil || err.Reason != llvm.ErrClosed {
 		t.Fatalf("closed builder should panic ErrClosed, got %v", err)
 	}
 	if err := b.Close(); err == nil || err.(*llvm.Error).Reason != llvm.ErrClosed {
@@ -199,7 +200,7 @@ func TestBuilderBranches(t *testing.T) {
 	if checks.Debug {
 		blk2 := fn.NewBlock("bad")
 		b.MoveToEnd(blk2)
-		err := llvm.Catch(func() {
+		err := errs.Catch(func() {
 			b.CondBr(ctx.ConstInt(i32, 1), thenBlk, elseBlk)
 		})
 		if err == nil || err.Reason != llvm.ErrTypeMismatch {
@@ -244,10 +245,10 @@ func TestBuilderSwitch(t *testing.T) {
 	}
 	// 注：Switch.Count 的 n==0 分支不可达（switch 必有 default 后继）。
 	if checks.Debug {
-		if err := llvm.Catch(func() { sw.CaseBlock(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		if err := errs.Catch(func() { sw.CaseBlock(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 			t.Fatalf("CaseBlock out of range should panic ErrInvalidArg, got %v", err)
 		}
-		if err := llvm.Catch(func() { sw.CaseValue(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		if err := errs.Catch(func() { sw.CaseValue(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 			t.Fatalf("CaseValue out of range should panic ErrInvalidArg, got %v", err)
 		}
 	}
@@ -273,7 +274,7 @@ func TestBuilderSwitch(t *testing.T) {
 	// case 类型不符（语义契约，仅调试层）
 	if checks.Debug {
 		b.MoveToEnd(case1)
-		err := llvm.Catch(func() { sw.AddCase(ctx.ConstInt(ctx.Int(64), 1), case2) })
+		err := errs.Catch(func() { sw.AddCase(ctx.ConstInt(ctx.Int(64), 1), case2) })
 		if err == nil || err.Reason != llvm.ErrTypeMismatch {
 			t.Fatalf("case type mismatch should panic, got %v", err)
 		}

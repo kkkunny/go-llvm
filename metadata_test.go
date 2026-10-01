@@ -3,6 +3,8 @@ package llvm
 import (
 	"strings"
 	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestMetadataMDString(t *testing.T) {
@@ -89,33 +91,33 @@ func TestMetadataValueAsMetadata(t *testing.T) {
 
 // TestMetadataCrashFloor 崩溃类地板负向：nil 句柄 / 已释放 Context / 跨 Context 元素。
 func TestMetadataCrashFloor(t *testing.T) {
-	if err := Catch(func() { Metadata{}.IsString() }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { Metadata{}.IsString() }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 元数据应 panic ErrInvalidArg, got %v", err)
 	}
 
 	ctx := NewContext()
 	ref := ctx.MDString("x").Ref()
-	if err := Catch(func() { (Metadata{ref: ref}).IsString() }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { (Metadata{ref: ref}).IsString() }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("ctx 为 nil 的元数据应 panic ErrInvalidArg, got %v", err)
 	}
 
 	m := ctx.MDString("x")
 	_ = ctx.Close()
-	if err := Catch(func() { _ = m.String() }); err == nil || err.Reason != ErrUseAfterFree {
+	if err := errs.Catch(func() { _ = m.String() }); err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("已释放 Context 上的元数据应 panic ErrUseAfterFree, got %v", err)
 	}
 
 	ctx2 := NewContext()
 	defer ctx2.Close()
-	if err := Catch(func() { ctx2.MDNode(ctx2.MDString("a"), Metadata{}) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { ctx2.MDNode(ctx2.MDString("a"), Metadata{}) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 元素应 panic ErrInvalidArg, got %v", err)
 	}
 	ctx3 := NewContext()
 	defer ctx3.Close()
-	if err := Catch(func() { ctx2.MDNode(ctx3.MDString("other")) }); err == nil || err.Reason != ErrCrossContext {
+	if err := errs.Catch(func() { ctx2.MDNode(ctx3.MDString("other")) }); err == nil || err.Reason != ErrCrossContext {
 		t.Fatalf("跨 Context 元素应 panic ErrCrossContext, got %v", err)
 	}
-	if err := Catch(func() { ctx2.ValueAsMetadata(nil) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { ctx2.ValueAsMetadata(nil) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 值包装应 panic ErrInvalidArg, got %v", err)
 	}
 }
@@ -129,10 +131,10 @@ func TestMetadataWrongKind(t *testing.T) {
 	s := ctx.MDString("hello")
 	n := ctx.MDNode(s)
 
-	if err := Catch(func() { n.StringValue() }); err == nil || err.Reason != ErrTypeMismatch {
+	if err := errs.Catch(func() { n.StringValue() }); err == nil || err.Reason != ErrTypeMismatch {
 		t.Fatalf("MDNode 取字符串应 panic ErrTypeMismatch, got %v", err)
 	}
-	if err := Catch(func() { s.Operands() }); err == nil || err.Reason != ErrTypeMismatch {
+	if err := errs.Catch(func() { s.Operands() }); err == nil || err.Reason != ErrTypeMismatch {
 		t.Fatalf("MDString 取操作数应 panic ErrTypeMismatch, got %v", err)
 	}
 }

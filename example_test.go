@@ -34,7 +34,7 @@ func Example() {
 	result := b.Select(ok, i32.Const(0), i32.Const(1), "result")
 	b.Ret(result)
 
-	// Verify 校验 IR 合法性；失败返回 *llvm.Error（可用 Catch 收敛）
+	// Verify 校验 IR 合法性；失败返回 *llvm.Error
 	if err := module.Verify(); err != nil {
 		panic(err)
 	}
@@ -75,42 +75,6 @@ func ExampleContext() {
 	// true
 	// false
 	// true
-}
-
-// ExampleCatch 演示用 Catch 把 panic(*llvm.Error) 收敛为 error。
-func ExampleCatch() {
-	err := llvm.Catch(func() {
-		// 崩溃类地板在默认与 llvm_release 两种构建下都生效：
-		// 使用已关闭的 Context 会 panic 出 *llvm.Error（ErrUseAfterFree）
-		ctx := llvm.NewContext()
-		ctx.Close()
-		_ = ctx.Int(32)
-	})
-	fmt.Println(err.Op)
-	fmt.Println(err.Reason == llvm.ErrUseAfterFree)
-	fmt.Println(err)
-	// Output:
-	// llvm.Context.Int
-	// true
-	// llvm.Context.Int: context is closed
-}
-
-// ExampleTry 演示 Try 在收敛 panic 的同时返回函数结果。
-func ExampleTry() {
-	// 正常路径：返回计算结果，error 为 nil
-	sum, err := llvm.Try(func() int32 { return 1 + 2 })
-	fmt.Printf("sum=%d err=%v\n", sum, err)
-
-	// 错误路径：panic 被收敛，返回零值与 *llvm.Error
-	val, err := llvm.Try(func() llvm.IntType {
-		ctx := llvm.NewContext()
-		ctx.Close()
-		return ctx.Int(32)
-	})
-	fmt.Printf("nil=%v err=%v\n", val.IsNil(), err)
-	// Output:
-	// sum=3 err=<nil>
-	// nil=true err=llvm.Context.Int: context is closed
 }
 
 // ExampleTypeOf 演示 Go 类型到 LLVM 类型的映射。

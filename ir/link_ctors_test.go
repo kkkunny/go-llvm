@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestModuleLink(t *testing.T) {
@@ -30,7 +31,7 @@ func TestModuleLink(t *testing.T) {
 	}
 
 	// 源模块句柄立即失效
-	if err := llvm.Catch(func() { _ = src.String() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { _ = src.String() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("consumed src should panic ErrUseAfterFree, got %v", err)
 	}
 	if err := src.Close(); err == nil {
@@ -47,14 +48,14 @@ func TestModuleLink(t *testing.T) {
 	}
 
 	// 自链接
-	if err := llvm.Catch(func() { _ = dst.Link(dst) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { _ = dst.Link(dst) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("self link should panic ErrInvalidArg, got %v", err)
 	}
 	// 跨 Context 链接
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
 	foreign := NewModule(ctx2, "foreign")
-	if err := llvm.Catch(func() { _ = dst.Link(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { _ = dst.Link(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("cross-context link should panic ErrCrossContext, got %v", err)
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -176,7 +177,7 @@ func TestTargetMachineChecks(t *testing.T) {
 	if err := closed.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := llvm.Catch(func() { tm.EmitToFile(closed, "x.s", AsmFile) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { tm.EmitToFile(closed, "x.s", AsmFile) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("emit closed module should panic ErrUseAfterFree, got %v", err)
 	}
 
@@ -186,7 +187,7 @@ func TestTargetMachineChecks(t *testing.T) {
 	if err := tm.Close(); err == nil || err.(*llvm.Error).Reason != llvm.ErrClosed {
 		t.Fatalf("double close should return ErrClosed, got %v", err)
 	}
-	if err := llvm.Catch(func() { tm.Triple() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { tm.Triple() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("use after close should panic ErrUseAfterFree, got %v", err)
 	}
 	// 释放后 CPU/Features/SetAsmVerbosity 均须在触碰句柄前拦截
@@ -195,7 +196,7 @@ func TestTargetMachineChecks(t *testing.T) {
 		"Features":        func() { tm.Features() },
 		"SetAsmVerbosity": func() { tm.SetAsmVerbosity(true) },
 	} {
-		if err := llvm.Catch(fn); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		if err := errs.Catch(fn); err == nil || err.Reason != llvm.ErrUseAfterFree {
 			t.Fatalf("%s after close should panic ErrUseAfterFree, got %v", name, err)
 		}
 	}
@@ -241,11 +242,11 @@ func TestEmitRequiresAppliedLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := llvm.Catch(func() { _, _ = tm.Emit(m, AsmFile) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { _, _ = tm.Emit(m, AsmFile) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Emit without ApplyTo should panic ErrInvalidArg, got %v", err)
 	}
 	path := filepath.Join(t.TempDir(), "m.s")
-	if err := llvm.Catch(func() { _ = tm.EmitToFile(m, path, AsmFile) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { _ = tm.EmitToFile(m, path, AsmFile) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("EmitToFile without ApplyTo should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -260,10 +261,10 @@ func TestEmitRequiresAppliedLayout(t *testing.T) {
 // TestTargetMachineNilCheck nil 接收者经 Check/Ref 路径时必须是可捕获的 ErrInvalidArg。
 func TestTargetMachineNilCheck(t *testing.T) {
 	var tm *TargetMachine
-	if err := llvm.Catch(func() { tm.Check("target.test") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { tm.Check("target.test") }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil target machine Check should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { tm.ApplyTo(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { tm.ApplyTo(nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil target machine ApplyTo should panic ErrInvalidArg, got %v", err)
 	}
 }

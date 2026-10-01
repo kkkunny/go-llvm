@@ -1,6 +1,9 @@
 package llvm
 
-import "github.com/kkkunny/go-llvm/internal/binding"
+import (
+	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
+)
 
 // Metadata 元数据句柄（由 Context 唯一化，无独立释放）
 type Metadata struct {
@@ -25,7 +28,7 @@ func (m Metadata) IsNil() bool { return m.ref.IsNil() }
 // Check 元数据可用性前置校验
 func (m Metadata) Check(op string) {
 	if m.ref.IsNil() || m.ctx == nil {
-		errPanic(ErrInvalidArg, op, "nil metadata")
+		errs.Panicf(ErrInvalidArg, op, "nil metadata")
 	}
 	m.ctx.CheckAlive(op)
 }
@@ -62,7 +65,7 @@ func (m Metadata) StringValue() string {
 	const op = "llvm.Metadata.StringValue"
 	m.Check(op)
 	if !m.IsString() {
-		errPanic(ErrTypeMismatch, op, "metadata is not an MDString")
+		errs.Panicf(ErrTypeMismatch, op, "metadata is not an MDString")
 	}
 	s, _ := binding.LLVMGetMDString(m.Value().Ref())
 	return s
@@ -73,7 +76,7 @@ func (m Metadata) Operands() []Metadata {
 	const op = "llvm.Metadata.Operands"
 	m.Check(op)
 	if !m.IsNode() {
-		errPanic(ErrTypeMismatch, op, "metadata is not an MDNode")
+		errs.Panicf(ErrTypeMismatch, op, "metadata is not an MDNode")
 	}
 	vals := binding.LLVMGetMDNodeOperands(m.Value().Ref())
 	if len(vals) == 0 {
@@ -110,7 +113,7 @@ func (ctx *Context) MDNode(elems ...Metadata) Metadata {
 	for i, e := range elems {
 		e.Check(op)
 		if e.ctx != ctx {
-			errPanic(ErrCrossContext, op, "metadata belongs to another context")
+			errs.Panicf(ErrCrossContext, op, "metadata belongs to another context")
 		}
 		refs[i] = e.ref
 	}

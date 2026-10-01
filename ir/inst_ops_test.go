@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestOperandsAndReplace(t *testing.T) {
@@ -132,10 +133,10 @@ func TestSetOperandAndUses(t *testing.T) {
 	}
 
 	// nil 替换值/操作数（崩溃类地板：始终校验）
-	if err := llvm.Catch(func() { SetOperand(sub, 0, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { SetOperand(sub, 0, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil operand should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { ReplaceAllUses(sub, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { ReplaceAllUses(sub, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil replacement should panic ErrInvalidArg, got %v", err)
 	}
 }
@@ -159,10 +160,10 @@ func TestOperandIndexPrecheck(t *testing.T) {
 	add := b.Add(a, c, "x")
 	b.Ret(add)
 
-	if err := llvm.Catch(func() { OperandAt(add, 5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { OperandAt(add, 5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("operand index out of range should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { SetOperand(add, 5, c) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { SetOperand(add, 5, c) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("SetOperand index out of range should panic ErrInvalidArg, got %v", err)
 	}
 }

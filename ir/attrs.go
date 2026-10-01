@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // ===== 属性位置共享助手（函数/调用点通用） =====
@@ -11,7 +12,7 @@ import (
 func addAttr(op string, ctx *llvm.Context, ref binding.LLVMValueRef, idx llvm.AttrIndex, a llvm.Attribute, callSite bool) {
 	a.Check(op)
 	if a.Context() != ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "attribute belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "attribute belongs to another context")
 	}
 	if callSite {
 		binding.LLVMAddCallSiteAttribute(ref, binding.LLVMAttributeIndex(idx), a.Ref())
@@ -152,7 +153,7 @@ func (p Param) Index() uint32 {
 			return i
 		}
 	}
-	llvm.Panicf(llvm.ErrNotFound, op, "parameter not found in parent function")
+	errs.Panicf(llvm.ErrNotFound, op, "parameter not found in parent function")
 	return 0
 }
 

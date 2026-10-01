@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // FastMath 浮点指令 fast-math flags 位掩码
@@ -28,7 +29,7 @@ const (
 func CanFastMath(inst llvm.AnyValue) bool {
 	const op = "ir.CanFastMath"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	return binding.LLVMCanValueUseFastMathFlags(inst.Ref())
 }
@@ -37,10 +38,10 @@ func CanFastMath(inst llvm.AnyValue) bool {
 func FastMathOf(inst llvm.AnyValue) FastMath {
 	const op = "ir.FastMathOf"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	if checks.Debug && !CanFastMath(inst) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "instruction cannot carry fast-math flags")
+		errs.Panicf(llvm.ErrInvalidArg, op, "instruction cannot carry fast-math flags")
 	}
 	return FastMath(binding.LLVMGetFastMathFlags(inst.Ref()))
 }
@@ -49,10 +50,10 @@ func FastMathOf(inst llvm.AnyValue) FastMath {
 func SetFastMath(inst llvm.AnyValue, f FastMath) {
 	const op = "ir.SetFastMath"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	if checks.Debug && !CanFastMath(inst) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "instruction cannot carry fast-math flags")
+		errs.Panicf(llvm.ErrInvalidArg, op, "instruction cannot carry fast-math flags")
 	}
 	binding.LLVMSetFastMathFlags(inst.Ref(), binding.LLVMFastMathFlags(f))
 }
@@ -73,7 +74,7 @@ const (
 func GEPNoWrapOf(v llvm.AnyValue) NoWrap {
 	const op = "ir.GEPNoWrapOf"
 	if v == nil || !v.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	return NoWrap(binding.LLVMGEPGetNoWrapFlags(v.Ref()))
 }
@@ -82,7 +83,7 @@ func GEPNoWrapOf(v llvm.AnyValue) NoWrap {
 func SetGEPNoWrap(v llvm.AnyValue, f NoWrap) {
 	const op = "ir.SetGEPNoWrap"
 	if v == nil || !v.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMGEPSetNoWrapFlags(v.Ref(), binding.LLVMGEPNoWrapFlags(f))
 }
@@ -91,7 +92,7 @@ func SetGEPNoWrap(v llvm.AnyValue, f NoWrap) {
 func SetNSW(inst llvm.AnyValue, v bool) {
 	const op = "ir.SetNSW"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMSetNSW(inst.Ref(), v)
 }
@@ -100,7 +101,7 @@ func SetNSW(inst llvm.AnyValue, v bool) {
 func SetNUW(inst llvm.AnyValue, v bool) {
 	const op = "ir.SetNUW"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMSetNUW(inst.Ref(), v)
 }
@@ -109,7 +110,7 @@ func SetNUW(inst llvm.AnyValue, v bool) {
 func SetExact(inst llvm.AnyValue, v bool) {
 	const op = "ir.SetExact"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMSetExact(inst.Ref(), v)
 }
@@ -118,7 +119,7 @@ func SetExact(inst llvm.AnyValue, v bool) {
 func SetNNeg(inst llvm.AnyValue, v bool) {
 	const op = "ir.SetNNeg"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMSetNNeg(inst.Ref(), v)
 }
@@ -127,7 +128,7 @@ func SetNNeg(inst llvm.AnyValue, v bool) {
 func SetInBounds(inst llvm.AnyValue, v bool) {
 	const op = "ir.SetInBounds"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMSetIsInBounds(inst.Ref(), v)
 }
@@ -147,7 +148,7 @@ const (
 func SetTailCall(inst llvm.AnyValue, v bool) {
 	const op = "ir.SetTailCall"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMSetTailCall(inst.Ref(), v)
 }
@@ -156,7 +157,7 @@ func SetTailCall(inst llvm.AnyValue, v bool) {
 func IsTailCall(inst llvm.AnyValue) bool {
 	const op = "ir.IsTailCall"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	return binding.LLVMIsTailCall(inst.Ref())
 }
@@ -166,7 +167,7 @@ func IsTailCall(inst llvm.AnyValue) bool {
 func SetTailCallKind(inst llvm.AnyValue, k TailCallKind) {
 	const op = "ir.SetTailCallKind"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMSetTailCallKind(inst.Ref(), binding.LLVMTailCallKind(k))
 }
@@ -175,11 +176,11 @@ func SetTailCallKind(inst llvm.AnyValue, k TailCallKind) {
 func SetParamAlign(inst llvm.AnyValue, i uint32, align uint32) {
 	const op = "ir.SetParamAlign"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	preAlign(op, align)
 	if checks.Debug && i >= uint32(binding.LLVMGetNumArgOperands(inst.Ref())) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	binding.LLVMSetInstrParamAlignment(inst.Ref(), i+1, align) // LLVM-C 索引 1-based，0 为返回值
 }
@@ -191,7 +192,7 @@ func SetParamAlign(inst llvm.AnyValue, i uint32, align uint32) {
 func SyncScopeOf(inst llvm.AnyValue) uint32 {
 	const op = "ir.SyncScopeOf"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	return binding.LLVMGetAtomicSyncScopeID(inst.Ref())
 }
@@ -200,7 +201,7 @@ func SyncScopeOf(inst llvm.AnyValue) uint32 {
 func SetSyncScope(inst llvm.AnyValue, ssid uint32) {
 	const op = "ir.SetSyncScope"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	binding.LLVMSetAtomicSyncScopeID(inst.Ref(), ssid)
 }

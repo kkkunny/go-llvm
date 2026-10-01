@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestInitAndHostQueries(t *testing.T) {
@@ -49,7 +50,7 @@ func TestInitAllAndLookup(t *testing.T) {
 }
 
 func TestInitUnknownArch(t *testing.T) {
-	if err := llvm.Catch(func() { Init(Arch(255)) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { Init(Arch(255)) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("unknown arch should panic ErrInvalidArg, got %v", err)
 	}
 }

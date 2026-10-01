@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -54,7 +55,7 @@ func (j *LLJIT) checkSymbolSig(op, name string, ft reflect.Type) {
 		return
 	}
 	if got != want {
-		llvm.Panicf(llvm.ErrTypeMismatch, op,
+		errs.Panicf(llvm.ErrTypeMismatch, op,
 			"Go signature %s maps to LLVM type %q, but JIT symbol %q has type %q; calling it would be undefined behavior",
 			ft, got, name, want)
 	}

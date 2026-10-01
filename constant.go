@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // IntConst 整数常量角色
@@ -135,7 +136,7 @@ func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
 	for i, e := range elems {
 		checkConstOperand(op, i, e)
 		if ref := binding.LLVMTypeOf(e.Ref()); !elemRef.Equal(ref) {
-			errPanic(ErrTypeMismatch, op,
+			errs.Panicf(ErrTypeMismatch, op,
 				"element type %s does not match array element type %s", TypeOfRef(ctx, ref), elem)
 		}
 	}
@@ -152,7 +153,7 @@ func (ctx *Context) ConstVector(elem AnyType, elems ...AnyValue) Value[VecT] {
 	for i, e := range elems {
 		checkConstOperand(op, i, e)
 		if ref := binding.LLVMTypeOf(e.Ref()); !elemRef.Equal(ref) {
-			errPanic(ErrTypeMismatch, op,
+			errs.Panicf(ErrTypeMismatch, op,
 				"element %d type %s does not match vector element type %s", i, TypeOfRef(ctx, ref), elem)
 		}
 	}
@@ -177,13 +178,13 @@ func (ctx *Context) ConstNamedStruct(t StructType, elems ...AnyValue) Value[Stru
 	ctx.CheckType(op, t)
 	ctx.CheckValues(op, elems...)
 	if got, want := len(elems), int(binding.LLVMCountStructElementTypes(t.ref)); got != want {
-		errPanic(ErrTypeMismatch, op, "expect %d elements, got %d", want, got)
+		errs.Panicf(ErrTypeMismatch, op, "expect %d elements, got %d", want, got)
 	}
 	for i, e := range elems {
 		checkConstOperand(op, i, e)
 		want := binding.LLVMStructGetTypeAtIndex(t.ref, uint32(i))
 		if ref := binding.LLVMTypeOf(e.Ref()); !want.Equal(ref) {
-			errPanic(ErrTypeMismatch, op,
+			errs.Panicf(ErrTypeMismatch, op,
 				"element %d type %s does not match field type %s", i, TypeOfRef(ctx, ref), TypeOfRef(ctx, want))
 		}
 	}
@@ -266,14 +267,14 @@ func checkConstOperand(op string, i int, v AnyValue) {
 	if name := v.Name(); name != "" {
 		desc += " @" + name
 	}
-	errPanic(ErrInvalidArg, op, "%s is not a constant: %s", desc, strings.TrimSpace(binding.LLVMPrintValueToString(ref)))
+	errs.Panicf(ErrInvalidArg, op, "%s is not a constant: %s", desc, strings.TrimSpace(binding.LLVMPrintValueToString(ref)))
 }
 
 // CheckValues 校验值归属同一 Context 且存活
 func (ctx *Context) CheckValues(op string, vs ...AnyValue) {
 	for _, v := range vs {
 		if v == nil {
-			errPanic(ErrInvalidArg, op, "nil value")
+			errs.Panicf(ErrInvalidArg, op, "nil value")
 		}
 		ctx.checkValueOwn(op, v.Ref(), v.Lifetime(), v.Context())
 	}
@@ -282,16 +283,16 @@ func (ctx *Context) CheckValues(op string, vs ...AnyValue) {
 // checkValueOwn 校验具体值句柄归属本 Context 且存活（无装箱）
 func (ctx *Context) checkValueOwn(op string, ref binding.LLVMValueRef, life *Lifetime, vctx *Context) {
 	if ref.IsNil() {
-		errPanic(ErrInvalidArg, op, "nil value")
+		errs.Panicf(ErrInvalidArg, op, "nil value")
 	}
 	if !ctx.life.Alive() {
-		errPanic(ErrUseAfterFree, op, "context is closed")
+		errs.Panicf(ErrUseAfterFree, op, "context is closed")
 	}
 	if life == nil || !life.Alive() {
-		errPanic(ErrUseAfterFree, op, "value is freed")
+		errs.Panicf(ErrUseAfterFree, op, "value is freed")
 	}
 	if vctx != ctx {
-		errPanic(ErrCrossContext, op, "value belongs to another context")
+		errs.Panicf(ErrCrossContext, op, "value belongs to another context")
 	}
 }
 

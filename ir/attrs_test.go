@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // TestAttrFunctionAndParamRoles 覆盖函数/参数两类角色的属性全量访问器。
@@ -77,10 +78,10 @@ func TestAttrFunctionAndParamRoles(t *testing.T) {
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
 	foreign := ctx2.EnumAttr(llvm.AttrNoInline, 0)
-	if err := llvm.Catch(func() { fn.AddAttr(llvm.AttrFunction, foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { fn.AddAttr(llvm.AttrFunction, foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("function foreign attr should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { p.AddAttr(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { p.AddAttr(foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("param foreign attr should panic ErrCrossContext, got %v", err)
 	}
 }
@@ -158,10 +159,10 @@ func TestAttrInvokeRoles(t *testing.T) {
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
 	foreign := ctx2.EnumAttr(llvm.AttrNoInline, 0)
-	if err := llvm.Catch(func() { call.AddAttr(llvm.AttrFunction, foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { call.AddAttr(llvm.AttrFunction, foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("call foreign attr should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { iv.AddAttr(llvm.AttrFunction, foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { iv.AddAttr(llvm.AttrFunction, foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("invoke foreign attr should panic ErrCrossContext, got %v", err)
 	}
 }

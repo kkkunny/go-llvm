@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestDiagnosticHandler(t *testing.T) {
@@ -39,7 +40,7 @@ func TestDiagnosticHandler(t *testing.T) {
 		t.Fatalf("diagnostics after reinstall = %v", got)
 	}
 
-	if err := Catch(func() { ctx.SetDiagnosticHandler(nil) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { ctx.SetDiagnosticHandler(nil) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil handler should panic ErrInvalidArg, got %v", err)
 	}
 }

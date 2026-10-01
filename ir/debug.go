@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // goroutineCheckInterval 单 goroutine 契约采样间隔：每 N 次调用核对一次 owner，
@@ -47,7 +48,7 @@ func checkOwner(op string, owner *uint64, ops *uint64, what string, always bool)
 		return
 	}
 	if id := curGoroutineID(); id != *owner {
-		llvm.Panicf(llvm.ErrInvalidArg, op,
+		errs.Panicf(llvm.ErrInvalidArg, op,
 			"%s used from another goroutine (owner=%d, current=%d); handles are not goroutine-safe", what, *owner, id)
 	}
 }

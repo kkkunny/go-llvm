@@ -6,6 +6,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestBuilderCallGolden(t *testing.T) {
@@ -65,21 +66,21 @@ func TestBuilderCallChecks(t *testing.T) {
 	b.MoveToEnd(fn.NewBlock("entry"))
 
 	add, _ := m.GetFunction("add")
-	err := llvm.Catch(func() {
+	err := errs.Catch(func() {
 		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i32, 1)}, "tooFew")
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("arity mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 
-	err = llvm.Catch(func() {
+	err = errs.Catch(func() {
 		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i64, 1), ctx.ConstInt(i32, 2)}, "badType")
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("arg type mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 
-	err = llvm.Catch(func() {
+	err = errs.Catch(func() {
 		b.Call[llvm.IntT](add, []llvm.AnyValue{ctx.ConstInt(i32, 1), ctx.ConstInt(i32, 2), ctx.ConstInt(i32, 3)}, "tooMany")
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
@@ -153,13 +154,13 @@ func TestBuilderPHI(t *testing.T) {
 	}
 
 	if checks.Debug {
-		err := llvm.Catch(func() {
+		err := errs.Catch(func() {
 			phi.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(ctx.Int(64), 1).Value, Block: entry})
 		})
 		if err == nil || err.Reason != llvm.ErrTypeMismatch {
 			t.Fatalf("phi type mismatch should panic ErrTypeMismatch, got %v", err)
 		}
-		if err := llvm.Catch(func() { phi.IncomingAt(9) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		if err := errs.Catch(func() { phi.IncomingAt(9) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 			t.Fatalf("phi incoming out of range should panic ErrInvalidArg, got %v", err)
 		}
 	}
@@ -184,47 +185,47 @@ func TestBuilderKindChecks(t *testing.T) {
 	agg := fn.ParamAs[llvm.StructT](0)
 	args := []llvm.AnyValue{ctx.ConstInt(i32, 1), ctx.ConstInt(i32, 2)}
 
-	err := llvm.Catch(func() { b.Call[llvm.FloatT](add, args, "") })
+	err := errs.Catch(func() { b.Call[llvm.FloatT](add, args, "") })
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("Call[FloatT] on i32-returning fn should panic ErrTypeMismatch, got %v", err)
 	}
 
-	err = llvm.Catch(func() {
+	err = errs.Catch(func() {
 		b.CallIndirect[llvm.FloatT](fn.ParamAs[llvm.PtrT](1), ctx.Fn(i32, nil, false), nil, "")
 	})
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("CallIndirect[FloatT] on i32-returning sig should panic ErrTypeMismatch, got %v", err)
 	}
 
-	err = llvm.Catch(func() { b.ExtractValue[llvm.FloatT](agg, []uint32{0}, "") })
+	err = errs.Catch(func() { b.ExtractValue[llvm.FloatT](agg, []uint32{0}, "") })
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("ExtractValue[FloatT] on i32 element should panic ErrTypeMismatch, got %v", err)
 	}
 
-	err = llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{9}, "") })
+	err = errs.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{9}, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("out-of-range index should panic ErrInvalidArg, got %v", err)
 	}
 
-	err = llvm.Catch(func() { b.ExtractValue[llvm.IntT](ctx.ConstInt(i32, 1), []uint32{0}, "") })
+	err = errs.Catch(func() { b.ExtractValue[llvm.IntT](ctx.ConstInt(i32, 1), []uint32{0}, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("indexing scalar should panic ErrInvalidArg, got %v", err)
 	}
-	err = llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, nil, "") })
+	err = errs.Catch(func() { b.ExtractValue[llvm.IntT](agg, nil, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("empty extract index path should panic ErrInvalidArg, got %v", err)
 	}
 
 	// InsertValue 负向：空索引路径 / 元素类型不符 / 索引越界
-	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), nil, "") })
+	err = errs.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), nil, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("empty insert index path should panic ErrInvalidArg, got %v", err)
 	}
-	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), []uint32{1}, "") })
+	err = errs.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), []uint32{1}, "") })
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("insert i32 into i64 slot should panic ErrTypeMismatch, got %v", err)
 	}
-	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(ctx.Int(64), 1), []uint32{9}, "") })
+	err = errs.Catch(func() { b.InsertValue(agg, ctx.ConstInt(ctx.Int(64), 1), []uint32{9}, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("insert out-of-range index should panic ErrInvalidArg, got %v", err)
 	}
@@ -233,13 +234,13 @@ func TestBuilderKindChecks(t *testing.T) {
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
 	sig2 := ctx2.Fn(ctx2.Int(32), nil, false)
-	err = llvm.Catch(func() {
+	err = errs.Catch(func() {
 		b.CallIndirect[llvm.IntT](fn.ParamAs[llvm.PtrT](1), sig2, nil, "")
 	})
 	if err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign signature should panic ErrCrossContext, got %v", err)
 	}
-	err = llvm.Catch(func() { b.PHI(ctx2.Int(32), "") })
+	err = errs.Catch(func() { b.PHI(ctx2.Int(32), "") })
 	if err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign PHI type should panic ErrCrossContext, got %v", err)
 	}
@@ -350,11 +351,11 @@ func TestAggregateVectorPathPrecheck(t *testing.T) {
 	agg := fn.ParamAs[llvm.StructT](0)
 
 	// 合法向量下标（0）也不是聚合路径：报错应提示改用 ExtractElement/InsertElement 系列 API
-	err := llvm.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{1, 0}, "") })
+	err := errs.Catch(func() { b.ExtractValue[llvm.IntT](agg, []uint32{1, 0}, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg || !strings.Contains(err.Msg, "ExtractElement/InsertElement") {
 		t.Fatalf("vector extract path should panic ErrInvalidArg mentioning ExtractElement/InsertElement, got %v", err)
 	}
-	err = llvm.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), []uint32{1, 0}, "") })
+	err = errs.Catch(func() { b.InsertValue(agg, ctx.ConstInt(i32, 1), []uint32{1, 0}, "") })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("vector insert path should panic ErrInvalidArg, got %v", err)
 	}

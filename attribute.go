@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // AttrIndex 属性位置：返回值、函数本体或参数（参数从 0 起）
@@ -31,7 +32,7 @@ func AttributeKindForName(name string) AttributeKind {
 func MustAttributeKind(name string) AttributeKind {
 	k := AttributeKindForName(name)
 	if k == 0 {
-		errPanic(ErrNotFound, "llvm.MustAttributeKind", "unknown attribute %q", name)
+		errs.Panicf(ErrNotFound, "llvm.MustAttributeKind", "unknown attribute %q", name)
 	}
 	return k
 }
@@ -131,7 +132,7 @@ func (a Attribute) Context() *Context { return a.ctx }
 // Check 属性可用性前置校验
 func (a Attribute) Check(op string) {
 	if a.ref.IsNil() || a.ctx == nil {
-		errPanic(ErrInvalidArg, op, "nil attribute")
+		errs.Panicf(ErrInvalidArg, op, "nil attribute")
 	}
 	a.ctx.CheckAlive(op)
 }
@@ -159,7 +160,7 @@ func (a Attribute) EnumKind() AttributeKind {
 	const op = "llvm.Attribute.EnumKind"
 	a.Check(op)
 	if !binding.LLVMIsEnumAttribute(a.ref) {
-		errPanic(ErrTypeMismatch, op, "attribute is not an enum attribute")
+		errs.Panicf(ErrTypeMismatch, op, "attribute is not an enum attribute")
 	}
 	return AttributeKind(binding.LLVMGetEnumAttributeKind(a.ref))
 }
@@ -169,7 +170,7 @@ func (a Attribute) EnumValue() uint64 {
 	const op = "llvm.Attribute.EnumValue"
 	a.Check(op)
 	if !binding.LLVMIsEnumAttribute(a.ref) {
-		errPanic(ErrTypeMismatch, op, "attribute is not an enum attribute")
+		errs.Panicf(ErrTypeMismatch, op, "attribute is not an enum attribute")
 	}
 	return binding.LLVMGetEnumAttributeValue(a.ref)
 }
@@ -179,7 +180,7 @@ func (a Attribute) TypeValue() AnyType {
 	const op = "llvm.Attribute.TypeValue"
 	a.Check(op)
 	if !binding.LLVMIsTypeAttribute(a.ref) {
-		errPanic(ErrTypeMismatch, op, "attribute is not a type attribute")
+		errs.Panicf(ErrTypeMismatch, op, "attribute is not a type attribute")
 	}
 	return TypeOfRef(a.ctx, binding.LLVMGetTypeAttributeValue(a.ref))
 }
@@ -189,7 +190,7 @@ func (a Attribute) StringKind() string {
 	const op = "llvm.Attribute.StringKind"
 	a.Check(op)
 	if !binding.LLVMIsStringAttribute(a.ref) {
-		errPanic(ErrTypeMismatch, op, "attribute is not a string attribute")
+		errs.Panicf(ErrTypeMismatch, op, "attribute is not a string attribute")
 	}
 	return binding.LLVMGetStringAttributeKind(a.ref)
 }
@@ -199,7 +200,7 @@ func (a Attribute) StringValue() string {
 	const op = "llvm.Attribute.StringValue"
 	a.Check(op)
 	if !binding.LLVMIsStringAttribute(a.ref) {
-		errPanic(ErrTypeMismatch, op, "attribute is not a string attribute")
+		errs.Panicf(ErrTypeMismatch, op, "attribute is not a string attribute")
 	}
 	return binding.LLVMGetStringAttributeValue(a.ref)
 }
@@ -227,7 +228,7 @@ func (a Attribute) String() string {
 func (ctx *Context) EnumAttr(kind AttributeKind, val uint64) Attribute {
 	ctx.CheckAlive("llvm.Context.EnumAttr")
 	if kind == 0 {
-		errPanic(ErrInvalidArg, "llvm.Context.EnumAttr", "unknown attribute kind")
+		errs.Panicf(ErrInvalidArg, "llvm.Context.EnumAttr", "unknown attribute kind")
 	}
 	return Attribute{ref: binding.LLVMCreateEnumAttribute(ctx.ref, uint32(kind), val), ctx: ctx}
 }
@@ -242,7 +243,7 @@ func (ctx *Context) TypeAttr(kind AttributeKind, t AnyType) Attribute {
 	const op = "llvm.Context.TypeAttr"
 	ctx.CheckAlive(op)
 	if kind == 0 {
-		errPanic(ErrInvalidArg, op, "unknown attribute kind")
+		errs.Panicf(ErrInvalidArg, op, "unknown attribute kind")
 	}
 	ctx.CheckType(op, t)
 	return Attribute{ref: binding.LLVMCreateTypeAttribute(ctx.ref, uint32(kind), t.Ref()), ctx: ctx}

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // stripModuleID 去掉 `; ModuleID = ...` 行：解析往返时该行会变为缓冲名或被 bitcode 丢弃
@@ -140,20 +141,20 @@ func TestParseBitcodeBytesAndPrecheck(t *testing.T) {
 	}
 
 	// 崩溃类地板：nil 缓冲 / 已关闭缓冲 / 已关闭 Context
-	if err := llvm.Catch(func() { _, _ = ParseIR(ctx, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { _, _ = ParseIR(ctx, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("ParseIR(nil) should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { _, _ = ParseBitcode(ctx, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { _, _ = ParseBitcode(ctx, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("ParseBitcode(nil) should panic ErrInvalidArg, got %v", err)
 	}
 	closed := llvm.NewMemoryBuffer([]byte("x"), "closed.ll")
 	if err := closed.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := llvm.Catch(func() { _, _ = ParseIR(ctx, closed) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { _, _ = ParseIR(ctx, closed) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("ParseIR(closed buffer) should panic ErrUseAfterFree, got %v", err)
 	}
-	if err := llvm.Catch(func() { _, _ = ParseBitcode(ctx, closed) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { _, _ = ParseBitcode(ctx, closed) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("ParseBitcode(closed buffer) should panic ErrUseAfterFree, got %v", err)
 	}
 	deadCtx := llvm.NewContext()
@@ -162,10 +163,10 @@ func TestParseBitcodeBytesAndPrecheck(t *testing.T) {
 	}
 	buf := llvm.NewMemoryBuffer([]byte("x"), "x.ll")
 	defer buf.Close()
-	if err := llvm.Catch(func() { _, _ = ParseIR(deadCtx, buf) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { _, _ = ParseIR(deadCtx, buf) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("ParseIR(closed context) should panic ErrUseAfterFree, got %v", err)
 	}
-	if err := llvm.Catch(func() { _, _ = ParseBitcode(deadCtx, buf) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { _, _ = ParseBitcode(deadCtx, buf) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("ParseBitcode(closed context) should panic ErrUseAfterFree, got %v", err)
 	}
 }

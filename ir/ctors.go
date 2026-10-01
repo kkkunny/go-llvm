@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // AppendCtor 向 llvm.global_ctors 追加构造器（priority 越小越先执行，clang 惯例 65535）
@@ -21,7 +22,7 @@ func (m *Module) appendGlobalList(op, name string, fn Function, priority uint32)
 	m.Check(op)
 	fn.Check(op)
 	if fn.Context() != m.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "function belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "function belongs to another context")
 	}
 	i32, ptr := m.ctx.Int(32), m.ctx.Ptr(0)
 	elemTy := m.ctx.Struct([]llvm.AnyType{i32, ptr, ptr}, false)

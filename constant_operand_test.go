@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -60,7 +61,7 @@ func TestConstOperandRejectsInstructions(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := llvm.Catch(tc.fn)
+			err := errs.Catch(tc.fn)
 			if err == nil || err.Reason != llvm.ErrInvalidArg {
 				t.Fatalf("want ErrInvalidArg, got %v", err)
 			}
@@ -82,7 +83,7 @@ func TestMustAsPanicMentionsValue(t *testing.T) {
 	defer m.Close()
 	defer b.Close()
 
-	err := llvm.Catch(func() { slot.Value.MustAs[llvm.IntT]() })
+	err := errs.Catch(func() { slot.Value.MustAs[llvm.IntT]() })
 	if err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("want ErrTypeMismatch, got %v", err)
 	}

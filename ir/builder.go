@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Builder IR 构建器
@@ -30,7 +31,7 @@ const recentOps = 8
 // NewBuilder 创建构建器并登记到 Context 生命周期
 func NewBuilder(ctx *llvm.Context) *Builder {
 	if !ctx.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, "ir.NewBuilder", "context is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, "ir.NewBuilder", "context is closed")
 	}
 	b := &Builder{ref: binding.LLVMCreateBuilderInContext(ctx.Ref()), ctx: ctx}
 	b.unown = ctx.Own(b)
@@ -268,7 +269,7 @@ func (b *Builder) panicf(reason llvm.ErrKind, op, format string, args ...any) {
 		format += " (recent builder ops: %s)"
 		args = append(args, strings.Join(b.recent, ", "))
 	}
-	llvm.Panicf(reason, op, format, args...)
+	errs.Panicf(reason, op, format, args...)
 }
 
 // recordOp 调试层记录最近 op（环形，A1 现场 dump 用）
@@ -336,7 +337,7 @@ func preAlign(op string, n uint32) {
 		return
 	}
 	if n == 0 || n&(n-1) != 0 {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "alignment %d is not a power of two", n)
+		errs.Panicf(llvm.ErrInvalidArg, op, "alignment %d is not a power of two", n)
 	}
 }
 

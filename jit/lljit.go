@@ -9,6 +9,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -34,13 +35,13 @@ func NewLLJIT() (*LLJIT, error) {
 	const op = "jit.NewLLJIT"
 	jtmb, err := binding.LLVMOrcJITTargetMachineBuilderDetectHost()
 	if err != nil {
-		return nil, llvm.WrapError(llvm.ErrJIT, op, err)
+		return nil, errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	builder := binding.LLVMOrcCreateLLJITBuilder()
 	binding.LLVMOrcLLJITBuilderSetJITTargetMachineBuilder(builder, jtmb)
 	ref, err := binding.LLVMOrcCreateLLJIT(builder)
 	if err != nil {
-		return nil, llvm.WrapError(llvm.ErrJIT, op, err)
+		return nil, errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	return &LLJIT{ref: ref}, nil
 }
@@ -48,7 +49,7 @@ func NewLLJIT() (*LLJIT, error) {
 // check 前置校验：未释放
 func (j *LLJIT) check(op string) {
 	if j.closed {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "LLJIT is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "LLJIT is closed")
 	}
 }
 
@@ -60,7 +61,7 @@ func (j *LLJIT) Close() error {
 	j.closed = true
 	err := binding.LLVMOrcDisposeLLJIT(j.ref)
 	if err != nil {
-		return llvm.WrapError(llvm.ErrJIT, "jit.LLJIT.Close", err)
+		return errs.WrapError(llvm.ErrJIT, "jit.LLJIT.Close", err)
 	}
 	return nil
 }
@@ -88,14 +89,14 @@ func (j *LLJIT) AddIRModule(mod *ir.Module) error {
 	}
 	if checks.Debug {
 		if err := mod.Verify(); err != nil {
-			llvm.Panicf(llvm.ErrVerify, op, "module verification failed before JIT: %s", err)
+			errs.Panicf(llvm.ErrVerify, op, "module verification failed before JIT: %s", err)
 		}
 	}
 
 	tsm := consumeModule(mod)
 	// ORC 约定：调用后所有权无条件移交（失败时由 JIT 错误路径释放 TSM）
 	if err := binding.LLVMOrcLLJITAddLLVMIRModule(j.ref, binding.LLVMOrcLLJITGetMainJITDylib(j.ref), tsm); err != nil {
-		return llvm.WrapError(llvm.ErrJIT, op, err)
+		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	return nil
 }
@@ -117,11 +118,11 @@ func (j *LLJIT) AddObjectFile(buf *llvm.MemoryBuffer) error {
 	const op = "jit.LLJIT.AddObjectFile"
 	j.check(op)
 	if buf == nil || !buf.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or closed memory buffer")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or closed memory buffer")
 	}
 	buf.Disown()
 	if err := binding.LLVMOrcLLJITAddObjectFile(j.ref, binding.LLVMOrcLLJITGetMainJITDylib(j.ref), buf.Ref()); err != nil {
-		return llvm.WrapError(llvm.ErrJIT, op, err)
+		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	return nil
 }
@@ -132,7 +133,7 @@ func (j *LLJIT) Lookup(name string) (unsafe.Pointer, error) {
 	j.check(op)
 	addr, err := binding.LLVMOrcLLJITLookup(j.ref, name)
 	if err != nil {
-		return nil, llvm.WrapError(llvm.ErrNotFound, op, err)
+		return nil, errs.WrapError(llvm.ErrNotFound, op, err)
 	}
 	return addr, nil
 }
@@ -149,7 +150,7 @@ func (j *LLJIT) AddProcessSymbols() error {
 	}
 	dg, err := binding.LLVMOrcCreateDynamicLibrarySearchGeneratorForProcess(prefix)
 	if err != nil {
-		return llvm.WrapError(llvm.ErrJIT, op, err)
+		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	// 所有权移交主 JITDylib
 	binding.LLVMOrcJITDylibAddGenerator(binding.LLVMOrcLLJITGetMainJITDylib(j.ref), dg)
@@ -161,7 +162,7 @@ func (j *LLJIT) MapSymbol(name string, p unsafe.Pointer) error {
 	const op = "jit.LLJIT.MapSymbol"
 	j.check(op)
 	if p == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil symbol address")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil symbol address")
 	}
 	entry := binding.LLVMOrcLLJITMangleAndIntern(j.ref, name)
 	mu := binding.LLVMOrcAbsoluteSymbols([]binding.LLVMOrcCSymbolMapPair{{
@@ -175,7 +176,7 @@ func (j *LLJIT) MapSymbol(name string, p unsafe.Pointer) error {
 	}})
 	if err := binding.LLVMOrcJITDylibDefine(binding.LLVMOrcLLJITGetMainJITDylib(j.ref), mu); err != nil {
 		binding.LLVMOrcDisposeMaterializationUnit(mu)
-		return llvm.WrapError(llvm.ErrJIT, op, err)
+		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestParseIRString(t *testing.T) {
@@ -50,7 +51,7 @@ func TestPtrAddAndBuilderAt(t *testing.T) {
 }
 
 func TestNewBuilderAtChecks(t *testing.T) {
-	err := llvm.Catch(func() { NewBuilderAt(Block{}) })
+	err := errs.Catch(func() { NewBuilderAt(Block{}) })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil block should panic ErrInvalidArg, got %v", err)
 	}

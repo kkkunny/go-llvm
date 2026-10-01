@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -70,7 +71,7 @@ type TargetMachine struct {
 func NewTargetMachine(t Target, triple, cpu, features string, opt OptLevel, reloc RelocMode, cm CodeModel) (*TargetMachine, error) {
 	ref := binding.LLVMCreateTargetMachine(t.ref, triple, cpu, features, binding.LLVMCodeGenOptLevel(opt), binding.LLVMRelocMode(reloc), binding.LLVMCodeModel(cm))
 	if ref.IsNil() {
-		return nil, llvm.WrapError(llvm.ErrCodeGen, "target.NewTargetMachine", errors.New("LLVMCreateTargetMachine returned null"))
+		return nil, errs.WrapError(llvm.ErrCodeGen, "target.NewTargetMachine", errors.New("LLVMCreateTargetMachine returned null"))
 	}
 	return &TargetMachine{ref: ref}, nil
 }
@@ -84,10 +85,10 @@ func (m *TargetMachine) Ref() binding.LLVMTargetMachineRef { return m.ref }
 // check 前置校验：非 nil 且未释放
 func (m *TargetMachine) check(op string) {
 	if m == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil target machine")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil target machine")
 	}
 	if m.closed {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "target machine is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "target machine is closed")
 	}
 }
 
@@ -161,7 +162,7 @@ func (m *TargetMachine) checkApplied(op string, mod *ir.Module) {
 	mdl := mod.DataLayout()
 	defer mdl.Close()
 	if got, want := mdl.String(), dl.String(); got != want {
-		llvm.Panicf(llvm.ErrInvalidArg, op,
+		errs.Panicf(llvm.ErrInvalidArg, op,
 			"module data layout %q does not match target machine layout %q; call TargetMachine.ApplyTo on the module before generating IR",
 			got, want)
 	}
@@ -175,12 +176,12 @@ func (m *TargetMachine) EmitToFile(mod *ir.Module, path string, ft FileType) err
 	mod.Check(op)
 	if checks.Debug {
 		if err := mod.Verify(); err != nil {
-			llvm.Panicf(llvm.ErrVerify, op, "module verification failed before codegen: %s", err)
+			errs.Panicf(llvm.ErrVerify, op, "module verification failed before codegen: %s", err)
 		}
 		m.checkApplied(op, mod)
 	}
 	if err := binding.LLVMTargetMachineEmitToFile(m.ref, mod.Ref(), path, binding.LLVMCodeGenFileType(ft)); err != nil {
-		return llvm.WrapError(llvm.ErrCodeGen, op, err)
+		return errs.WrapError(llvm.ErrCodeGen, op, err)
 	}
 	return nil
 }
@@ -196,7 +197,7 @@ func (m *TargetMachine) Emit(mod *ir.Module, ft FileType) (*llvm.MemoryBuffer, e
 	}
 	buf, err := binding.LLVMTargetMachineEmitToMemoryBuffer(m.ref, mod.Ref(), binding.LLVMCodeGenFileType(ft))
 	if err != nil {
-		return nil, llvm.WrapError(llvm.ErrCodeGen, op, err)
+		return nil, errs.WrapError(llvm.ErrCodeGen, op, err)
 	}
 	return llvm.MemoryBufferOf(buf), nil
 }

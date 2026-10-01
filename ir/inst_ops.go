@@ -6,13 +6,14 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // OperandCount 指令/常量的操作数个数（call 的被调方是最后一个操作数，见 LLVM-C 约定）
 func OperandCount(inst llvm.AnyValue) uint32 {
 	const op = "ir.OperandCount"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	return uint32(binding.LLVMGetNumOperands(inst.Ref()))
 }
@@ -21,10 +22,10 @@ func OperandCount(inst llvm.AnyValue) uint32 {
 func OperandAt(inst llvm.AnyValue, i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.OperandAt"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	if checks.Debug && i >= OperandCount(inst) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "operand index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "operand index %d out of range", i)
 	}
 	return llvm.ValueOf(inst.Context(), inst.Lifetime(), binding.LLVMGetOperand(inst.Ref(), i))
 }
@@ -33,16 +34,16 @@ func OperandAt(inst llvm.AnyValue, i uint32) llvm.Value[llvm.DynT] {
 func SetOperand(inst llvm.AnyValue, i uint32, v llvm.AnyValue) {
 	const op = "ir.SetOperand"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	if v == nil || !v.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead operand")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead operand")
 	}
 	if inst.Context() != v.Context() {
-		llvm.Panicf(llvm.ErrCrossContext, op, "operand belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "operand belongs to another context")
 	}
 	if checks.Debug && i >= OperandCount(inst) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "operand index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "operand index %d out of range", i)
 	}
 	binding.LLVMSetOperand(inst.Ref(), i, v.Ref())
 }
@@ -82,7 +83,7 @@ func Uses(v llvm.AnyValue) iter.Seq[Use] {
 	return func(yield func(Use) bool) {
 		const op = "ir.Uses"
 		if v == nil || !v.Alive() {
-			llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+			errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 		}
 		for ref := binding.LLVMGetFirstUse(v.Ref()); !ref.IsNil(); ref = binding.LLVMGetNextUse(ref) {
 			if !yield(Use{ref: ref, ctx: v.Context(), life: v.Lifetime()}) {
@@ -96,13 +97,13 @@ func Uses(v llvm.AnyValue) iter.Seq[Use] {
 func ReplaceAllUses(old, new llvm.AnyValue) {
 	const op = "ir.ReplaceAllUses"
 	if old == nil || !old.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	if new == nil || !new.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead replacement")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead replacement")
 	}
 	if old.Context() != new.Context() {
-		llvm.Panicf(llvm.ErrCrossContext, op, "replacement belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "replacement belongs to another context")
 	}
 	binding.LLVMReplaceAllUsesWith(old.Ref(), new.Ref())
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func memModule(t *testing.T) (*llvm.Context, *Module, *Builder, Function) {
@@ -208,12 +209,12 @@ func TestBuilderAlignPrecheck(t *testing.T) {
 	defer m.Close()
 	defer b.Close()
 
-	err := llvm.Catch(func() { b.Alloca(ctx.Int(32), "x").SetAlign(3) })
+	err := errs.Catch(func() { b.Alloca(ctx.Int(32), "x").SetAlign(3) })
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("non-power-of-two align should panic ErrInvalidArg, got %v", err)
 	}
 
-	err = llvm.Catch(func() {
+	err = errs.Catch(func() {
 		b.MemCpy(ctx.Ptr(0).Zero(), 3, ctx.Ptr(0).Zero(), 4, ctx.ConstInt(ctx.Int(64), 1).Value)
 	})
 	if err == nil || err.Reason != llvm.ErrInvalidArg {
@@ -229,16 +230,16 @@ func TestBuilderMemTypePrecheck(t *testing.T) {
 	defer b.Close()
 
 	// nil 类型（崩溃类地板）
-	if err := llvm.Catch(func() { b.Alloca(nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.Alloca(nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil alloca type should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { b.GEP(nil, ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.GEP(nil, ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil GEP element type should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { b.Malloc(nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.Malloc(nil, "") }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil malloc type should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.MallocArray(nil, ctx.ConstInt(ctx.Int(64), 1).Value, "")
 	}); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("nil malloc-array type should panic ErrInvalidArg, got %v", err)
@@ -247,21 +248,21 @@ func TestBuilderMemTypePrecheck(t *testing.T) {
 	// 跨 Context 类型
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
-	if err := llvm.Catch(func() { b.Alloca(ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.Alloca(ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign alloca type should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { b.GEP(ctx2.Int(32), ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.GEP(ctx2.Int(32), ctx.Ptr(0).Zero(), nil, "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign GEP element type should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { b.Malloc(ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.Malloc(ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign malloc type should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.MallocArray(ctx2.Int(32), ctx.ConstInt(ctx.Int(64), 1).Value, "")
 	}); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign malloc-array type should panic ErrCrossContext, got %v", err)
 	}
-	if err := llvm.Catch(func() { b.Load(ctx.Ptr(0).Zero(), ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { b.Load(ctx.Ptr(0).Zero(), ctx2.Int(32), "") }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign load type should panic ErrCrossContext, got %v", err)
 	}
 }

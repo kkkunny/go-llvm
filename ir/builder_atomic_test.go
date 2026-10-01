@@ -6,6 +6,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func buildAtomicModule(t *testing.T) (*llvm.Context, *Module, *Builder) {
@@ -114,29 +115,29 @@ func TestBuilderAtomicPrecheck(t *testing.T) {
 	one := ctx.ConstInt(i32, 1).Value
 
 	// fence 不允许 monotonic/not_atomic
-	if err := llvm.Catch(func() { b.Fence(llvm.AtomicMonotonic, false) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.Fence(llvm.AtomicMonotonic, false) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("fence monotonic should panic ErrInvalidArg, got %v", err)
 	}
 	// atomicrmw 不允许 unordered/not_atomic
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.AtomicRMW(llvm.RMWAdd, p, one, llvm.AtomicNotAtomic, false, "")
 	}); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("rmw not_atomic should panic ErrInvalidArg, got %v", err)
 	}
 	// cmpxchg 失败序不得为 release/acq_rel
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.CmpXchg(p, one, one, llvm.AtomicAcquire, llvm.AtomicRelease, false, "")
 	}); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("cmpxchg failure release should panic ErrInvalidArg, got %v", err)
 	}
 	// cmpxchg 失败序不得强于成功序
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.CmpXchg(p, one, one, llvm.AtomicMonotonic, llvm.AtomicAcquire, false, "")
 	}); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("cmpxchg failure stronger should panic ErrInvalidArg, got %v", err)
 	}
 	// cmp/new 类型必须一致
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		b.CmpXchg(p, one, ctx.ConstFloat(ctx.Float(llvm.FloatDouble), 1).Value, llvm.AtomicAcquire, llvm.AtomicMonotonic, false, "")
 	}); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("cmpxchg type mismatch should panic ErrTypeMismatch, got %v", err)
@@ -185,10 +186,10 @@ func TestBuilderLoadStoreAtomic(t *testing.T) {
 
 	// load 不得设 release/acq_rel；store 不得设 acquire/acq_rel（语义契约，仅调试层）
 	if checks.Debug {
-		if err := llvm.Catch(func() { ld.SetOrdering(llvm.AtomicRelease) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		if err := errs.Catch(func() { ld.SetOrdering(llvm.AtomicRelease) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 			t.Fatalf("load release should panic ErrInvalidArg, got %v", err)
 		}
-		if err := llvm.Catch(func() { st.SetOrdering(llvm.AtomicAcquire) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		if err := errs.Catch(func() { st.SetOrdering(llvm.AtomicAcquire) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 			t.Fatalf("store acquire should panic ErrInvalidArg, got %v", err)
 		}
 	}

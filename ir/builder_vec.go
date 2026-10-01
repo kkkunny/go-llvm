@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // vecKindTy 预检值的底层类型确为向量，返回该类型；非向量 panic（语义契约，仅调试层调用）。
@@ -14,7 +15,7 @@ func (b *Builder) vecKindTy(op string, v preVal) binding.LLVMTypeRef {
 	case binding.LLVMVectorTypeKind, binding.LLVMScalableVectorTypeKind:
 		return ref
 	default:
-		llvm.Panicf(llvm.ErrTypeMismatch, op, "expect a vector, got %s", typeRefString(b.ctx, ref))
+		errs.Panicf(llvm.ErrTypeMismatch, op, "expect a vector, got %s", typeRefString(b.ctx, ref))
 		return binding.LLVMTypeRef{}
 	}
 }
@@ -40,7 +41,7 @@ func (b *Builder) InsertElement(vec llvm.ValueRef[llvm.VecT], elem llvm.AnyValue
 	if checks.Debug {
 		elemTy := binding.LLVMGetElementType(b.vecKindTy(op, core(vv)))
 		if ref := anyValType(elem); !elemTy.Equal(ref) {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "element type %s does not match vector element type %s",
+			errs.Panicf(llvm.ErrTypeMismatch, op, "element type %s does not match vector element type %s",
 				typeString(b.ctx, elem.Ref()), typeRefString(b.ctx, elemTy))
 		}
 	}
@@ -58,7 +59,7 @@ func (b *Builder) ShuffleVector(v1, v2 llvm.ValueRef[llvm.VecT], mask llvm.Value
 		maskElem := binding.LLVMGetElementType(b.vecKindTy(op, core(mv)))
 		i32Ref := b.ctx.Int(32).Ref()
 		if binding.LLVMGetTypeKind(maskElem) != binding.LLVMIntegerTypeKind || !maskElem.Equal(i32Ref) {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "mask element must be i32, got %s", typeRefString(b.ctx, maskElem))
+			errs.Panicf(llvm.ErrTypeMismatch, op, "mask element must be i32, got %s", typeRefString(b.ctx, maskElem))
 		}
 	}
 	ref := binding.LLVMBuildShuffleVector(b.ref, a.Ref(), c.Ref(), mv.Ref(), name)

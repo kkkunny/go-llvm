@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestGetOrCreateFunction(t *testing.T) {
@@ -33,7 +34,7 @@ func TestGetOrCreateFunction(t *testing.T) {
 
 	// 同名不同签名是程序员错误：panic 而非静默复用/改名
 	other := ctx.Fn(ctx.Int(64), nil, false)
-	if err := llvm.Catch(func() { m.GetOrCreateFunction("f", other) }); err == nil || err.Reason != llvm.ErrTypeMismatch {
+	if err := errs.Catch(func() { m.GetOrCreateFunction("f", other) }); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("signature mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 }
@@ -63,7 +64,7 @@ func TestGetOrCreateGlobal(t *testing.T) {
 		t.Fatalf("GetOrCreateGlobal must not create @g.1:\n%s", got)
 	}
 
-	if err := llvm.Catch(func() { m.GetOrCreateGlobal("g", ctx.Int(64)) }); err == nil || err.Reason != llvm.ErrTypeMismatch {
+	if err := errs.Catch(func() { m.GetOrCreateGlobal("g", ctx.Int(64)) }); err == nil || err.Reason != llvm.ErrTypeMismatch {
 		t.Fatalf("type mismatch should panic ErrTypeMismatch, got %v", err)
 	}
 }

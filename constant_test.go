@@ -3,6 +3,8 @@ package llvm
 import (
 	"strings"
 	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestConstInt(t *testing.T) {
@@ -167,13 +169,13 @@ func TestConstNamedStructMismatch(t *testing.T) {
 	named.SetBody([]AnyType{i32, i32}, false)
 
 	// 元素个数不符
-	if err := Catch(func() {
+	if err := errs.Catch(func() {
 		ctx.ConstNamedStruct(named, ctx.ConstInt(i32, 1))
 	}); err == nil || err.Reason != ErrTypeMismatch {
 		t.Fatalf("元素个数不符应 panic ErrTypeMismatch, got %v", err)
 	}
 	// 元素类型不符
-	if err := Catch(func() {
+	if err := errs.Catch(func() {
 		ctx.ConstNamedStruct(named, ctx.ConstInt(i32, 1), ctx.ConstFloat(ctx.Float(FloatDouble), 1))
 	}); err == nil || err.Reason != ErrTypeMismatch {
 		t.Fatalf("元素类型不符应 panic ErrTypeMismatch, got %v", err)
@@ -209,7 +211,7 @@ func TestConstMismatchPanic(t *testing.T) {
 	i32 := ctx.Int(32)
 	f32 := ctx.Float(FloatSingle)
 
-	err := Catch(func() {
+	err := errs.Catch(func() {
 		ctx.ConstArray(i32, ctx.ConstFloat(f32, 1.0))
 	})
 	if err == nil || err.Reason != ErrTypeMismatch {
@@ -218,7 +220,7 @@ func TestConstMismatchPanic(t *testing.T) {
 
 	ctx2 := NewContext()
 	defer ctx2.Close()
-	err = Catch(func() {
+	err = errs.Catch(func() {
 		ctx.ConstArray(i32, ctx2.ConstInt(i32, 1))
 	})
 	if err == nil || err.Reason != ErrCrossContext {
@@ -237,7 +239,7 @@ func TestConstVector(t *testing.T) {
 	}
 
 	// 元素类型不符
-	if err := Catch(func() {
+	if err := errs.Catch(func() {
 		ctx.ConstVector(i32, ctx.ConstFloat(ctx.Float(FloatDouble), 1).Value)
 	}); err == nil || err.Reason != ErrTypeMismatch {
 		t.Fatalf("elem type mismatch should panic ErrTypeMismatch, got %v", err)

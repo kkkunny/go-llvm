@@ -38,7 +38,7 @@ func main() {
 	sum := b.Add(i32.Const(1), i32.Const(2), "sum")
 	b.Ret(sum)
 
-	// Verify 校验 IR 合法性；失败返回 *llvm.Error（可用 llvm.Catch 收敛为 error）
+	// Verify 校验 IR 合法性；失败返回 *llvm.Error
 	if err := module.Verify(); err != nil {
 		panic(err)
 	}

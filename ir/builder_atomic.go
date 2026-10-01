@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // ===== 内存序预检（语义契约，仅调试层） =====
@@ -16,7 +17,7 @@ func preOrderingFence(op string, o llvm.AtomicOrdering) {
 	switch o {
 	case llvm.AtomicAcquire, llvm.AtomicRelease, llvm.AtomicAcquireRelease, llvm.AtomicSequentiallyConsistent:
 	default:
-		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid fence ordering %d", o)
+		errs.Panicf(llvm.ErrInvalidArg, op, "invalid fence ordering %d", o)
 	}
 }
 
@@ -28,7 +29,7 @@ func preOrderingRMW(op string, o llvm.AtomicOrdering) {
 	switch o {
 	case llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicRelease, llvm.AtomicAcquireRelease, llvm.AtomicSequentiallyConsistent:
 	default:
-		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid atomic ordering %d", o)
+		errs.Panicf(llvm.ErrInvalidArg, op, "invalid atomic ordering %d", o)
 	}
 }
 
@@ -59,10 +60,10 @@ func preOrderingCmpXchg(op string, success, failure llvm.AtomicOrdering) {
 	switch failure {
 	case llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicSequentiallyConsistent:
 	default:
-		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid cmpxchg failure ordering %d", failure)
+		errs.Panicf(llvm.ErrInvalidArg, op, "invalid cmpxchg failure ordering %d", failure)
 	}
 	if orderingRank(failure) > orderingRank(success) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "failure ordering %d is stronger than success ordering %d", failure, success)
+		errs.Panicf(llvm.ErrInvalidArg, op, "failure ordering %d is stronger than success ordering %d", failure, success)
 	}
 }
 
@@ -74,7 +75,7 @@ func preOrderingLoad(op string, o llvm.AtomicOrdering) {
 	switch o {
 	case llvm.AtomicNotAtomic, llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicSequentiallyConsistent:
 	default:
-		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid load ordering %d", o)
+		errs.Panicf(llvm.ErrInvalidArg, op, "invalid load ordering %d", o)
 	}
 }
 
@@ -86,7 +87,7 @@ func preOrderingStore(op string, o llvm.AtomicOrdering) {
 	switch o {
 	case llvm.AtomicNotAtomic, llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicRelease, llvm.AtomicSequentiallyConsistent:
 	default:
-		llvm.Panicf(llvm.ErrInvalidArg, op, "invalid store ordering %d", o)
+		errs.Panicf(llvm.ErrInvalidArg, op, "invalid store ordering %d", o)
 	}
 }
 

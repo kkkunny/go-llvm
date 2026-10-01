@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // instNames 返回块内指令的名字（未命名指令为空字符串），按出现顺序。
@@ -116,7 +117,7 @@ func TestInsertPointUnpositioned(t *testing.T) {
 	if _, ok := b.CurrentBlock(); ok {
 		t.Fatal("restored unpositioned point should leave builder unpositioned")
 	}
-	if err := llvm.Catch(func() { b.RetVoid() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.RetVoid() }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("unpositioned builder should panic ErrInvalidArg, got %v", err)
 	}
 }
@@ -141,7 +142,7 @@ func TestInsertPointValidation(t *testing.T) {
 	// 把快照的块改成另一个块：指令不再属于该块，恢复必须被拦截
 	blk2 := fn.NewBlock("second")
 	p.blk = blk2
-	if err := llvm.Catch(func() { b.RestoreInsertPoint(p) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { b.RestoreInsertPoint(p) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("instruction outside saved block should panic ErrInvalidArg, got %v", err)
 	}
 }

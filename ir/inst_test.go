@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // TestCallArgAccessors 覆盖 Call 的实参读写、被调函数与 tail 标志角色方法。
@@ -80,13 +81,13 @@ func TestCallArgPrecheck(t *testing.T) {
 	defer b.Close()
 
 	call := b.Call[llvm.IntT](g, []llvm.AnyValue{ctx.ConstInt(i32, 1).Value}, "c")
-	if err := llvm.Catch(func() { call.Arg(3) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { call.Arg(3) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Call.Arg out of range should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { call.SetArg(3, ctx.ConstInt(i32, 1).Value) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { call.SetArg(3, ctx.ConstInt(i32, 1).Value) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Call.SetArg out of range should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { fn.Param(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { fn.Param(5) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Function.Param out of range should panic ErrInvalidArg, got %v", err)
 	}
 	b.Ret(call)

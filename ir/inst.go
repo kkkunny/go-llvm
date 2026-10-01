@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Call 调用指令角色（内嵌 Value[T]，自动实现 llvm.ValueRef/AnyValue）
@@ -20,7 +21,7 @@ func (c Call[T]) ArgCount() uint32 {
 func (c Call[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.Call.Arg"
 	if checks.Debug && i >= c.ArgCount() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	ref := binding.LLVMGetOperand(c.Ref(), i)
 	return llvm.ValueOf(c.Context(), c.Lifetime(), ref)
@@ -30,7 +31,7 @@ func (c Call[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 func (c Call[T]) SetArg(i uint32, v llvm.AnyValue) {
 	const op = "ir.Call.SetArg"
 	if checks.Debug && i >= c.ArgCount() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	c.Context().CheckValues(op, v)
 	binding.LLVMSetOperand(c.Ref(), i, v.Ref())
@@ -91,7 +92,7 @@ func (p Phi[T]) AddIncoming(incomings ...Incoming[T]) {
 			phiTy := typeOfVal(p.Ref(), p.RawType())
 			inTy := typeOfVal(in.Value.Ref(), in.Value.RawType())
 			if !inTy.Equal(phiTy) {
-				llvm.Panicf(llvm.ErrTypeMismatch, op, "incoming type %s differs from phi type %s",
+				errs.Panicf(llvm.ErrTypeMismatch, op, "incoming type %s differs from phi type %s",
 					typeString(p.Context(), in.Value.Ref()), typeString(p.Context(), p.Ref()))
 			}
 		}
@@ -110,7 +111,7 @@ func (p Phi[T]) Count() uint32 {
 func (p Phi[T]) IncomingAt(i uint32) Incoming[T] {
 	const op = "ir.Phi.IncomingAt"
 	if checks.Debug && i >= p.Count() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "incoming index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "incoming index %d out of range", i)
 	}
 	val := binding.LLVMGetIncomingValue(p.Ref(), i)
 	blk := binding.LLVMGetIncomingBlock(p.Ref(), i)

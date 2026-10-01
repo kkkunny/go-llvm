@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestAsRoles(t *testing.T) {
@@ -204,10 +205,10 @@ func TestTerminatorPrecheck(t *testing.T) {
 	if n := SuccessorCount(br); n != 1 {
 		t.Fatalf("successor count = %d, want 1", n)
 	}
-	if err := llvm.Catch(func() { Successor(br, 1) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { Successor(br, 1) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("successor out of range should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { SetSuccessor(br, 1, then) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { SetSuccessor(br, 1, then) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("SetSuccessor out of range should panic ErrInvalidArg, got %v", err)
 	}
 	b.MoveToEnd(then)
@@ -233,22 +234,22 @@ func TestSuccessorOpsRejectNonTerminator(t *testing.T) {
 	defer b.Close()
 
 	icmp := b.ICmp(llvm.IntEQ, fn.ParamAs[llvm.IntT](0), ctx.ConstInt(i32, 0), "c")
-	if err := llvm.Catch(func() { SuccessorCount(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { SuccessorCount(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("SuccessorCount on non-terminator should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { Successor(icmp, 0) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { Successor(icmp, 0) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Successor on non-terminator should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { SetSuccessor(icmp, 0, exit) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { SetSuccessor(icmp, 0, exit) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("SetSuccessor on non-terminator should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { IsConditional(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { IsConditional(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("IsConditional on non-terminator should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { Condition(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { Condition(icmp) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("Condition on non-terminator should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { SetCondition(icmp, ctx.ConstInt(i32, 1)) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { SetCondition(icmp, ctx.ConstInt(i32, 1)) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("SetCondition on non-terminator should panic ErrInvalidArg, got %v", err)
 	}
 
@@ -316,7 +317,7 @@ func TestSwitchConditionAccess(t *testing.T) {
 			t.Errorf("%d case switch condition after SetCondition = %s, want %s", n, got, want)
 		}
 		// nil 条件（崩溃类地板）在两种构建模式下都必须 panic ErrInvalidArg
-		if err := llvm.Catch(func() { SetCondition(sw, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		if err := errs.Catch(func() { SetCondition(sw, nil) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 			t.Errorf("%d case switch: SetCondition(nil) should panic ErrInvalidArg, got %v", n, err)
 		}
 	}
@@ -337,10 +338,10 @@ func TestSwitchConditionAccess(t *testing.T) {
 		{"unconditional br", br},
 		{"ret", ret},
 	} {
-		if err := llvm.Catch(func() { Condition(tc.term) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		if err := errs.Catch(func() { Condition(tc.term) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 			t.Errorf("%s: Condition should panic ErrInvalidArg, got %v", tc.name, err)
 		}
-		if err := llvm.Catch(func() { SetCondition(tc.term, cond) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		if err := errs.Catch(func() { SetCondition(tc.term, cond) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 			t.Errorf("%s: SetCondition should panic ErrInvalidArg, got %v", tc.name, err)
 		}
 	}

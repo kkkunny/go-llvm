@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestMemoryBufferRoundTrip(t *testing.T) {
@@ -57,7 +58,7 @@ func TestMemoryBufferRefAndFinalize(t *testing.T) {
 		t.Fatal("finalize 后应标记 closed 且不再 Alive")
 	}
 	buf.finalize() // 二次调用提前返回，不得重复释放
-	if err := Catch(func() { buf.Bytes() }); err == nil || err.Reason != ErrUseAfterFree {
+	if err := errs.Catch(func() { buf.Bytes() }); err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("finalize 后使用应 panic ErrUseAfterFree, got %v", err)
 	}
 	if err := buf.Close(); err == nil || err.(*Error).Reason != ErrClosed {
@@ -86,7 +87,7 @@ func TestMemoryBufferAfterClose(t *testing.T) {
 	if buf.Alive() {
 		t.Fatal("closed buffer should not be alive")
 	}
-	if err := Catch(func() { buf.Bytes() }); err == nil || err.Reason != ErrUseAfterFree {
+	if err := errs.Catch(func() { buf.Bytes() }); err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("Bytes after close should panic ErrUseAfterFree, got %v", err)
 	}
 }

@@ -1,6 +1,10 @@
 package llvm
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
+)
 
 func TestStructAllElems(t *testing.T) {
 	ctx := NewContext()
@@ -54,7 +58,7 @@ func TestTypeOfGoCacheLifetime(t *testing.T) {
 	if err := ctx.Close(); err != nil {
 		t.Fatal(err)
 	}
-	err := Catch(func() { _, _ = TypeOf[S](ctx) })
+	err := errs.Catch(func() { _, _ = TypeOf[S](ctx) })
 	if err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("cached mapping on closed context should panic ErrUseAfterFree, got %v", err)
 	}

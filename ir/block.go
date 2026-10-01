@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Block 基本块
@@ -20,11 +21,11 @@ func (b Block) Ref() binding.LLVMBasicBlockRef { return b.ref }
 // Check 基本块可用性前置校验（nil/所属 Context 或生命周期失效）
 func (b Block) Check(op string) {
 	if b.ref.IsNil() || b.ctx == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil block")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil block")
 	}
 	b.ctx.CheckAlive(op)
 	if b.life == nil || !b.life.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "block is freed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "block is freed")
 	}
 }
 

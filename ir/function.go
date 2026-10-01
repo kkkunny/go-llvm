@@ -7,6 +7,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Function 函数角色（内嵌 Value[FnT]，自动实现 llvm.ValueRef/AnyValue）
@@ -16,7 +17,7 @@ type Function struct {
 
 // Signature 函数类型
 func (f Function) Signature() llvm.FnType {
-	return llvm.AsFnType(llvm.TypeOfRef(f.Context(), binding.LLVMGetFunctionType(f.Ref())))
+	return llvm.MustFnType(llvm.TypeOfRef(f.Context(), binding.LLVMGetFunctionType(f.Ref())))
 }
 
 // CountParams 参数个数
@@ -28,7 +29,7 @@ func (f Function) CountParams() uint {
 func (f Function) Param(i uint) Param {
 	const op = "ir.Function.Param"
 	if checks.Debug && i >= f.CountParams() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "parameter index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "parameter index %d out of range", i)
 	}
 	ref := binding.LLVMGetParam(f.Ref(), uint32(i))
 	return Param{Value: llvm.NewValue[llvm.DynT](f.Context(), f.Lifetime(), ref)}
@@ -123,7 +124,7 @@ func (f Function) SetPersonality(pers llvm.ValueRef[llvm.FnT]) {
 	const op = "ir.Function.SetPersonality"
 	pv := pers.AsValue()
 	if pv.IsNil() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil personality")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil personality")
 	}
 	f.Context().CheckValues(op, pv)
 	binding.LLVMSetPersonalityFn(f.Ref(), pv.Ref())

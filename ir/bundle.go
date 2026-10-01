@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // OperandBundle 调用的操作数捆绑（如 funclet/clang.arc.attachedcall/statepoint）。
@@ -30,7 +31,7 @@ func (b OperandBundle) Tag() string {
 // check 前置校验（崩溃类地板：已关闭）
 func (b OperandBundle) check(op string) {
 	if b.ref.IsNil() || b.closed {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "operand bundle is closed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "operand bundle is closed")
 	}
 }
 

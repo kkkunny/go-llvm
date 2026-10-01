@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // asInst 按操作码把任意值铸成指令角色：opcode 不符返回 false（不 panic）。
@@ -99,10 +100,10 @@ func AsCatchSwitch(v llvm.AnyValue) (CatchSwitch, bool) {
 // nil/已释放或非终结指令一律 panic ErrInvalidArg，避免 LLVM-C 对非终结指令的 UB（挂起/SIGSEGV）。
 func requireTerminator(op string, term llvm.AnyValue) {
 	if term == nil || !term.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead terminator")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead terminator")
 	}
 	if binding.LLVMIsATerminatorInst(term.Ref()).IsNil() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "not a terminator instruction")
+		errs.Panicf(llvm.ErrInvalidArg, op, "not a terminator instruction")
 	}
 }
 
@@ -118,7 +119,7 @@ func Successor(term llvm.AnyValue, i uint32) Block {
 	const op = "ir.Successor"
 	requireTerminator(op, term)
 	if checks.Debug && i >= SuccessorCount(term) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "successor index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "successor index %d out of range", i)
 	}
 	return wrapBlock(term.Context(), term.Lifetime(), binding.LLVMGetSuccessor(term.Ref(), i))
 }
@@ -129,10 +130,10 @@ func SetSuccessor(term llvm.AnyValue, i uint32, blk Block) {
 	requireTerminator(op, term)
 	blk.Check(op)
 	if term.Context() != blk.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
 	}
 	if checks.Debug && i >= SuccessorCount(term) {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "successor index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "successor index %d out of range", i)
 	}
 	binding.LLVMSetSuccessor(term.Ref(), i, blk.Ref())
 }
@@ -169,7 +170,7 @@ func Condition(term llvm.AnyValue) llvm.Value[llvm.DynT] {
 	if ok && got == OpBr && binding.LLVMIsConditional(term.Ref()) {
 		return llvm.ValueOf(term.Context(), term.Lifetime(), binding.LLVMGetCondition(term.Ref()))
 	}
-	llvm.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
+	errs.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
 	return llvm.Value[llvm.DynT]{}
 }
 
@@ -179,10 +180,10 @@ func SetCondition(term llvm.AnyValue, cond llvm.AnyValue) {
 	const op = "ir.SetCondition"
 	requireTerminator(op, term)
 	if cond == nil || !cond.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead condition")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead condition")
 	}
 	if term.Context() != cond.Context() {
-		llvm.Panicf(llvm.ErrCrossContext, op, "condition belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "condition belongs to another context")
 	}
 	got, ok := OpOf(term)
 	if ok && got == OpSwitch {
@@ -193,5 +194,5 @@ func SetCondition(term llvm.AnyValue, cond llvm.AnyValue) {
 		binding.LLVMSetCondition(term.Ref(), cond.Ref())
 		return
 	}
-	llvm.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
+	errs.Panicf(llvm.ErrInvalidArg, op, "terminator is not conditional")
 }

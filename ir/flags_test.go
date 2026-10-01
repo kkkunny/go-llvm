@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestFastMathFlags(t *testing.T) {
@@ -184,10 +185,10 @@ func TestFastMathPrecheck(t *testing.T) {
 	if CanFastMath(add) {
 		t.Fatal("integer add should not accept fast-math flags")
 	}
-	if err := llvm.Catch(func() { FastMathOf(add) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { FastMathOf(add) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("FastMathOf on integer add should panic ErrInvalidArg, got %v", err)
 	}
-	if err := llvm.Catch(func() { SetFastMath(add, FastMathNoNaNs) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { SetFastMath(add, FastMathNoNaNs) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("SetFastMath on integer add should panic ErrInvalidArg, got %v", err)
 	}
 	b.Ret(add)

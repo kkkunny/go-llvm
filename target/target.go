@@ -3,6 +3,7 @@ package target
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Arch 目标架构
@@ -86,7 +87,7 @@ func InitNative() error {
 		{"target.InitNativeDisassembler", binding.LLVMInitializeNativeDisassembler},
 	} {
 		if err := f.fn(); err != nil {
-			return llvm.WrapError(llvm.ErrCodeGen, f.op, err)
+			return errs.WrapError(llvm.ErrCodeGen, f.op, err)
 		}
 	}
 	return nil
@@ -96,7 +97,7 @@ func InitNative() error {
 func Init(arch Arch) {
 	init, ok := archInits[arch]
 	if !ok {
-		llvm.Panicf(llvm.ErrInvalidArg, "target.Init", "unknown arch %d", arch)
+		errs.Panicf(llvm.ErrInvalidArg, "target.Init", "unknown arch %d", arch)
 	}
 	init.info()
 	init.target()
@@ -131,7 +132,7 @@ func FromName(name string) (Target, bool) {
 func FromTriple(triple string) (Target, error) {
 	ref, err := binding.LLVMGetTargetFromTriple(triple)
 	if err != nil {
-		return Target{}, llvm.WrapError(llvm.ErrNotFound, "target.FromTriple", err)
+		return Target{}, errs.WrapError(llvm.ErrNotFound, "target.FromTriple", err)
 	}
 	return Target{ref: ref}, nil
 }

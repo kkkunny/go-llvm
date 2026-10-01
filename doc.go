@@ -25,6 +25,8 @@
 //
 // # Error handling
 //
-// Recoverable runtime failures return an error. Programmer errors panic with an [Error];
-// recover such panics with [Catch], or use [Try] when a value is produced.
+// Recoverable runtime failures return an error. Programmer errors panic with an [Error],
+// which carries the error kind, the operation and a message; recover it in ordinary Go and
+// inspect it with a type assertion or errors.As. Error construction and panic-to-error
+// convergence are internal mechanisms and are not part of the public API.
 package llvm

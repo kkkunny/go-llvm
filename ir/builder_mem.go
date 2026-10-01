@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Alloca alloca 指令角色（内嵌 Value[PtrT]，自动实现 llvm.ValueRef/AnyValue）
@@ -108,10 +109,10 @@ func (b *Builder) Alloca(t llvm.AnyType, name string) Alloca {
 	const op = "ir.Builder.Alloca"
 	b.pre(op)
 	if t == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil type")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil type")
 	}
 	if t.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildAlloca(b.ref, t.Ref(), name)
 	return Alloca{Value: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
@@ -123,7 +124,7 @@ func (b *Builder) Load[U llvm.Kind](p llvm.ValueRef[llvm.PtrT], t llvm.TypeRef[U
 	pv, tt := p.AsValue(), t.AsType()
 	b.pre(op, core(pv))
 	if tt.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildLoad(b.ref, tt.Ref(), pv.Ref(), name)
 	return Load[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
@@ -189,10 +190,10 @@ func (b *Builder) gepPre(op string, elem llvm.AnyType, p llvm.ValueRef[llvm.PtrT
 	pv := p.AsValue()
 	b.pre(op, core(pv))
 	if elem == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil element type")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil element type")
 	}
 	if elem.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
 	}
 	return pv
 }
@@ -265,10 +266,10 @@ func (b *Builder) Malloc(t llvm.AnyType, name string) Call[llvm.PtrT] {
 	const op = "ir.Builder.Malloc"
 	b.pre(op)
 	if t == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil type")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil type")
 	}
 	if t.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildMalloc(b.ref, t.Ref(), name)
 	return Call[llvm.PtrT]{Value: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}
@@ -280,10 +281,10 @@ func (b *Builder) MallocArray(elem llvm.AnyType, n llvm.ValueRef[llvm.IntT], nam
 	nv := n.AsValue()
 	b.pre(op, core(nv))
 	if elem == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil element type")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil element type")
 	}
 	if elem.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "element type belongs to another context")
 	}
 	ref := binding.LLVMBuildArrayMalloc(b.ref, elem.Ref(), nv.Ref(), name)
 	return Call[llvm.PtrT]{Value: llvm.NewValue[llvm.PtrT](b.ctx, b.inserted.life, ref)}

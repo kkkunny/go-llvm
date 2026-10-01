@@ -8,6 +8,7 @@ import (
 
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Context LLVM 上下文，也是资源所有权的根：Close 时级联关闭所有登记的子资源
@@ -60,7 +61,7 @@ func checkLinkedVersion() {
 func checkVersionMatch(get func() (uint32, uint32, uint32), headerMajor uint32, headerString string) {
 	major, minor, patch := get()
 	if major != headerMajor {
-		Panicf(ErrVersionMismatch, "llvm.NewContext",
+		errs.Panicf(ErrVersionMismatch, "llvm.NewContext",
 			"linked LLVM library is %d.%d.%d but the headers were compiled against %s (major %d): install the development package matching the library or regenerate the cgo flags for that version",
 			major, minor, patch, headerString, headerMajor)
 	}
@@ -151,7 +152,7 @@ func (ctx *Context) Alive() bool { return ctx.life.Alive() }
 // CheckAlive 校验上下文存活；类型/常量/值构造入口统一调用（供 llvm/* 子包使用）
 func (ctx *Context) CheckAlive(op string) {
 	if !ctx.life.Alive() {
-		errPanic(ErrUseAfterFree, op, "context is closed")
+		errs.Panicf(ErrUseAfterFree, op, "context is closed")
 	}
 }
 

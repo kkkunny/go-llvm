@@ -3,6 +3,7 @@ package ir
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Comdat comdat 角色（Module 拥有，随模块失效）
@@ -25,11 +26,11 @@ func (c Comdat) Lifetime() *llvm.Lifetime { return c.life }
 // Check comdat 可用性前置校验
 func (c Comdat) Check(op string) {
 	if c.ref.IsNil() || c.ctx == nil {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil comdat")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil comdat")
 	}
 	c.ctx.CheckAlive(op)
 	if c.life == nil || !c.life.Alive() {
-		llvm.Panicf(llvm.ErrUseAfterFree, op, "comdat is freed")
+		errs.Panicf(llvm.ErrUseAfterFree, op, "comdat is freed")
 	}
 }
 
@@ -56,7 +57,7 @@ func (m *Module) GetOrInsertComdat(name string) Comdat {
 	const op = "ir.Module.GetOrInsertComdat"
 	m.Check(op)
 	if name == "" {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "empty comdat name")
+		errs.Panicf(llvm.ErrInvalidArg, op, "empty comdat name")
 	}
 	ref := binding.LLVMGetOrInsertComdat(m.ref, name)
 	return Comdat{ref: ref, ctx: m.ctx, life: m.life, name: name}
@@ -78,7 +79,7 @@ func (g Global) SetComdat(c Comdat) {
 	g.Check(op)
 	c.Check(op)
 	if c.ctx != g.Context() {
-		llvm.Panicf(llvm.ErrCrossContext, op, "comdat belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "comdat belongs to another context")
 	}
 	binding.LLVMSetComdat(g.Ref(), c.ref)
 }

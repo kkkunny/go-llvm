@@ -8,6 +8,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -141,7 +142,7 @@ func (j *LLJIT) compileAdapter(ft reflect.Type, e *adapterEntry) error {
 	sig, _, err := llvm.FnSignatureOfGo(ctx, ft)
 	if err != nil {
 		ctx.Close()
-		return llvm.WrapError(llvm.ErrUnsupported, op, err)
+		return errs.WrapError(llvm.ErrUnsupported, op, err)
 	}
 
 	i64 := ctx.Int(64)
@@ -170,11 +171,11 @@ func (j *LLJIT) compileAdapter(ft reflect.Type, e *adapterEntry) error {
 	b.Ret(ret)
 	if err := b.Close(); err != nil {
 		ctx.Close()
-		return llvm.WrapError(llvm.ErrInternal, op, err)
+		return errs.WrapError(llvm.ErrInternal, op, err)
 	}
 	if err := m.Verify(); err != nil {
 		ctx.Close()
-		return llvm.WrapError(llvm.ErrInternal, op, err)
+		return errs.WrapError(llvm.ErrInternal, op, err)
 	}
 	if err := j.AddIRModule(m); err != nil {
 		return err
@@ -191,18 +192,18 @@ func (j *LLJIT) compileAdapter(ft reflect.Type, e *adapterEntry) error {
 func unpackSlot(b *ir.Builder, ctx *llvm.Context, raw llvm.Value[llvm.IntT], ty llvm.AnyType, k bridgeSlotKind) llvm.AnyValue {
 	switch k {
 	case slotI1:
-		return b.Trunc(raw, llvm.AsIntType(ty), "").Dyn()
+		return b.Trunc(raw, llvm.MustIntType(ty), "").Dyn()
 	case slotI32:
-		return b.Trunc(raw, llvm.AsIntType(ty), "").Dyn()
+		return b.Trunc(raw, llvm.MustIntType(ty), "").Dyn()
 	case slotI64:
 		return raw.Dyn()
 	case slotF32:
 		i32 := b.Trunc(raw, ctx.Int(32), "")
-		return b.BitCast(i32, llvm.AsFloatType(ty), "").Dyn()
+		return b.BitCast(i32, llvm.MustFloatType(ty), "").Dyn()
 	case slotF64:
-		return b.BitCast(raw, llvm.AsFloatType(ty), "").Dyn()
+		return b.BitCast(raw, llvm.MustFloatType(ty), "").Dyn()
 	case slotPtr:
-		return b.IntToPtr(raw, llvm.AsPtrType(ty), "").Dyn()
+		return b.IntToPtr(raw, llvm.MustPtrType(ty), "").Dyn()
 	}
 	return raw.Dyn()
 }

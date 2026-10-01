@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // TestModuleAccessors 覆盖 Module/Builder 的 Context/Lifetime/Ref 访问器与关闭上下文上的创建。
@@ -33,7 +34,7 @@ func TestModuleAccessors(t *testing.T) {
 	// 跨 Context 的函数类型
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
-	if err := llvm.Catch(func() {
+	if err := errs.Catch(func() {
 		m.NewFunction("bad", ctx2.Fn(ctx2.Void(), nil, false))
 	}); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign function type should panic ErrCrossContext, got %v", err)
@@ -44,10 +45,10 @@ func TestModuleAccessors(t *testing.T) {
 	if err := dead.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := llvm.Catch(func() { NewModule(dead, "x") }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { NewModule(dead, "x") }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("NewModule on closed context should panic ErrUseAfterFree, got %v", err)
 	}
-	if err := llvm.Catch(func() { NewBuilder(dead) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { NewBuilder(dead) }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("NewBuilder on closed context should panic ErrUseAfterFree, got %v", err)
 	}
 }
@@ -66,7 +67,7 @@ func TestModuleMustVerifyOnLink(t *testing.T) {
 	g := src.NewGlobal("bad", ctx.Int(32))
 	g.SetInitializer(ctx.ConstFloat(ctx.Float(llvm.FloatDouble), 1).Value)
 
-	if err := llvm.Catch(func() { _ = dst.Link(src) }); err == nil || err.Reason != llvm.ErrVerify {
+	if err := errs.Catch(func() { _ = dst.Link(src) }); err == nil || err.Reason != llvm.ErrVerify {
 		t.Fatalf("linking invalid module should panic ErrVerify, got %v", err)
 	}
 	// 边界校验失败发生在 Disown 之前：源模块仍可用
@@ -250,7 +251,7 @@ func TestModuleDisown(t *testing.T) {
 	if v.Alive() {
 		t.Fatal("value should be dead immediately after disown")
 	}
-	if err := llvm.Catch(func() { _ = m.String() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+	if err := errs.Catch(func() { _ = m.String() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("use after disown should panic ErrUseAfterFree, got %v", err)
 	}
 	// 注销后 Context.Close 不应触碰该模块

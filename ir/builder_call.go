@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Call 插入函数调用；返回种类 U 在调用前与函数返回类型比对，不符 panic（语义契约，仅调试层）
@@ -28,12 +29,12 @@ func callSig(ctx *llvm.Context, callee binding.LLVMValueRef, calleeTy binding.LL
 		ty = binding.LLVMTypeOf(callee)
 	}
 	if binding.LLVMGetTypeKind(ty) == binding.LLVMFunctionTypeKind {
-		return llvm.AsFnType(llvm.TypeOfRef(ctx, ty))
+		return llvm.MustFnType(llvm.TypeOfRef(ctx, ty))
 	}
 	if binding.LLVMGetValueKind(callee) == binding.LLVMInlineAsmValueKind {
-		return llvm.AsFnType(llvm.TypeOfRef(ctx, binding.LLVMGetInlineAsmFunctionType(callee)))
+		return llvm.MustFnType(llvm.TypeOfRef(ctx, binding.LLVMGetInlineAsmFunctionType(callee)))
 	}
-	return llvm.AsFnType(llvm.TypeOfRef(ctx, binding.LLVMGetFunctionType(callee)))
+	return llvm.MustFnType(llvm.TypeOfRef(ctx, binding.LLVMGetFunctionType(callee)))
 }
 
 // CallIndirect 通过函数指针调用（不透明指针 + 签名）；返回种类 U 在调用前与签名返回类型比对，不符 panic（仅调试层）
@@ -42,7 +43,7 @@ func (b *Builder) CallIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], sig 
 	pv := fnPtr.AsValue()
 	b.pre(op, core(pv))
 	if sig.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "signature belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "signature belongs to another context")
 	}
 	if checks.Debug {
 		checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
@@ -84,16 +85,16 @@ func (b *Builder) checkCallArgs(op string, sig llvm.FnType, args []llvm.AnyValue
 	n := binding.LLVMCountParamTypes(sig.Ref())
 	got := uint(len(args))
 	if got < uint(n) {
-		llvm.Panicf(llvm.ErrTypeMismatch, op, "expect at least %d arguments, got %d", n, got)
+		errs.Panicf(llvm.ErrTypeMismatch, op, "expect at least %d arguments, got %d", n, got)
 	}
 	if got > uint(n) && !sig.IsVarArg() {
-		llvm.Panicf(llvm.ErrTypeMismatch, op, "expect %d arguments, got %d", n, got)
+		errs.Panicf(llvm.ErrTypeMismatch, op, "expect %d arguments, got %d", n, got)
 	}
 	if n > 0 {
 		params := binding.LLVMGetParamTypes(sig.Ref())
 		for i, p := range params {
 			if !p.Equal(anyValType(args[i])) {
-				llvm.Panicf(llvm.ErrTypeMismatch, op, "argument %d type %s does not match parameter type %s",
+				errs.Panicf(llvm.ErrTypeMismatch, op, "argument %d type %s does not match parameter type %s",
 					i, typeString(b.ctx, args[i].Ref()), typeRefString(b.ctx, p))
 			}
 		}
@@ -107,7 +108,7 @@ func checkKind[U llvm.Kind](op string, ctx *llvm.Context, ref binding.LLVMTypeRe
 		if e, ok := err.(*llvm.Error); ok {
 			msg = e.Msg
 		}
-		llvm.Panicf(llvm.ErrTypeMismatch, op, "%s", msg)
+		errs.Panicf(llvm.ErrTypeMismatch, op, "%s", msg)
 	}
 }
 
@@ -118,19 +119,19 @@ func elementTypeAt(op string, ctx *llvm.Context, agg binding.LLVMTypeRef, indice
 		switch binding.LLVMGetTypeKind(cur) {
 		case binding.LLVMStructTypeKind:
 			if idx >= binding.LLVMCountStructElementTypes(cur) {
-				llvm.Panicf(llvm.ErrInvalidArg, op, "index %d out of range at depth %d", idx, depth)
+				errs.Panicf(llvm.ErrInvalidArg, op, "index %d out of range at depth %d", idx, depth)
 			}
 			cur = binding.LLVMStructGetTypeAtIndex(cur, idx)
 		case binding.LLVMArrayTypeKind:
 			if uint64(idx) >= binding.LLVMGetArrayLength2(cur) {
-				llvm.Panicf(llvm.ErrInvalidArg, op, "index %d out of range at depth %d", idx, depth)
+				errs.Panicf(llvm.ErrInvalidArg, op, "index %d out of range at depth %d", idx, depth)
 			}
 			cur = binding.LLVMGetElementType(cur)
 		case binding.LLVMVectorTypeKind, binding.LLVMScalableVectorTypeKind:
 			// extractvalue/insertvalue 只接受 struct/array；向量元素路径会让 libLLVM 崩溃
-			llvm.Panicf(llvm.ErrInvalidArg, op, "vector is not an aggregate type at depth %d, use the ExtractElement/InsertElement family of APIs instead", depth)
+			errs.Panicf(llvm.ErrInvalidArg, op, "vector is not an aggregate type at depth %d, use the ExtractElement/InsertElement family of APIs instead", depth)
 		default:
-			llvm.Panicf(llvm.ErrInvalidArg, op, "cannot index into %s at depth %d", typeRefString(ctx, cur), depth)
+			errs.Panicf(llvm.ErrInvalidArg, op, "cannot index into %s at depth %d", typeRefString(ctx, cur), depth)
 		}
 	}
 	return cur
@@ -142,7 +143,7 @@ func (b *Builder) PHI[T llvm.Kind](t llvm.TypeRef[T], name string) Phi[T] {
 	tt := t.AsType()
 	b.pre(op)
 	if tt.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildPhi(b.ref, tt.Ref(), name)
 	return Phi[T]{Value: llvm.NewValue[T](b.ctx, b.inserted.life, ref)}
@@ -153,7 +154,7 @@ func (b *Builder) ExtractValue[U llvm.Kind](agg llvm.AnyValue, indices []uint32,
 	const op = "ir.Builder.ExtractValue"
 	b.pre(op, coreAny(agg))
 	if len(indices) == 0 {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "empty index path")
+		errs.Panicf(llvm.ErrInvalidArg, op, "empty index path")
 	}
 	if checks.Debug {
 		elemTy := elementTypeAt(op, b.ctx, anyValType(agg), indices)
@@ -172,12 +173,12 @@ func (b *Builder) InsertValue[T llvm.Kind](agg llvm.ValueRef[T], v llvm.AnyValue
 	av := agg.AsValue()
 	b.pre(op, core(av), coreAny(v))
 	if len(indices) == 0 {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "empty index path")
+		errs.Panicf(llvm.ErrInvalidArg, op, "empty index path")
 	}
 	if checks.Debug {
 		elemTy := elementTypeAt(op, b.ctx, typeOfVal(av.Ref(), av.RawType()), indices)
 		if !elemTy.Equal(anyValType(v)) {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "value type %s does not match element type %s at path %v",
+			errs.Panicf(llvm.ErrTypeMismatch, op, "value type %s does not match element type %s at path %v",
 				typeString(b.ctx, v.Ref()), typeRefString(b.ctx, elemTy), indices)
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // ===== 整数算术/位运算 =====
@@ -194,8 +195,8 @@ func (b *Builder) Select[T llvm.Kind](cond llvm.ValueRef[llvm.IntT], x, y llvm.V
 	b.pre(op, core(cv), core(xv), core(yv))
 	b.preSameType(op, core(xv), core(yv))
 	if checks.Debug {
-		if bits := llvm.AsIntType(cv.Type()).Bits(); bits != 1 {
-			llvm.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
+		if bits := llvm.MustIntType(cv.Type()).Bits(); bits != 1 {
+			errs.Panicf(llvm.ErrTypeMismatch, op, "condition must be i1, got i%d", bits)
 		}
 	}
 	ref := binding.LLVMBuildSelect(b.ref, cv.Ref(), xv.Ref(), yv.Ref(), name)

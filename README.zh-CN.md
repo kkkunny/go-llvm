@@ -113,11 +113,11 @@ func main() {
   `i32.Const(5)`、`i32.ConstS(-1)`、`f64.Const(3.14)`。
 * 动态来源（解析出的 IR、指令迭代）产出 `llvm.Value[llvm.DynT]`；用泛型方法 `As[U]()` /
   `MustAs[U]()` 恢复其种类。
-* 可恢复的失败返回 `error`；程序员错误 `panic(*llvm.Error)`，`llvm.Catch` 可将其转回 error，
-  `llvm.Try` 在转回 error 的同时返回值。校验分三层：
+* 可恢复的失败返回 `error`；程序员错误 `panic(*llvm.Error)`，携带 `Reason`/`Op`/`Msg`，
+  可用普通 Go `recover` 捕获后经 `errors.As` 检查；错误构造与 panic 收敛属于内部机制，不公开。校验分三层：
   * **崩溃类地板（任何构建都开，纯 Go）**：nil 句柄、已释放（`ErrUseAfterFree`）、跨 `Context`、
     已关闭的 Context/Module/Builder。缺少它们时 cgo 内的非法句柄是 SIGSEGV —— `recover` 接不住、
-    进程直接死且没有 Go 堆栈；有了它们，所有误用都退化为可 `Catch` 的 Go panic。
+    进程直接死且没有 Go 堆栈；有了它们，所有误用都退化为可 recover 的 Go panic。
   * **语义契约（仅调试构建）**：操作数类型一致、对齐为 2 的幂、索引越界、原子序合法性、
     调用实参数量/类型、结果种类。这些在 `-tags=llvm_release` 信任构建下**编译期整体消除**，
     误用交由 LLVM assert + `Module.Verify()` 兜底（与 C/Rust/inkwell 的 release 语义一致）。

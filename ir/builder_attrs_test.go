@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 func TestAttributeKinds(t *testing.T) {
@@ -14,7 +15,7 @@ func TestAttributeKinds(t *testing.T) {
 	if llvm.AttributeKindForName("definitely-not-an-attribute") != 0 {
 		t.Fatal("unknown kind should be 0")
 	}
-	if err := llvm.Catch(func() { llvm.MustAttributeKind("definitely-not-an-attribute") }); err == nil || err.Reason != llvm.ErrNotFound {
+	if err := errs.Catch(func() { llvm.MustAttributeKind("definitely-not-an-attribute") }); err == nil || err.Reason != llvm.ErrNotFound {
 		t.Fatalf("unknown kind should panic ErrNotFound, got %v", err)
 	}
 
@@ -40,7 +41,7 @@ func TestAttributeKinds(t *testing.T) {
 		t.Fatalf("byval attr = %s", byval.String())
 	}
 
-	if err := llvm.Catch(func() { ctx.EnumAttr(0, 0) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+	if err := errs.Catch(func() { ctx.EnumAttr(0, 0) }); err == nil || err.Reason != llvm.ErrInvalidArg {
 		t.Fatalf("zero kind should panic ErrInvalidArg, got %v", err)
 	}
 }
@@ -122,7 +123,7 @@ func TestFunctionAttrs(t *testing.T) {
 	ctx2 := llvm.NewContext()
 	defer ctx2.Close()
 	foreign := ctx2.EnumAttr(llvm.AttrNoInline, 0)
-	if err := llvm.Catch(func() { fn.AddAttr(llvm.AttrFunction, foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
+	if err := errs.Catch(func() { fn.AddAttr(llvm.AttrFunction, foreign) }); err == nil || err.Reason != llvm.ErrCrossContext {
 		t.Fatalf("foreign attr should panic ErrCrossContext, got %v", err)
 	}
 }

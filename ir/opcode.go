@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Op 指令操作码；转发 binding.LLVMOpcode（仿 llvm.Linkage 先例）
@@ -133,7 +134,7 @@ func (o Op) IsTerminator() bool {
 func OpOf(inst llvm.AnyValue) (Op, bool) {
 	const op = "ir.OpOf"
 	if inst == nil || !inst.Alive() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	ref := inst.Ref()
 	if binding.LLVMGetValueKind(ref) != binding.LLVMInstructionValueKind {

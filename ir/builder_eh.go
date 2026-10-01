@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
+	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
 // Invoke invoke 指令角色（内嵌 Value[T]）；实参操作同 Call（LLVM 侧同为 CallBase），
@@ -31,7 +32,7 @@ func (c Invoke[T]) ArgCount() uint32 {
 func (c Invoke[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.Invoke.Arg"
 	if i >= c.ArgCount() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	return llvm.ValueOf(c.Context(), c.Lifetime(), binding.LLVMGetOperand(c.Ref(), i))
 }
@@ -40,7 +41,7 @@ func (c Invoke[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 func (c Invoke[T]) SetArg(i uint32, v llvm.AnyValue) {
 	const op = "ir.Invoke.SetArg"
 	if i >= c.ArgCount() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	c.Context().CheckValues(op, v)
 	binding.LLVMSetOperand(c.Ref(), i, v.Ref())
@@ -90,7 +91,7 @@ func (l LandingPad[T]) AddClause(v llvm.AnyValue) {
 	const op = "ir.LandingPad.AddClause"
 	l.Context().CheckValues(op, v)
 	if checks.Debug && !v.Dyn().IsConstant() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "clause must be a constant")
+		errs.Panicf(llvm.ErrInvalidArg, op, "clause must be a constant")
 	}
 	binding.LLVMAddClause(l.Ref(), v.Ref())
 }
@@ -104,7 +105,7 @@ func (l LandingPad[T]) ClauseCount() uint32 {
 func (l LandingPad[T]) Clause(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.LandingPad.Clause"
 	if checks.Debug && i >= l.ClauseCount() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "clause index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "clause index %d out of range", i)
 	}
 	return llvm.ValueOf(l.Context(), l.Lifetime(), binding.LLVMGetClause(l.Ref(), i))
 }
@@ -140,7 +141,7 @@ func (s CatchSwitch) HandlerCount() uint32 {
 func (s CatchSwitch) HandlerAt(i uint32) Block {
 	const op = "ir.CatchSwitch.HandlerAt"
 	if checks.Debug && i >= s.HandlerCount() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "handler index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "handler index %d out of range", i)
 	}
 	return wrapBlock(s.Context(), s.Lifetime(), binding.LLVMGetHandlers(s.Ref())[i])
 }
@@ -159,7 +160,7 @@ func (p FuncletPad) ArgCount() uint32 {
 func (p FuncletPad) Arg(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.FuncletPad.Arg"
 	if checks.Debug && i >= p.ArgCount() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	return llvm.ValueOf(p.Context(), p.Lifetime(), binding.LLVMGetArgOperand(p.Ref(), i))
 }
@@ -168,7 +169,7 @@ func (p FuncletPad) Arg(i uint32) llvm.Value[llvm.DynT] {
 func (p FuncletPad) SetArg(i uint32, v llvm.AnyValue) {
 	const op = "ir.FuncletPad.SetArg"
 	if checks.Debug && i >= p.ArgCount() {
-		llvm.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
+		errs.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}
 	p.Context().CheckValues(op, v)
 	binding.LLVMSetArgOperand(p.Ref(), i, v.Ref())
@@ -222,7 +223,7 @@ func (b *Builder) InvokeIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], si
 	b.preBlockOwn(op, then)
 	b.preBlockOwn(op, unwind)
 	if sig.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "signature belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "signature belongs to another context")
 	}
 	if checks.Debug {
 		checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
@@ -239,7 +240,7 @@ func (b *Builder) LandingPad[T llvm.Kind](t llvm.TypeRef[T], name string) Landin
 	tt := t.AsType()
 	b.pre(op)
 	if tt.Context() != b.ctx {
-		llvm.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
+		errs.Panicf(llvm.ErrCrossContext, op, "type belongs to another context")
 	}
 	ref := binding.LLVMBuildLandingPad(b.ref, tt.Ref(), binding.LLVMValueRef{}, 0, name)
 	return LandingPad[T]{Value: llvm.NewValue[T](b.ctx, b.inserted.life, ref)}

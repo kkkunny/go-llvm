@@ -1,6 +1,10 @@
 package llvm
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/kkkunny/go-llvm/internal/errs"
+)
 
 func TestTypeConstruct(t *testing.T) {
 	ctx := NewContext()
@@ -133,7 +137,7 @@ func TestTypeAsMismatch(t *testing.T) {
 		t.Fatalf("want ErrTypeMismatch, got %v", err)
 	}
 	got := ctx.Int(32).DynType().MustAs[IntT]()
-	if AsIntType(got).Bits() != 32 {
+	if MustIntType(got).Bits() != 32 {
 		t.Fatalf("MustAs[IntT] = %v", got)
 	}
 	if _, err := ctx.Int(32).As[DynT](); err != nil {
@@ -167,37 +171,37 @@ func TestAsTypeRoles(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
 
-	if got := AsVoidType(ctx.Void()).String(); got != "void" {
+	if got := MustVoidType(ctx.Void()).String(); got != "void" {
 		t.Fatalf("AsVoidType = %q", got)
 	}
-	if got := AsIntType(ctx.Int(32)).Bits(); got != 32 {
+	if got := MustIntType(ctx.Int(32)).Bits(); got != 32 {
 		t.Fatalf("AsIntType = %d", got)
 	}
-	if got := AsFloatType(ctx.Float(FloatSingle)).Kind(); got != FloatSingle {
+	if got := MustFloatType(ctx.Float(FloatSingle)).Kind(); got != FloatSingle {
 		t.Fatalf("AsFloatType = %v", got)
 	}
-	if got := AsPtrType(ctx.Ptr(0)).Addrspace(); got != 0 {
+	if got := MustPtrType(ctx.Ptr(0)).Addrspace(); got != 0 {
 		t.Fatalf("AsPtrType = %d", got)
 	}
 	st := ctx.Struct([]AnyType{ctx.Int(32)}, false)
-	if got := AsStructType(st).Elems(); len(got) != 1 || got[0].String() != "i32" {
+	if got := MustStructType(st).Elems(); len(got) != 1 || got[0].String() != "i32" {
 		t.Fatalf("AsStructType = %v", got)
 	}
-	if got := AsArrayType(ctx.Array(ctx.Int(8), 4)).Len(); got != 4 {
+	if got := MustArrayType(ctx.Array(ctx.Int(8), 4)).Len(); got != 4 {
 		t.Fatalf("AsArrayType = %d", got)
 	}
-	if got := AsVecType(ctx.Vec(ctx.Int(8), 2)).Len(); got != 2 {
+	if got := MustVecType(ctx.Vec(ctx.Int(8), 2)).Len(); got != 2 {
 		t.Fatalf("AsVecType = %d", got)
 	}
-	if AsFnType(ctx.Fn(ctx.Void(), nil, false)).IsVarArg() {
+	if MustFnType(ctx.Fn(ctx.Void(), nil, false)).IsVarArg() {
 		t.Fatal("AsFnType 应保留非变参签名")
 	}
 
 	// nil 类型与种类不符都应 panic
-	if err := Catch(func() { AsIntType(nil) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { MustIntType(nil) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("AsIntType(nil) 应 panic ErrInvalidArg, got %v", err)
 	}
-	if err := Catch(func() { AsIntType(ctx.Float(FloatSingle)) }); err == nil || err.Reason != ErrTypeMismatch {
+	if err := errs.Catch(func() { MustIntType(ctx.Float(FloatSingle)) }); err == nil || err.Reason != ErrTypeMismatch {
 		t.Fatalf("AsIntType(float) 应 panic ErrTypeMismatch, got %v", err)
 	}
 }
@@ -215,23 +219,23 @@ func TestTypeNilFloor(t *testing.T) {
 	if got := t0.String(); got != "<nil>" {
 		t.Fatalf("nil 类型 String() = %q", got)
 	}
-	if err := Catch(func() { t0.Ref() }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { t0.Ref() }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 类型 Ref() 应 panic ErrInvalidArg, got %v", err)
 	}
-	if err := Catch(func() { t0.Check("llvm.Test.Type.Check") }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { t0.Check("llvm.Test.Type.Check") }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 类型 Check() 应 panic ErrInvalidArg, got %v", err)
 	}
 
 	ctx := NewContext()
 	defer ctx.Close()
-	if err := Catch(func() { ctx.Float(FloatDouble).MustAs[IntT]() }); err == nil || err.Reason != ErrTypeMismatch {
+	if err := errs.Catch(func() { ctx.Float(FloatDouble).MustAs[IntT]() }); err == nil || err.Reason != ErrTypeMismatch {
 		t.Fatalf("MustAs 种类不符应 panic ErrTypeMismatch, got %v", err)
 	}
 	// 已释放 Context 上的类型句柄走同一地板
 	dead := NewContext()
 	ty := dead.Int(32)
 	_ = dead.Close()
-	if err := Catch(func() { ty.Ref() }); err == nil || err.Reason != ErrUseAfterFree {
+	if err := errs.Catch(func() { ty.Ref() }); err == nil || err.Reason != ErrUseAfterFree {
 		t.Fatalf("已释放 Context 的类型应 panic ErrUseAfterFree, got %v", err)
 	}
 }
@@ -240,16 +244,16 @@ func TestCheckTypeValidation(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
 
-	if err := Catch(func() { ctx.CheckType("llvm.Test.CheckType", nil) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { ctx.CheckType("llvm.Test.CheckType", nil) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 类型应 panic ErrInvalidArg, got %v", err)
 	}
-	if err := Catch(func() { ctx.CheckType("llvm.Test.CheckType", Type[IntT]{}) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { ctx.CheckType("llvm.Test.CheckType", Type[IntT]{}) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("nil 句柄应 panic ErrInvalidArg, got %v", err)
 	}
 
 	ctx2 := NewContext()
 	defer ctx2.Close()
-	if err := Catch(func() { ctx.CheckType("llvm.Test.CheckType", ctx2.Int(32)) }); err == nil || err.Reason != ErrCrossContext {
+	if err := errs.Catch(func() { ctx.CheckType("llvm.Test.CheckType", ctx2.Int(32)) }); err == nil || err.Reason != ErrCrossContext {
 		t.Fatalf("跨 Context 类型应 panic ErrCrossContext, got %v", err)
 	}
 }
@@ -279,7 +283,7 @@ func TestFloatKinds(t *testing.T) {
 			t.Errorf("Float(%v).Kind() = %v", c.kind, k)
 		}
 	}
-	if err := Catch(func() { ctx.Float(FloatKind(99)) }); err == nil || err.Reason != ErrInvalidArg {
+	if err := errs.Catch(func() { ctx.Float(FloatKind(99)) }); err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("未知浮点种类应 panic ErrInvalidArg, got %v", err)
 	}
 }
@@ -318,14 +322,14 @@ func TestTypeCrossContextPanic(t *testing.T) {
 	ctx2 := NewContext()
 	defer ctx2.Close()
 
-	err := Catch(func() {
+	err := errs.Catch(func() {
 		ctx1.Struct([]AnyType{ctx2.Int(32)}, false)
 	})
 	if err == nil || err.Reason != ErrCrossContext {
 		t.Fatalf("want ErrCrossContext, got %v", err)
 	}
 
-	err = Catch(func() {
+	err = errs.Catch(func() {
 		ctx1.Fn(ctx1.Int(32), []AnyType{ctx2.Int(32)}, false)
 	})
 	if err == nil || err.Reason != ErrCrossContext {
@@ -342,14 +346,14 @@ func TestStructSetBodyTwicePanics(t *testing.T) {
 	named := ctx.NamedStruct("Pair")
 	named.SetBody([]AnyType{ctx.Int(32), ctx.Int(32)}, false)
 
-	err := Catch(func() { named.SetBody([]AnyType{ctx.Int(32), ctx.Int(32)}, false) })
+	err := errs.Catch(func() { named.SetBody([]AnyType{ctx.Int(32), ctx.Int(32)}, false) })
 	if err == nil || err.Reason != ErrInvalidArg || err.Op != "llvm.StructType.SetBody" {
 		t.Fatalf("want ErrInvalidArg from SetBody, got %v", err)
 	}
 
 	// 字面量结构体同样已有 body
 	lit := ctx.Struct([]AnyType{ctx.Int(32)}, false)
-	err = Catch(func() { lit.SetBody([]AnyType{ctx.Int(32)}, false) })
+	err = errs.Catch(func() { lit.SetBody([]AnyType{ctx.Int(32)}, false) })
 	if err == nil || err.Reason != ErrInvalidArg {
 		t.Fatalf("literal struct SetBody should panic ErrInvalidArg, got %v", err)
 	}
