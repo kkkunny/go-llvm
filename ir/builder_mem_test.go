@@ -296,7 +296,8 @@ func TestIsNullPtrDiff(t *testing.T) {
 	if !strings.Contains(got, "icmp ne ptr") {
 		t.Fatalf("IR missing icmp ne ptr:\n%s", got)
 	}
-	if !strings.Contains(got, "ptrtoint") {
-		t.Fatalf("IR missing ptrtoint:\n%s", got)
+	if !strings.Contains(got, "ptrtoaddr") {
+		// LLVM 23 的 LLVMBuildPtrDiff2 用 ptrtoaddr（不捕获 provenance）而非 ptrtoint
+		t.Fatalf("IR missing ptrtoaddr:\n%s", got)
 	}
 }

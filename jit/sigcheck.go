@@ -26,7 +26,7 @@ func (j *LLJIT) recordModuleSigs(m *ir.Module) {
 		if name == "" {
 			continue
 		}
-		// 注意：LLVM 22 不透明指针下 LLVMTypeOf(函数值) 是 ptr，须用 LLVMGetFunctionType
+		// 注意：LLVM 23 不透明指针下 LLVMTypeOf(函数值) 是 ptr，须用 LLVMGetFunctionType
 		ty := binding.LLVMGetFunctionType(ref)
 		if ty.IsNil() {
 			continue

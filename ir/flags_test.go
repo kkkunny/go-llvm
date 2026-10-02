@@ -136,7 +136,7 @@ func TestSyncScope(t *testing.T) {
 	b := NewBuilderAt(blk)
 	defer b.Close()
 
-	// LLVM 22：singlethread 固定为保留 ID 0；其余名字按需分配非 0 ID
+	// LLVM 23：singlethread 固定为保留 ID 0；其余名字按需分配非 0 ID
 	if got := ctx.SyncScopeID("singlethread"); got != 0 {
 		t.Fatalf("singlethread scope id = %d, want 0", got)
 	}

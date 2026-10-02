@@ -35,7 +35,7 @@
 注意：
 
 * 需要 **Go 1.27+**（API 使用了泛型方法）。
-* 仅支持 LLVM 22；不再提供 LLVM 21 及更早的版本线，如有需要可固定到历史提交。
+* 仅支持 LLVM 23；不再提供 LLVM 22 及更早的版本线，如有需要可固定到历史提交。
 * 常见 Linux、macOS（Homebrew）与 FreeBSD 安装布局开箱即用；非标准前缀需要一次
   生成步骤，见[非标准 LLVM 前缀](#非标准-llvm-前缀)。
 
@@ -53,7 +53,7 @@
 
 ## 快速上手
 
-安装受支持的 LLVM 及其开发头文件（例如 `llvm-22-dev`），然后：
+安装受支持的 LLVM 及其开发头文件（例如 `llvm-23-dev`），然后：
 
 ```shell
 go get github.com/kkkunny/go-llvm
@@ -197,15 +197,15 @@ go run ./examples/kaleidoscope -dl -dp -dc -e '1 + 2 * 2'   # dump tokens/AST/IR
 
 | 平台 | 覆盖的布局 | 典型安装 |
 |---|---|---|
-| Linux | `/usr/lib/llvm-22`、`/usr/include/llvm-22`、`/usr/include/llvm-c-22`、`/usr/include`、`/usr/local`、`/usr/lib64` | Debian/Ubuntu 的 `llvm-22-dev`（apt.llvm.org）；Arch |
-| macOS（Homebrew） | `/opt/homebrew/opt/llvm@22`（Apple Silicon）、`/usr/local/opt/llvm@22`（Intel） | `brew install llvm@22` |
-| FreeBSD | `/usr/local/llvm22` | `pkg install llvm22`（尚未实机确认） |
+| Linux | `/usr/lib/llvm-23`、`/usr/include/llvm-23`、`/usr/include/llvm-c-23`、`/usr/include`、`/usr/local`、`/usr/lib64` | Debian/Ubuntu 的 `llvm-23-dev`（apt.llvm.org）；Arch |
+| macOS（Homebrew） | `/opt/homebrew/opt/llvm@23`（Apple Silicon）、`/usr/local/opt/llvm@23`（Intel） | `brew install llvm@23` |
+| FreeBSD | `/usr/local/llvm23` | `pkg install llvm23`（尚未实机确认） |
 
 Debian/Ubuntu 布局由 CI 全量验证，Arch 已本地验证；Fedora 与 FreeBSD 候选仅为便利列出，
 尚未实机确认——未命中时以生成器（B 层）兜底。
 
-`-lLLVM` 有意不带版本号：它解析到第一个命中的库（Debian/Ubuntu 的 `llvm-22-dev`
-同时提供 `libLLVM-22.so` 与 `libLLVM.so`）。如果你的 LLVM 在别处（自定义
+`-lLLVM` 有意不带版本号：它解析到第一个命中的库（Debian/Ubuntu 的 `llvm-23-dev`
+同时提供 `libLLVM-23.so` 与 `libLLVM.so`）。如果你的 LLVM 在别处（自定义
 `--prefix`、非标准多版本工具链、软件仓库式布局），走下面两条路之一。
 
 #### 本地检出（B 层）：生成机器专用 flags
@@ -221,7 +221,7 @@ go run github.com/kkkunny/go-llvm/internal/cmd/llvmconfig
 ```
 
 `internal/cmd/llvmconfig` 依次探测 `$LLVM_CONFIG` → `$LLVM_PREFIX/bin/llvm-config` →
-`PATH` 中的 `llvm-config-22` → `PATH` 中的 `llvm-config`，查询
+`PATH` 中的 `llvm-config-23` → `PATH` 中的 `llvm-config`，查询
 `--includedir`/`--libdir`/`--libs`/`--system-libs`，并把结果**同时**写进 `CFLAGS` 与
 `CXXFLAGS`（C++ shim 也包含 LLVM 头文件）。生成结果是**机器专用**的：除非所有协作者
 布局一致，否则不要提交，版本库里应保留可移植候选列表。
@@ -233,10 +233,10 @@ module cache 只读且由 `go` 命令管理，生成器会拒绝写入并给出�
 直接 `go get` 的消费者需要自己导出 flags：
 
 ```shell
-export CGO_CFLAGS="$(llvm-config-22 --cflags)"
+export CGO_CFLAGS="$(llvm-config-23 --cflags)"
 # --cxxflags 末尾带 -fno-exceptions，会破坏 C++ shim，先过滤掉再使用。
-export CGO_CXXFLAGS="$(llvm-config-22 --cxxflags | sed 's/-fno-exceptions//g')"
-export CGO_LDFLAGS="$(llvm-config-22 --ldflags --libs)"
+export CGO_CXXFLAGS="$(llvm-config-23 --cxxflags | sed 's/-fno-exceptions//g')"
+export CGO_LDFLAGS="$(llvm-config-23 --ldflags --libs)"
 ```
 
 `CGO_CFLAGS`/`CGO_CXXFLAGS` 是全局的，因此同样会作用于 `internal/binding` 自身的编译；
@@ -250,11 +250,11 @@ export CGO_LDFLAGS="$(llvm-config-22 --ldflags --libs)"
 |---|---|---|
 | `fatal error: llvm-c/Core.h: No such file or directory` | 候选列表未命中头文件路径 | 用生成器生成 flags（B 层），或同时设置 `CGO_CFLAGS` 与 `CGO_CXXFLAGS` |
 | `could not determine what C.X refers to` | 同上：cgo 编译时没有 LLVM 头文件 | 同上 |
-| `cannot find -lLLVM` / `LLVM*` 符号未定义 | 库路径（或库名）未命中 | 用生成器生成 flags（B 层），或设置 `CGO_LDFLAGS`；生成器可能产出 `-lLLVM-22`，同样按未命中处理 |
+| `cannot find -lLLVM` / `LLVM*` 符号未定义 | 库路径（或库名）未命中 | 用生成器生成 flags（B 层），或设置 `CGO_LDFLAGS`；生成器可能产出 `-lLLVM-23`，同样按未命中处理 |
 | `panic: llvm.NewContext: linked LLVM library is …`（`ErrVersionMismatch`，调试构建） | 运行时库的大版本与编译期头文件不一致 | 安装与库匹配的开发包，或按该版本重新生成 flags |
 
 检出内一键自查：`go run ./internal/cmd/llvmconfig --check`；没有检出时：
-`llvm-config --includedir --libdir --libs`（装了多个 LLVM 大版本时用 `llvm-config-22`）。
+`llvm-config --includedir --libdir --libs`（装了多个 LLVM 大版本时用 `llvm-config-23`）。
 
 ## 示例
 
@@ -287,9 +287,8 @@ make test test-release bench bench-release
 
 CI 在每次 push 与 pull request 时通过
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 运行：`gofmt` lint 检查，加上
-`ubuntu-24.04` 上的 `default`/`release` 测试矩阵（LLVM 22 来自 apt.llvm.org，即 A 层
-Linux 布局）、验证 Homebrew 布局的 macOS job，以及用 B 层生成器重写 flags 并据此构建的
-自定义前缀 job。
+`ubuntu-24.04` 上的 `default`/`release` 测试矩阵（LLVM 23 来自 apt.llvm.org，即 A 层
+Linux 布局）。
 
 语义契约类负向测试（期望 panic 的误用测试）通过 `requireDebug(t)` 挂在调试构建，
 `llvm_release` 矩阵下自动跳过；崩溃类地板测试两种构建都必须通过。
@@ -314,7 +313,9 @@ Linux 布局）、验证 Homebrew 布局的 macOS job，以及用 B 层生成器
    git tag -a llvmNN -m "LLVM NN line"
    ```
 4. 枚举常量无需改动：它们声明为 `C.Name`，自动绑定到本地头文件定义的值。
-   未知的值种类/操作码会退化为通用回退包装类型，而不是 panic。
+   未知的值种类/操作码会退化为通用回退包装类型，而不是 panic。被移除或改名的
+   成员例外：需要更新 Go 侧映射与语义归一化（LLVM 23 把 `LLVMBr` 拆成
+   `LLVMUncondBr`/`LLVMCondBr`，`ir.OpOf` 统一折回 `ir.OpBr`）。
 5. 仅在需要时绑定新增的 C API。
 
 ## 许可证

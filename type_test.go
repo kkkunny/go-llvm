@@ -210,7 +210,7 @@ func TestPtrTypeOpaque(t *testing.T) {
 	ctx := NewContext()
 	defer ctx.Close()
 	if !ctx.Ptr(0).IsOpaque() {
-		t.Fatal("LLVM 22 的指针类型应为不透明")
+		t.Fatal("LLVM 23 的指针类型应为不透明")
 	}
 }
 

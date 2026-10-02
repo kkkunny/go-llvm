@@ -79,7 +79,7 @@ func TestMetadataValueAsMetadata(t *testing.T) {
 	// 规范化为 ConstantAsMetadata，LLVM-C 再反向重建为操作数即被包装值的节点
 	// （上游注明 LLVMIsAMDNode “a bit of a lier”，真节点判定需再排除 ValueAsMetadata）。
 	if !vm.IsNode() {
-		t.Fatal("LLVM 22 的 LLVMIsAMDNode 应将 ValueAsMetadata 视为节点")
+		t.Fatal("LLVM 23 的 LLVMIsAMDNode 应将 ValueAsMetadata 视为节点")
 	}
 	if ops := vm.Operands(); len(ops) != 1 || ops[0].String() != "i32 7" {
 		t.Fatalf("ValueAsMetadata 操作数 = %v", ops)

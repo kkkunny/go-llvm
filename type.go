@@ -185,7 +185,7 @@ type IntType struct{ Type[IntT] }
 // FloatType 浮点类型
 type FloatType struct{ Type[FloatT] }
 
-// PtrType 指针类型（LLVM 22 为不透明指针）
+// PtrType 指针类型（LLVM 23 为不透明指针）
 type PtrType struct{ Type[PtrT] }
 
 // StructType 结构体类型

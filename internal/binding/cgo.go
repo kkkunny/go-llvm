@@ -16,20 +16,20 @@ package binding
 #cgo CFLAGS: -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
 #cgo CXXFLAGS: -std=c++17 -fexceptions -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
 
-#cgo linux CFLAGS: -I/usr/lib/llvm-22/include -I/usr/include/llvm-22 -I/usr/include/llvm-c-22 -I/usr/include -I/usr/local/include
-#cgo linux CXXFLAGS: -I/usr/lib/llvm-22/include -I/usr/include/llvm-22 -I/usr/include/llvm-c-22 -I/usr/include -I/usr/local/include
-#cgo linux LDFLAGS: -L/usr/lib/llvm-22/lib -L/usr/lib64/llvm-22/lib -L/usr/lib64/llvm22/lib -L/usr/lib -L/usr/lib64 -L/usr/local/lib -lLLVM
+#cgo linux CFLAGS: -I/usr/lib/llvm-23/include -I/usr/include/llvm-23 -I/usr/include/llvm-c-23 -I/usr/include -I/usr/local/include
+#cgo linux CXXFLAGS: -I/usr/lib/llvm-23/include -I/usr/include/llvm-23 -I/usr/include/llvm-c-23 -I/usr/include -I/usr/local/include
+#cgo linux LDFLAGS: -L/usr/lib/llvm-23/lib -L/usr/lib64/llvm-23/lib -L/usr/lib64/llvm23/lib -L/usr/lib -L/usr/lib64 -L/usr/local/lib -lLLVM
 
-#cgo darwin,arm64 CFLAGS: -I/opt/homebrew/opt/llvm@22/include
-#cgo darwin,arm64 CXXFLAGS: -I/opt/homebrew/opt/llvm@22/include
-#cgo darwin,arm64 LDFLAGS: -L/opt/homebrew/opt/llvm@22/lib -Wl,-search_paths_first -Wl,-headerpad_max_install_names -lLLVM -lz -lm
+#cgo darwin,arm64 CFLAGS: -I/opt/homebrew/opt/llvm@23/include
+#cgo darwin,arm64 CXXFLAGS: -I/opt/homebrew/opt/llvm@23/include
+#cgo darwin,arm64 LDFLAGS: -L/opt/homebrew/opt/llvm@23/lib -Wl,-search_paths_first -Wl,-headerpad_max_install_names -lLLVM -lz -lm
 
-#cgo darwin,amd64 CFLAGS: -I/usr/local/opt/llvm@22/include
-#cgo darwin,amd64 CXXFLAGS: -I/usr/local/opt/llvm@22/include
-#cgo darwin,amd64 LDFLAGS: -L/usr/local/opt/llvm@22/lib -Wl,-search_paths_first -Wl,-headerpad_max_install_names -lLLVM -lz -lm
+#cgo darwin,amd64 CFLAGS: -I/usr/local/opt/llvm@23/include
+#cgo darwin,amd64 CXXFLAGS: -I/usr/local/opt/llvm@23/include
+#cgo darwin,amd64 LDFLAGS: -L/usr/local/opt/llvm@23/lib -Wl,-search_paths_first -Wl,-headerpad_max_install_names -lLLVM -lz -lm
 
-#cgo freebsd CFLAGS: -I/usr/local/llvm22/include -I/usr/local/llvm22/include/llvm-c
-#cgo freebsd CXXFLAGS: -I/usr/local/llvm22/include -I/usr/local/llvm22/include/llvm-c
-#cgo freebsd LDFLAGS: -L/usr/local/llvm22/lib -lLLVM
+#cgo freebsd CFLAGS: -I/usr/local/llvm23/include -I/usr/local/llvm23/include/llvm-c
+#cgo freebsd CXXFLAGS: -I/usr/local/llvm23/include -I/usr/local/llvm23/include/llvm-c
+#cgo freebsd LDFLAGS: -L/usr/local/llvm23/lib -lLLVM
 */
 import "C"

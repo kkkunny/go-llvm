@@ -13,7 +13,8 @@ type LLVMOpcode int32
 
 const (
 	LLVMRet            LLVMOpcode = C.LLVMRet
-	LLVMBr             LLVMOpcode = C.LLVMBr
+	LLVMUncondBr       LLVMOpcode = C.LLVMUncondBr
+	LLVMCondBr         LLVMOpcode = C.LLVMCondBr
 	LLVMSwitch         LLVMOpcode = C.LLVMSwitch
 	LLVMIndirectBr     LLVMOpcode = C.LLVMIndirectBr
 	LLVMInvoke         LLVMOpcode = C.LLVMInvoke
@@ -124,6 +125,8 @@ const (
 	// LLVMX86_AMXTypeKind X86 AMX
 	LLVMX86_AMXTypeKind   LLVMTypeKind = C.LLVMX86_AMXTypeKind
 	LLVMTargetExtTypeKind LLVMTypeKind = C.LLVMTargetExtTypeKind
+	// LLVMByteTypeKind Arbitrary bit width bytes
+	LLVMByteTypeKind LLVMTypeKind = C.LLVMByteTypeKind
 )
 
 type LLVMLinkage int32
@@ -208,6 +211,7 @@ const (
 	LLVMConstantDataArrayValueKind     LLVMValueKind = C.LLVMConstantDataArrayValueKind
 	LLVMConstantDataVectorValueKind    LLVMValueKind = C.LLVMConstantDataVectorValueKind
 	LLVMConstantIntValueKind           LLVMValueKind = C.LLVMConstantIntValueKind
+	LLVMConstantByteValueKind          LLVMValueKind = C.LLVMConstantByteValueKind
 	LLVMConstantFPValueKind            LLVMValueKind = C.LLVMConstantFPValueKind
 	LLVMConstantPointerNullValueKind   LLVMValueKind = C.LLVMConstantPointerNullValueKind
 	LLVMConstantTokenNoneValueKind     LLVMValueKind = C.LLVMConstantTokenNoneValueKind
@@ -317,27 +321,29 @@ const (
 type LLVMAtomicRMWBinOp int32
 
 const (
-	LLVMAtomicRMWBinOpXchg     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpXchg
-	LLVMAtomicRMWBinOpAdd      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpAdd
-	LLVMAtomicRMWBinOpSub      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpSub
-	LLVMAtomicRMWBinOpAnd      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpAnd
-	LLVMAtomicRMWBinOpNand     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpNand
-	LLVMAtomicRMWBinOpOr       LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpOr
-	LLVMAtomicRMWBinOpXor      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpXor
-	LLVMAtomicRMWBinOpMax      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpMax
-	LLVMAtomicRMWBinOpMin      LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpMin
-	LLVMAtomicRMWBinOpUMax     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUMax
-	LLVMAtomicRMWBinOpUMin     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUMin
-	LLVMAtomicRMWBinOpFAdd     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFAdd
-	LLVMAtomicRMWBinOpFSub     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFSub
-	LLVMAtomicRMWBinOpFMax     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMax
-	LLVMAtomicRMWBinOpFMin     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMin
-	LLVMAtomicRMWBinOpUIncWrap LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUIncWrap
-	LLVMAtomicRMWBinOpUDecWrap LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUDecWrap
-	LLVMAtomicRMWBinOpUSubCond LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUSubCond
-	LLVMAtomicRMWBinOpUSubSat  LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUSubSat
-	LLVMAtomicRMWBinOpFMaximum LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMaximum
-	LLVMAtomicRMWBinOpFMinimum LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMinimum
+	LLVMAtomicRMWBinOpXchg        LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpXchg
+	LLVMAtomicRMWBinOpAdd         LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpAdd
+	LLVMAtomicRMWBinOpSub         LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpSub
+	LLVMAtomicRMWBinOpAnd         LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpAnd
+	LLVMAtomicRMWBinOpNand        LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpNand
+	LLVMAtomicRMWBinOpOr          LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpOr
+	LLVMAtomicRMWBinOpXor         LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpXor
+	LLVMAtomicRMWBinOpMax         LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpMax
+	LLVMAtomicRMWBinOpMin         LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpMin
+	LLVMAtomicRMWBinOpUMax        LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUMax
+	LLVMAtomicRMWBinOpUMin        LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUMin
+	LLVMAtomicRMWBinOpFAdd        LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFAdd
+	LLVMAtomicRMWBinOpFSub        LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFSub
+	LLVMAtomicRMWBinOpFMax        LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMax
+	LLVMAtomicRMWBinOpFMin        LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMin
+	LLVMAtomicRMWBinOpUIncWrap    LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUIncWrap
+	LLVMAtomicRMWBinOpUDecWrap    LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUDecWrap
+	LLVMAtomicRMWBinOpUSubCond    LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUSubCond
+	LLVMAtomicRMWBinOpUSubSat     LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpUSubSat
+	LLVMAtomicRMWBinOpFMaximum    LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMaximum
+	LLVMAtomicRMWBinOpFMinimum    LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMinimum
+	LLVMAtomicRMWBinOpFMaximumNum LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMaximumNum
+	LLVMAtomicRMWBinOpFMinimumNum LLVMAtomicRMWBinOp = C.LLVMAtomicRMWBinOpFMinimumNum
 )
 
 type LLVMAttributeIndex int32
@@ -2308,7 +2314,7 @@ func LLVMBuildNUWNeg(builder LLVMBuilderRef, v LLVMValueRef, name string) LLVMVa
 }
 
 // LLVMConstNUWNeg Obtain the negation of a constant.
-// LLVM 22 deprecates the C API LLVMConstNUWNeg (the deprecation note says
+// The C API LLVMConstNUWNeg is deprecated since LLVM 22 (the deprecation note says
 // "Use LLVMConstNull instead.", which is clearly wrong); a folded integer constant
 // cannot carry the nuw flag, so ConstNeg is equivalent and free of the deprecation warning.
 func LLVMConstNUWNeg(constantVal LLVMValueRef) LLVMValueRef {

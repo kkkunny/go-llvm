@@ -9,7 +9,7 @@ which is removed when the example exits.
 
 ## Run
 
-Requires LLVM 22 (same as the library) and Go 1.27+:
+Requires LLVM 23 (same as the library) and Go 1.27+:
 
 ```shell
 go run ./examples/codegen

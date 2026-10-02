@@ -16,7 +16,7 @@ type Op binding.LLVMOpcode
 // 角色转换（AsLoad 等）返回 false，随后以不透明的 Value[DynT] 处理。
 const (
 	OpRet            = Op(binding.LLVMRet)            // 从函数返回
-	OpBr             = Op(binding.LLVMBr)             // 无条件或条件分支
+	OpBr             = Op(binding.LLVMUncondBr)       // 无条件或条件分支；LLVM 23 拆成 UncondBr/CondBr，OpOf 归一化两者，条件性用 IsConditional 查询
 	OpSwitch         = Op(binding.LLVMSwitch)         // 多路分支：匹配 case 则跳转，否则跳 default
 	OpIndirectBr     = Op(binding.LLVMIndirectBr)     // 间接跳转：跳往操作数列表中的某个基本块（计算 goto）
 	OpInvoke         = Op(binding.LLVMInvoke)         // 可展开（unwind）的调用，正常返回与异常路径分开（终结指令）
@@ -140,5 +140,11 @@ func OpOf(inst llvm.AnyValue) (Op, bool) {
 	if binding.LLVMGetValueKind(ref) != binding.LLVMInstructionValueKind {
 		return 0, false
 	}
-	return Op(binding.LLVMGetInstructionOpcode(ref)), true
+	// LLVM 23 起 C API 把 br 拆成 LLVMUncondBr/LLVMCondBr；LangRef 中仍只有一类 br
+	// 指令，条件性由 IsConditional 查询，这里统一归一化为 OpBr。
+	code := binding.LLVMGetInstructionOpcode(ref)
+	if code == binding.LLVMCondBr {
+		code = binding.LLVMUncondBr
+	}
+	return Op(code), true
 }

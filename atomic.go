@@ -25,25 +25,27 @@ type RMWOp binding.LLVMAtomicRMWBinOp
 // 所有操作都原子地更新目标内存并返回修改前的旧值；Max/Min 按有符号解释，
 // UMax/UMin 与 U 前缀系列按无符号解释，F 前缀系列按浮点解释。
 const (
-	RMWXchg     = RMWOp(binding.LLVMAtomicRMWBinOpXchg)     // 原子交换：写入操作数并返回旧值
-	RMWAdd      = RMWOp(binding.LLVMAtomicRMWBinOpAdd)      // 原子加法
-	RMWSub      = RMWOp(binding.LLVMAtomicRMWBinOpSub)      // 原子减法
-	RMWAnd      = RMWOp(binding.LLVMAtomicRMWBinOpAnd)      // 原子按位与
-	RMWNand     = RMWOp(binding.LLVMAtomicRMWBinOpNand)     // 原子按位与非（~(旧值 & 操作数)）
-	RMWOr       = RMWOp(binding.LLVMAtomicRMWBinOpOr)       // 原子按位或
-	RMWXor      = RMWOp(binding.LLVMAtomicRMWBinOpXor)      // 原子按位异或
-	RMWMax      = RMWOp(binding.LLVMAtomicRMWBinOpMax)      // 有符号最大值
-	RMWMin      = RMWOp(binding.LLVMAtomicRMWBinOpMin)      // 有符号最小值
-	RMWUMax     = RMWOp(binding.LLVMAtomicRMWBinOpUMax)     // 无符号最大值
-	RMWUMin     = RMWOp(binding.LLVMAtomicRMWBinOpUMin)     // 无符号最小值
-	RMWFAdd     = RMWOp(binding.LLVMAtomicRMWBinOpFAdd)     // 浮点加法
-	RMWFSub     = RMWOp(binding.LLVMAtomicRMWBinOpFSub)     // 浮点减法
-	RMWFMax     = RMWOp(binding.LLVMAtomicRMWBinOpFMax)     // 浮点最大值（maxnum 语义：忽略单个 qNaN 操作数；两操作数均为 NaN 或存在 sNaN 时结果为 NaN）
-	RMWFMin     = RMWOp(binding.LLVMAtomicRMWBinOpFMin)     // 浮点最小值（minnum 语义：忽略单个 qNaN 操作数；两操作数均为 NaN 或存在 sNaN 时结果为 NaN）
-	RMWUIncWrap = RMWOp(binding.LLVMAtomicRMWBinOpUIncWrap) // 无符号自增一：旧值不小于操作数（视为上限）时回绕为 0
-	RMWUDecWrap = RMWOp(binding.LLVMAtomicRMWBinOpUDecWrap) // 无符号自减一：旧值为 0 或大于操作数（视为下限）时取操作数
-	RMWUSubCond = RMWOp(binding.LLVMAtomicRMWBinOpUSubCond) // 无符号条件减法：仅当不发生下溢时相减，否则保持旧值
-	RMWUSubSat  = RMWOp(binding.LLVMAtomicRMWBinOpUSubSat)  // 无符号饱和减法：下溢时结果为 0
-	RMWFMaximum = RMWOp(binding.LLVMAtomicRMWBinOpFMaximum) // 浮点最大值（maximum 语义：任一操作数为 NaN 时结果为 NaN）
-	RMWFMinimum = RMWOp(binding.LLVMAtomicRMWBinOpFMinimum) // 浮点最小值（minimum 语义：任一操作数为 NaN 时结果为 NaN）
+	RMWXchg        = RMWOp(binding.LLVMAtomicRMWBinOpXchg)        // 原子交换：写入操作数并返回旧值
+	RMWAdd         = RMWOp(binding.LLVMAtomicRMWBinOpAdd)         // 原子加法
+	RMWSub         = RMWOp(binding.LLVMAtomicRMWBinOpSub)         // 原子减法
+	RMWAnd         = RMWOp(binding.LLVMAtomicRMWBinOpAnd)         // 原子按位与
+	RMWNand        = RMWOp(binding.LLVMAtomicRMWBinOpNand)        // 原子按位与非（~(旧值 & 操作数)）
+	RMWOr          = RMWOp(binding.LLVMAtomicRMWBinOpOr)          // 原子按位或
+	RMWXor         = RMWOp(binding.LLVMAtomicRMWBinOpXor)         // 原子按位异或
+	RMWMax         = RMWOp(binding.LLVMAtomicRMWBinOpMax)         // 有符号最大值
+	RMWMin         = RMWOp(binding.LLVMAtomicRMWBinOpMin)         // 有符号最小值
+	RMWUMax        = RMWOp(binding.LLVMAtomicRMWBinOpUMax)        // 无符号最大值
+	RMWUMin        = RMWOp(binding.LLVMAtomicRMWBinOpUMin)        // 无符号最小值
+	RMWFAdd        = RMWOp(binding.LLVMAtomicRMWBinOpFAdd)        // 浮点加法
+	RMWFSub        = RMWOp(binding.LLVMAtomicRMWBinOpFSub)        // 浮点减法
+	RMWFMax        = RMWOp(binding.LLVMAtomicRMWBinOpFMax)        // 浮点最大值（maxnum 语义：忽略单个 qNaN 操作数；两操作数均为 NaN 或存在 sNaN 时结果为 NaN）
+	RMWFMin        = RMWOp(binding.LLVMAtomicRMWBinOpFMin)        // 浮点最小值（minnum 语义：忽略单个 qNaN 操作数；两操作数均为 NaN 或存在 sNaN 时结果为 NaN）
+	RMWUIncWrap    = RMWOp(binding.LLVMAtomicRMWBinOpUIncWrap)    // 无符号自增一：旧值不小于操作数（视为上限）时回绕为 0
+	RMWUDecWrap    = RMWOp(binding.LLVMAtomicRMWBinOpUDecWrap)    // 无符号自减一：旧值为 0 或大于操作数（视为下限）时取操作数
+	RMWUSubCond    = RMWOp(binding.LLVMAtomicRMWBinOpUSubCond)    // 无符号条件减法：仅当不发生下溢时相减，否则保持旧值
+	RMWUSubSat     = RMWOp(binding.LLVMAtomicRMWBinOpUSubSat)     // 无符号饱和减法：下溢时结果为 0
+	RMWFMaximum    = RMWOp(binding.LLVMAtomicRMWBinOpFMaximum)    // 浮点最大值（maximum 语义：任一操作数为 NaN 时结果为 NaN）
+	RMWFMinimum    = RMWOp(binding.LLVMAtomicRMWBinOpFMinimum)    // 浮点最小值（minimum 语义：任一操作数为 NaN 时结果为 NaN）
+	RMWFMaximumNum = RMWOp(binding.LLVMAtomicRMWBinOpFMaximumNum) // 浮点最大值（maximumnum 语义：一个操作数为 NaN（含 sNaN）时取另一个操作数）
+	RMWFMinimumNum = RMWOp(binding.LLVMAtomicRMWBinOpFMinimumNum) // 浮点最小值（minimumnum 语义：一个操作数为 NaN（含 sNaN）时取另一个操作数）
 )

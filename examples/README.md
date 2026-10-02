@@ -1,6 +1,6 @@
 # Examples
 
-Runnable examples for go-llvm. All of them need LLVM 22 (same as the library)
+Runnable examples for go-llvm. All of them need LLVM 23 (same as the library)
 and Go 1.27+, and can be run from the repository root:
 
 | Example | Description | Command |

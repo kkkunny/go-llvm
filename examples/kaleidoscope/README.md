@@ -8,7 +8,7 @@ optimization), modeled on
 
 ## Running
 
-Requires LLVM 22 (same requirement as the library), then:
+Requires LLVM 23 (same requirement as the library), then:
 
 ```shell
 go run ./examples/kaleidoscope

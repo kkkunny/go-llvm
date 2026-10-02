@@ -10,7 +10,7 @@ A runnable go-llvm JIT example:
 
 ## Run
 
-Requires LLVM 22 (same as the library) and Go 1.27+:
+Requires LLVM 23 (same as the library) and Go 1.27+:
 
 ```shell
 go run ./examples/jit-fib

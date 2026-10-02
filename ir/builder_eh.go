@@ -234,7 +234,7 @@ func (b *Builder) InvokeIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], si
 }
 
 // LandingPad 插入 landingpad（t 须为首类聚合类型）；personality 经 Function.SetPersonality 设置。
-// 注：LLVM 22 的 PersFn 构建参数已废弃，传零值
+// 注：LLVM 22 起 PersFn 构建参数已废弃，传零值
 func (b *Builder) LandingPad[T llvm.Kind](t llvm.TypeRef[T], name string) LandingPad[T] {
 	const op = "ir.Builder.LandingPad"
 	tt := t.AsType()

@@ -58,6 +58,7 @@ func checkLinkedVersion() {
 
 // checkVersionMatch 是 checkLinkedVersion 的可注入内核：get 返回运行时版本，
 // headerMajor/headerString 为编译期头文件信息；三者均可注入，便于单测构造错配场景。
+// 只比较 major：同大版本的 minor/patch 差异（发行版补丁版）不影响判定。
 func checkVersionMatch(get func() (uint32, uint32, uint32), headerMajor uint32, headerString string) {
 	major, minor, patch := get()
 	if major != headerMajor {

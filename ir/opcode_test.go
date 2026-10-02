@@ -47,6 +47,36 @@ func TestOpOf(t *testing.T) {
 	}
 }
 
+// TestOpOfBranchNormalization LLVM 23 的 C API 把 br 拆成 LLVMUncondBr/LLVMCondBr
+// 两个操作码，OpOf 必须把两者都归一化为 OpBr；条件性用 IsConditional 区分。
+func TestOpOfBranchNormalization(t *testing.T) {
+	ctx := llvm.NewContext()
+	defer ctx.Close()
+	m := NewModule(ctx, "t")
+	defer m.Close()
+
+	i32 := ctx.Int(32)
+	fn := m.NewFunction("f", ctx.Fn(ctx.Void(), []llvm.AnyType{i32}, false))
+	entry := fn.NewBlock("entry")
+	then := fn.NewBlock("then")
+	els := fn.NewBlock("else")
+	b := NewBuilderAt(entry)
+	defer b.Close()
+
+	condBr := b.CondBr(b.ICmp(llvm.IntNE, fn.ParamAs[llvm.IntT](0), ctx.ConstInt(i32, 0), "c"), then, els)
+	b.MoveToEnd(els)
+	uncondBr := b.Br(then)
+
+	for name, br := range map[string]llvm.Value[llvm.VoidT]{"condbr": condBr, "br": uncondBr} {
+		if op, ok := OpOf(br); !ok || op != OpBr {
+			t.Fatalf("%s opcode = %v %v, want OpBr", name, op, ok)
+		}
+	}
+	if !IsConditional(condBr) || IsConditional(uncondBr) {
+		t.Fatalf("IsConditional: condbr=%v br=%v, want true/false", IsConditional(condBr), IsConditional(uncondBr))
+	}
+}
+
 // TestOpIsTerminator 覆盖终结操作码分类：静态集合必须与 LLVM 的
 // LLVMIsATerminatorInst 判定一致（后者经 SuccessorCount 的常开拒绝语义暴露）。
 func TestOpIsTerminator(t *testing.T) {

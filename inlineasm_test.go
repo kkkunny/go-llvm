@@ -16,7 +16,7 @@ func TestInlineAsm(t *testing.T) {
 	if asm.IsNil() {
 		t.Fatal("InlineAsm 句柄不应为空")
 	}
-	// LLVM 22 的内联汇编常量为不透明指针（函数指针）类型
+	// LLVM 23 的内联汇编常量为不透明指针（函数指针）类型
 	if got := asm.Type().String(); got != "ptr" {
 		t.Fatalf("InlineAsm Type() = %q, want ptr", got)
 	}

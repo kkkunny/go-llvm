@@ -132,7 +132,7 @@ type ModuleFlagBehavior binding.LLVMModuleFlagBehavior
 
 // ModuleFlagBehavior 取值对应 LLVM 模块 flag 合并行为（binding.LLVMModuleFlagBehavior）。
 // 决定链接时两个模块中同名 flag（llvm.module.flags）的取值如何合并。
-// LLVM 的合并行为共 8 种，本绑定只暴露其中 6 种：LLVM 22 的 C++ 枚举另有 Max/Min
+// LLVM 的合并行为共 8 种，本绑定只暴露其中 6 种：LLVM 的 C++ 枚举另有 Max/Min
 // （取两值最大/最小，要求整数），LLVM-C 未暴露；解析外部 IR 时仍可能遇到。
 const (
 	ModuleFlagError        = ModuleFlagBehavior(binding.LLVMModuleFlagBehaviorError)        // 冲突报错：两模块取值不一致时报错，一致时结果即该取值

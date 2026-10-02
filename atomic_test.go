@@ -25,7 +25,7 @@ func TestAtomicOrderingValues(t *testing.T) {
 	}
 }
 
-// TestRMWOpValues 与 llvm-c/Core.h 的 LLVMAtomicRMWBinOp 枚举对齐（0..20）。
+// TestRMWOpValues 与 llvm-c/Core.h 的 LLVMAtomicRMWBinOp 枚举对齐（0..22）。
 func TestRMWOpValues(t *testing.T) {
 	want := []struct {
 		name string
@@ -53,6 +53,8 @@ func TestRMWOpValues(t *testing.T) {
 		{"USubSat", RMWUSubSat, 18},
 		{"FMaximum", RMWFMaximum, 19},
 		{"FMinimum", RMWFMinimum, 20},
+		{"FMaximumNum", RMWFMaximumNum, 21},
+		{"FMinimumNum", RMWFMinimumNum, 22},
 	}
 	seen := make(map[int]string, len(want))
 	for _, c := range want {

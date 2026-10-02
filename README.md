@@ -36,7 +36,7 @@ inspired by [inkwell](https://github.com/TheDan64/inkwell).
 Notes:
 
 * Requires **Go 1.27+** (the API uses generic methods).
-* Only LLVM 22 is supported; LLVM 21 and earlier are no longer provided. They can be
+* Only LLVM 23 is supported; LLVM 22 and earlier are no longer provided. They can be
   pinned to historic commits if needed.
 * The common Linux, macOS (Homebrew) and FreeBSD install layouts work with no extra
   setup; custom prefixes need a one-time step — see
@@ -57,7 +57,7 @@ All cgo lives in `internal/binding`.
 ## Usage
 
 Install a supported LLVM together with its development headers (for example
-`llvm-22-dev`), then:
+`llvm-23-dev`), then:
 
 ```shell
 go get github.com/kkkunny/go-llvm
@@ -210,16 +210,16 @@ so the common install layouts work out of the box — no environment variables n
 
 | Platform | Layout covered | Typical install |
 |---|---|---|
-| Linux | `/usr/lib/llvm-22`, `/usr/include/llvm-22`, `/usr/include/llvm-c-22`, `/usr/include`, `/usr/local`, `/usr/lib64` | Debian/Ubuntu `llvm-22-dev` (apt.llvm.org); Arch |
-| macOS (Homebrew) | `/opt/homebrew/opt/llvm@22` (Apple Silicon), `/usr/local/opt/llvm@22` (Intel) | `brew install llvm@22` |
-| FreeBSD | `/usr/local/llvm22` | `pkg install llvm22` (not confirmed on real hardware yet) |
+| Linux | `/usr/lib/llvm-23`, `/usr/include/llvm-23`, `/usr/include/llvm-c-23`, `/usr/include`, `/usr/local`, `/usr/lib64` | Debian/Ubuntu `llvm-23-dev` (apt.llvm.org); Arch |
+| macOS (Homebrew) | `/opt/homebrew/opt/llvm@23` (Apple Silicon), `/usr/local/opt/llvm@23` (Intel) | `brew install llvm@23` |
+| FreeBSD | `/usr/local/llvm23` | `pkg install llvm23` (not confirmed on real hardware yet) |
 
 The Debian/Ubuntu layouts are exercised by CI and Arch has been verified locally; the Fedora and
 FreeBSD candidates are listed for convenience but have not been confirmed on real hardware yet —
 if they miss, the generator (B layer) below is the fallback.
 
 `-lLLVM` is intentionally unversioned: it resolves against the first matching library
-(Debian/Ubuntu `llvm-22-dev` ships both `libLLVM-22.so` and `libLLVM.so`). If your LLVM
+(Debian/Ubuntu `llvm-23-dev` ships both `libLLVM-23.so` and `libLLVM.so`). If your LLVM
 lives elsewhere (custom `--prefix`, a non-standard multi-version toolchain, a store
 layout), pick one of the two paths below.
 
@@ -236,7 +236,7 @@ go run github.com/kkkunny/go-llvm/internal/cmd/llvmconfig
 ```
 
 `internal/cmd/llvmconfig` probes `$LLVM_CONFIG` → `$LLVM_PREFIX/bin/llvm-config` →
-`llvm-config-22` → `llvm-config` on `PATH`, queries `--includedir`/`--libdir`/`--libs`/
+`llvm-config-23` → `llvm-config` on `PATH`, queries `--includedir`/`--libdir`/`--libs`/
 `--system-libs`, and rewrites `internal/binding/cgo.go` with those flags in **both**
 `CFLAGS` and `CXXFLAGS` (the C++ shims include LLVM headers too). The result is
 **machine-specific**: do not commit it unless everyone shares the same layout — keep the
@@ -250,10 +250,10 @@ write there and tells you so. Consumers who `go get` this library and have no lo
 checkout must export the flags themselves:
 
 ```shell
-export CGO_CFLAGS="$(llvm-config-22 --cflags)"
+export CGO_CFLAGS="$(llvm-config-23 --cflags)"
 # --cxxflags ends with -fno-exceptions, which would break the C++ shims; filter it out.
-export CGO_CXXFLAGS="$(llvm-config-22 --cxxflags | sed 's/-fno-exceptions//g')"
-export CGO_LDFLAGS="$(llvm-config-22 --ldflags --libs)"
+export CGO_CXXFLAGS="$(llvm-config-23 --cxxflags | sed 's/-fno-exceptions//g')"
+export CGO_LDFLAGS="$(llvm-config-23 --ldflags --libs)"
 ```
 
 `CGO_CFLAGS`/`CGO_CXXFLAGS` are global, so they also reach `internal/binding`'s own
@@ -268,11 +268,11 @@ and a vendor tree has no `go.mod`, so the generator cannot run inside it.
 |---|---|---|
 | `fatal error: llvm-c/Core.h: No such file or directory` | include path missed by the candidates | generate flags (B layer) or set `CGO_CFLAGS` **and** `CGO_CXXFLAGS` |
 | `could not determine what C.X refers to` | same — cgo compiled without the LLVM headers | same |
-| `cannot find -lLLVM` / undefined `LLVM*` symbols | library path (or library name) missed | generate flags (B layer) or set `CGO_LDFLAGS`; the generator may emit `-lLLVM-22` instead of `-lLLVM` — treat a miss on either the same way |
+| `cannot find -lLLVM` / undefined `LLVM*` symbols | library path (or library name) missed | generate flags (B layer) or set `CGO_LDFLAGS`; the generator may emit `-lLLVM-23` instead of `-lLLVM` — treat a miss on either the same way |
 | `panic: llvm.NewContext: linked LLVM library is …` (`ErrVersionMismatch`, debug builds) | runtime library major ≠ compile-time headers major | install the dev package matching the library, or regenerate the flags for that version |
 
 Quick self-check inside a checkout: `go run ./internal/cmd/llvmconfig --check`. Without a
-checkout: `llvm-config --includedir --libdir --libs` (use `llvm-config-22` when several
+checkout: `llvm-config --includedir --libdir --libs` (use `llvm-config-23` when several
 LLVM majors are installed).
 
 ## Examples
@@ -306,10 +306,8 @@ make test test-release bench bench-release
 
 CI runs on every push and pull request via
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `gofmt` lint check plus a
-`default`/`release` test matrix on `ubuntu-24.04` with LLVM 22 installed from
-apt.llvm.org (the A-layer Linux layout), a macOS job for the Homebrew layout, and a
-custom-prefix job that regenerates the cgo flags with the B-layer generator and builds
-against them.
+`default`/`release` test matrix on `ubuntu-24.04` with LLVM 23 installed from
+apt.llvm.org (the A-layer Linux layout).
 
 Negative tests for semantic-contract misuse are gated by `requireDebug(t)` and run in
 debug builds only (skipped under the `llvm_release` matrix); crash-class floor tests
@@ -336,7 +334,10 @@ must pass in both builds.
    ```
 4. Enum constants need no changes: they are declared as `C.Name` and bind to
    whatever the local headers define. Unknown value kinds / opcodes degrade to
-   generic fallback wrappers instead of panicking.
+   generic fallback wrappers instead of panicking. Removed or renamed members are
+   the exception: update the Go mapping and any semantic normalization (LLVM 23
+   split `LLVMBr` into `LLVMUncondBr`/`LLVMCondBr`, which `ir.OpOf` folds back
+   into `ir.OpBr`).
 5. Bind newly added C APIs only when needed.
 
 ## License

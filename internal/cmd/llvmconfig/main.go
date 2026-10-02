@@ -5,7 +5,7 @@
 //	go run ./internal/cmd/llvmconfig          # 用探测到的 llvm-config 重写 cgo.go（机器专用版）
 //	go run ./internal/cmd/llvmconfig --check  # 只报告探测与查询结果，不写文件
 //
-// 探测顺序：$LLVM_CONFIG > $LLVM_PREFIX/bin/llvm-config > PATH 中的 llvm-config-22
+// 探测顺序：$LLVM_CONFIG > $LLVM_PREFIX/bin/llvm-config > PATH 中的 llvm-config-23
 // > PATH 中的 llvm-config。生成器不做 LLVM 大版本校验：所选 llvm-config 报告的
 // includedir/libdir/libs 原样采用，版本是否合适由使用者自行判断。
 //
@@ -44,7 +44,7 @@ type llvmConfig struct {
 	version    string // --version
 	includeDir string // --includedir
 	libDir     string // --libdir
-	libs       string // --libs，例如 -lLLVM-22
+	libs       string // --libs，例如 -lLLVM-23
 	systemLibs string // --system-libs，可能为空
 }
 
@@ -189,14 +189,14 @@ func discoverLLVMConfig(getenv func(string) string, lookPath func(string) (strin
 		}
 		return found, nil
 	}
-	for _, name := range []string{"llvm-config-22", "llvm-config"} {
+	for _, name := range []string{"llvm-config-23", "llvm-config"} {
 		if found, err := lookPath(name); err == nil {
 			return found, nil
 		}
 	}
 	return "", errors.New("找不到 llvm-config：已尝试 $LLVM_CONFIG、$LLVM_PREFIX/bin/llvm-config、" +
-		"PATH 中的 llvm-config-22 与 llvm-config。请安装 LLVM 22 开发包（Debian/Ubuntu: llvm-22-dev；" +
-		"Arch: llvm；macOS: brew install llvm@22），或用 LLVM_CONFIG=/path/to/llvm-config 明确指定；" +
+		"PATH 中的 llvm-config-23 与 llvm-config。请安装 LLVM 23 开发包（Debian/Ubuntu: llvm-23-dev；" +
+		"Arch: llvm；macOS: brew install llvm@23），或用 LLVM_CONFIG=/path/to/llvm-config 明确指定；" +
 		"无法安装时也可用 CGO_CFLAGS/CGO_CXXFLAGS/CGO_LDFLAGS 手动覆盖编译链接 flags")
 }
 
@@ -316,7 +316,7 @@ func linkFlags(cfg llvmConfig) string {
 }
 
 // quotedPath 用双引号包裹路径：go/build 的 splitQuoted 支持引号，含空格的非标准
-// 前缀（如 /opt/llvm 22）才能作为单个 -I/-L flag 传给编译器/链接器。
+// 前缀（如 /opt/llvm 23）才能作为单个 -I/-L flag 传给编译器/链接器。
 // 只用于 includedir/libdir 这两个受控路径；--libs/--system-libs 的原样 flags 不动。
 func quotedPath(path string) string {
 	return `"` + path + `"`

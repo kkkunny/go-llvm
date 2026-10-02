@@ -24,7 +24,7 @@ func TestLinkedLLVMVersion(t *testing.T) {
 func TestCheckVersionMatchMismatch(t *testing.T) {
 	requireDebug(t)
 	err := errs.Catch(func() {
-		checkVersionMatch(func() (uint32, uint32, uint32) { return 21, 1, 0 }, 22, "22.1.8")
+		checkVersionMatch(func() (uint32, uint32, uint32) { return 22, 1, 0 }, 23, "23.1.1")
 	})
 	if err == nil {
 		t.Fatal("版本错配时应 panic")
@@ -32,7 +32,14 @@ func TestCheckVersionMatchMismatch(t *testing.T) {
 	if err.Reason != ErrVersionMismatch || err.Op != "llvm.NewContext" {
 		t.Fatalf("want ErrVersionMismatch/llvm.NewContext, got %+v", err)
 	}
-	if !strings.Contains(err.Msg, "21.1.0") || !strings.Contains(err.Msg, "22.1.8") {
+	if !strings.Contains(err.Msg, "22.1.0") || !strings.Contains(err.Msg, "23.1.1") {
 		t.Fatalf("消息应包含运行时版本与头文件版本：%s", err.Msg)
 	}
+}
+
+// TestCheckVersionMatchMinorPatchIgnored 锁定版本校验只比较 major：同大版本、不同
+// minor/patch 的运行时库与头文件视为兼容，不 panic。
+func TestCheckVersionMatchMinorPatchIgnored(t *testing.T) {
+	requireDebug(t)
+	checkVersionMatch(func() (uint32, uint32, uint32) { return 23, 9, 9 }, 23, "23.1.1")
 }
