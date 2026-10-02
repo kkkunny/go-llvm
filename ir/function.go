@@ -191,11 +191,12 @@ type Param struct {
 	llvm.Value[llvm.DynT]
 }
 
-// SetAlign 设置参数对齐
+// SetAlign 设置参数对齐（align 参数属性，仅指针参数有效，非指针参数会在 [Module.Verify] 时报错）。
+// LLVM-C 的 LLVMSetAlignment 不支持 Argument，参数对齐必须走 LLVMSetParamAlignment。
 func (p Param) SetAlign(n uint32) {
 	const op = "ir.Param.SetAlign"
 	preAlign(op, n)
-	binding.LLVMSetAlignment(p.Ref(), n)
+	binding.LLVMSetParamAlignment(p.Ref(), n)
 }
 
 // Belong 参数所属函数
