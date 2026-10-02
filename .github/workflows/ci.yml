@@ -16,14 +16,26 @@ permissions:
 
 jobs:
   test:
-    name: test (${{ matrix.mode }})
+    name: test (${{ matrix.name }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        # default → 全量校验；release → llvm_release 信任构建（语义检查被裁剪）。
-        mode: [default, release]
+        # 版本 tag 契约：不带 tag 构建 master 最新支持的 LLVM；llvmNN 精确锁定该
+        # 大版本，两者都必须通过（调用方保证只带一个版本 tag）。llvm_release 与
+        # 版本 tag 正交，可组合（见 AGENTS.md "Version tags"）。新增受支持大版本时
+        # 在此追加行：{llvm: NN, flags: '-tags=llvmNN'}。
+        include:
+          - name: default
+            llvm: 23
+            flags: ''
+          - name: release
+            llvm: 23
+            flags: '-tags=llvm_release'
+          - name: llvm23
+            llvm: 23
+            flags: '-tags=llvm23'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -34,21 +46,23 @@ jobs:
           go-version: 1.27.x
           cache: true
 
-      # 直接添加 apt.llvm.org 的 llvm-toolchain-noble-23 源并只安装 llvm-23-dev：
+      # 直接添加 apt.llvm.org 的 llvm-toolchain-noble-NN 源并只安装 llvm-NN-dev：
       # 相比 llvm.sh 附带安装的 clang/lldb 等组件，安装体积更小、步骤更可控。
       # 备选（手动加源尚不可用时）：改用官方脚本
       #   wget -q https://apt.llvm.org/llvm.sh
       #   chmod +x llvm.sh
-      #   sudo ./llvm.sh 23
-      #   sudo apt-get install -y llvm-23-dev
-      - name: Install LLVM 23
+      #   sudo ./llvm.sh NN
+      #   sudo apt-get install -y llvm-NN-dev
+      - name: Install LLVM ${{ matrix.llvm }}
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
         run: |
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
             | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
-          echo "deb https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main" \
+          echo "deb https://apt.llvm.org/noble/ llvm-toolchain-noble-$LLVM_MAJOR main" \
             | sudo tee /etc/apt/sources.list.d/llvm-apt.list >/dev/null
           sudo apt-get update
-          sudo apt-get install -y llvm-23-dev
+          sudo apt-get install -y llvm-$LLVM_MAJOR-dev
 
       - name: Check gofmt
         run: |
@@ -59,16 +73,11 @@ jobs:
           fi
 
       - name: Build
-        run: go build ./...
+        run: go build ${{ matrix.flags }} ./...
 
       # go vet 需要 cgo 与 LLVM 头文件，因此必须与安装 LLVM 处于同一 job。
       - name: Vet
-        run: go vet ./...
+        run: go vet ${{ matrix.flags }} ./...
 
-      - name: Test (default)
-        if: matrix.mode == 'default'
-        run: go test ./...
-
-      - name: Test (llvm_release)
-        if: matrix.mode == 'release'
-        run: go test -tags=llvm_release ./...
+      - name: Test
+        run: go test ${{ matrix.flags }} ./...

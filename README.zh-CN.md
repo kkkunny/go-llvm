@@ -28,14 +28,27 @@
 
 ## 支持的 LLVM 版本
 
-| 本地 LLVM | 使用方式 |
-|---|---|
-| 22 | `go get github.com/kkkunny/go-llvm` |
+不带版本 tag 时，master 总是构建它支持的最新 LLVM 大版本；带 `llvmNN` 编译标签可显式
+锁定某个大版本。目前仅支持 LLVM 23，两种构建等价：
+
+| 构建 | 本地 LLVM | 选择方式 |
+|---|---|---|
+| 默认（不带版本 tag） | 23（最新支持） | `go get github.com/kkkunny/go-llvm` |
+| `-tags=llvm23` | 23（显式锁定） | `go build -tags=llvm23 ...`（或 `GOFLAGS=-tags=llvm23`） |
 
 注意：
 
 * 需要 **Go 1.27+**（API 使用了泛型方法）。
-* 仅支持 LLVM 23；不再提供 LLVM 22 及更早的版本线，如有需要可固定到历史提交。
+* 版本 tag 是**整个构建**范围的设置：至多带一个 `llvmNN` tag，且每次
+  `go build`/`go test`/`go run` 编译本模块时都要带上（例如通过 `GOFLAGS`）。
+  一致性由调用方自行保障——本库不检测冲突的 tag。
+* tag（或不带 tag 的默认值）与已安装头文件的大版本不一致时，在编译期报错并指向
+  上面的支持矩阵（`internal/binding/version.go`）。
+* `llvm_release` 与其正交，可组合使用：`-tags=llvm23,llvm_release`。
+* 本库不承诺 Go API 跨 LLVM 大版本稳定：LLVM 的 C API 一变，本库立即跟进。
+  在 C API 允许的范围内，公共 Go API 尽量跨受支持大版本保持一致（例如 `ir.OpBr`
+  把 LLVM 23 拆分的分支操作码折回一个值）。
+* LLVM 22 及更早的版本线存档在 `v22`（及更早）git tag 下，master 不再维护。
 * 常见 Linux、macOS（Homebrew）与 FreeBSD 安装布局开箱即用；非标准前缀需要一次
   生成步骤，见[非标准 LLVM 前缀](#非标准-llvm-前缀)。
 
@@ -248,6 +261,7 @@ export CGO_LDFLAGS="$(llvm-config-23 --ldflags --libs)"
 
 | 现象 | 可能原因 | 处理 |
 |---|---|---|
+| `go-llvm: this build targets LLVM 23`（`#error`，编译期） | 版本 tag（或无 tag 默认值）与已安装头文件的大版本不一致 | 安装匹配的大版本，或按支持矩阵加上对应的 `-tags llvmNN` |
 | `fatal error: llvm-c/Core.h: No such file or directory` | 候选列表未命中头文件路径 | 用生成器生成 flags（B 层），或同时设置 `CGO_CFLAGS` 与 `CGO_CXXFLAGS` |
 | `could not determine what C.X refers to` | 同上：cgo 编译时没有 LLVM 头文件 | 同上 |
 | `cannot find -lLLVM` / `LLVM*` 符号未定义 | 库路径（或库名）未命中 | 用生成器生成 flags（B 层），或设置 `CGO_LDFLAGS`；生成器可能产出 `-lLLVM-23`，同样按未命中处理 |
@@ -280,15 +294,17 @@ export CGO_LDFLAGS="$(llvm-config-23 --ldflags --libs)"
 go build ./...
 go vet ./...
 go test ./...                            # 调试构建（默认）：三层校验全开
+go test -tags=llvm23 ./...               # 版本 tag 契约：显式锁定大版本的构建
 go test -tags=llvm_release ./...         # 信任构建：语义契约/调试增强编译期消除
 go test ./ir -run TestGolden -update     # 重新生成 golden IR（两种构建下结果必须一致）
-make test test-release bench bench-release
+make test test-tag test-release bench bench-release
 ```
 
 CI 在每次 push 与 pull request 时通过
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 运行：`gofmt` lint 检查，加上
-`ubuntu-24.04` 上的 `default`/`release` 测试矩阵（LLVM 23 来自 apt.llvm.org，即 A 层
-Linux 布局）。
+`ubuntu-24.04` 上的 `default`、`release` 与 `llvm23` 三个 job（LLVM 23 来自
+apt.llvm.org，即 A 层 Linux 布局）。`llvm23` job 锁定版本 tag 契约：每个受支持大版本
+都必须同时通过不带 tag（最新）和带 tag 的构建。
 
 语义契约类负向测试（期望 panic 的误用测试）通过 `requireDebug(t)` 挂在调试构建，
 `llvm_release` 矩阵下自动跳过；崩溃类地板测试两种构建都必须通过。
@@ -301,17 +317,17 @@ Linux 布局）。
 2. 对照本地头文件核查本仓库引用的每个 C 符号：
    `rg -o 'C\.[A-Za-z_]\w*' --glob '*.go'`，再用
    `grep -rw NAME /usr/include/llvm-c/` 逐一确认。
-3. 先冻结上一条版本线，再在 master 上更新版本相关位置：
-   `Makefile` 的 `MIN/MAX_SUPPORT_MAJOR_VERSION`、上面的支持矩阵、本 README，以及
+3. 在 master 上更新版本相关位置：`Makefile` 的 `MIN/MAX_SUPPORT_MAJOR_VERSION` 与
+   `VERSION_TAG`、上面的支持矩阵、本 README（及英文版），以及
    `internal/binding/cgo.go` 的 per-OS 候选路径。用
    `LLVM_CONFIG=/path/to/llvm-config-NN go generate ./internal/binding`（或
    `go run ./internal/cmd/llvmconfig --check`）核对本机 flags；生成结果是机器专用的，
    提交里应保留可移植候选列表。
 
-   ```shell
-   git branch llvm-NN master     # 保持旧版本线可达
-   git tag -a llvmNN -m "LLVM NN line"
-   ```
+   旧大版本不再冻结到分支上：让上一个版本继续在 master 上以 `llvmNN` tag 可选
+   （`internal/binding/version.go` 的闸门；同时支持两个大版本后拆出 per-tag 的
+   `#cgo` 候选；CI 矩阵加一行）。`vNN` git tag 仅作存档标记。完整配方见
+   [`AGENTS.md`](AGENTS.md) 的 *Version tags* 一节。
 4. 枚举常量无需改动：它们声明为 `C.Name`，自动绑定到本地头文件定义的值。
    未知的值种类/操作码会退化为通用回退包装类型，而不是 panic。被移除或改名的
    成员例外：需要更新 Go 侧映射与语义归一化（LLVM 23 把 `LLVMBr` 拆成

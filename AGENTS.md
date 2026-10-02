@@ -12,21 +12,56 @@ the commit message), and update the affected rule in this file.
 
 ## Hard prerequisites
 
-- **This ref targets LLVM 23** (`MIN/MAX_SUPPORT_MAJOR_VERSION = 23` in the Makefile); older majors are out of scope here (see the README support table). If `go build ./...` fails with cgo errors like `could not determine what C.X refers to`, you are compiling against the wrong LLVM major — check `llvm-config --version`. Debug builds also catch a header/library major mismatch at the first `NewContext` (`ErrVersionMismatch`, see *cgo / Makefile quirks*).
+- **This ref targets LLVM 23** (`MIN/MAX_SUPPORT_MAJOR_VERSION` and `VERSION_TAG` in the Makefile); older majors are out of scope here (see the README support table). The build is pinned to exactly one major by the Go version tag (`llvm23`; untagged = the latest major the ref supports); `internal/binding/version.go` turns a tag/header mismatch into a compile-time `#error` in every build mode. If `go build ./...` fails with cgo errors like `could not determine what C.X refers to`, you are compiling against the wrong LLVM major — check `llvm-config --version`. Debug builds also catch a header/library major mismatch at the first `NewContext` (`ErrVersionMismatch`, see *cgo / Makefile quirks*).
 - **Go 1.27+** is required: the public API uses generic methods (`func (v Value[T]) As[U Kind]()`), which are only available on concrete types. Do not move generic methods into interfaces — Go does not allow it, and interfaces cannot be satisfied by generic methods.
 - `#cgo` flags are checked in at `internal/binding/cgo.go` as a portable per-OS candidate list (Linux `/usr/lib/llvm-23` + `/usr` family, macOS Homebrew `/opt/homebrew/opt/llvm@23` / `/usr/local/opt/llvm@23`, FreeBSD `/usr/local/llvm23`) with an unversioned `-lLLVM`. Consumers need no extra setup for standard layouts; `go generate ./internal/binding` (or `make config`) runs `internal/cmd/llvmconfig` and rewrites the file with machine-specific flags from the local `llvm-config`. This line lists `llvm-23`.
-- CI runs on every push and pull request via `.github/workflows/ci.yml`: a `gofmt` lint check plus a `default`/`release` test matrix on `ubuntu-24.04` with LLVM 23 installed from apt.llvm.org. Reproduce the checks locally: `go build ./...`, `go vet ./...`, `go test ./...` **and `go test -tags=llvm_release ./...`** (`make test` / `make test-release` wrap the last two). Default builds run the full check stack, `llvm_release` is the trust build (see *Checks and build modes* below). Golden IR tests are regenerated with `go test ./ir -run TestGolden -update` and must match in both modes. Benchmarks: `make bench` / `make bench-release`, or `go test -run '^$' -bench . -benchmem ./...` (see `bench_test.go`, `ir/bench_test.go`, `jit/bench_test.go`).
+- CI runs on every push and pull request via `.github/workflows/ci.yml`: a `gofmt` lint check plus `default`/`release`/`llvm23` jobs on `ubuntu-24.04` with LLVM 23 installed from apt.llvm.org. Reproduce the checks locally: `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=llvm23 ./...` **and `go test -tags=llvm_release ./...`** (`make test` / `make test-tag` / `make test-release` wrap the last three). Default builds run the full check stack, `llvm_release` is the trust build (see *Checks and build modes* below). Golden IR tests are regenerated with `go test ./ir -run TestGolden -update` and must match in both modes. Benchmarks: `make bench` / `make bench-release`, or `go test -run '^$' -bench . -benchmem ./...` (see `bench_test.go`, `ir/bench_test.go`, `jit/bench_test.go`).
 - Panic-expected misuse tests are gated by `requireDebug(t)` and skip under `llvm_release`; crash-class floor tests must pass in both modes.
 
 ## cgo / Makefile quirks
 
 - `internal/binding/cgo.go` is checked in as a **portable per-OS candidate list**: `#cgo linux` lists `/usr/lib/llvm-23/include`, `/usr/include/llvm-23`, `/usr/include/llvm-c-23`, `/usr/include`, `/usr/local/include` (and the matching `-L` dirs, ending in the unversioned `-lLLVM`); `#cgo darwin,arm64` lists `/opt/homebrew/opt/llvm@23`, `#cgo darwin,amd64` lists `/usr/local/opt/llvm@23`, and both add `-lz -lm` (write the two darwin constraints out in full — `darwin,arm64|amd64` is not valid `go/build/constraint` syntax and silently matches nothing); `#cgo freebsd` lists `/usr/local/llvm23`. Nonexistent `-I`/`-L` directories are ignored by the compiler and linker, so all candidates can be listed at once, and the unversioned `-lLLVM` resolves against the first matching library (Arch reports `-lLLVM-23` via `llvm-config --libs`; Debian/Ubuntu ship both `libLLVM-23.so` and `libLLVM.so`). **CFLAGS and CXXFLAGS must always carry the same `-I` paths**: the C++ shims include LLVM headers too, and a C-only include path was the root cause of a past CI failure.
-- `go generate ./internal/binding` (or `make config`) invokes `internal/cmd/llvmconfig`, which probes `$LLVM_CONFIG` > `$LLVM_PREFIX/bin/llvm-config` > PATH `llvm-config-23` > PATH `llvm-config` (deliberately no major-version check), queries `--includedir`/`--libdir`/`--libs`/`--system-libs`, and rewrites `cgo.go` into a machine-specific version — it never copies `--cxxflags` verbatim (`-fno-exceptions` would break the shims) and quotes include/lib paths (`go/build`'s `splitQuoted` keeps spaces inside one flag). Keep the checked-in copy portable and review the diff before committing a generated one. It refuses to write inside `$GOMODCACHE` / `go env GOMODCACHE` (read-only, managed by the go command) and points consumers at a local checkout, `replace`, copying a locally generated `cgo.go` into a `vendor/` tree (the generator cannot run inside `vendor/`: there is no `go.mod` there, and `go mod vendor` overwrites it), or `CGO_*` overrides; `--check` only reports. The Makefile `config` target delegates to the generator, and `MIN/MAX_SUPPORT_MAJOR_VERSION` stay as documentation markers for the README support table.
+- `go generate ./internal/binding` (or `make config`) invokes `internal/cmd/llvmconfig`, which probes `$LLVM_CONFIG` > `$LLVM_PREFIX/bin/llvm-config` > PATH `llvm-config-23` > PATH `llvm-config` (deliberately no major-version check), queries `--includedir`/`--libdir`/`--libs`/`--system-libs`, and rewrites `cgo.go` into a machine-specific version — it never copies `--cxxflags` verbatim (`-fno-exceptions` would break the shims) and quotes include/lib paths (`go/build`'s `splitQuoted` keeps spaces inside one flag). Keep the checked-in copy portable and review the diff before committing a generated one. It refuses to write inside `$GOMODCACHE` / `go env GOMODCACHE` (read-only, managed by the go command) and points consumers at a local checkout, `replace`, copying a locally generated `cgo.go` into a `vendor/` tree (the generator cannot run inside `vendor/`: there is no `go.mod` there, and `go mod vendor` overwrites it), or `CGO_*` overrides; `--check` only reports. The Makefile `config` target delegates to the generator, and `MIN/MAX_SUPPORT_MAJOR_VERSION` + `VERSION_TAG` are the version markers behind the README support table and the CI matrix.
 - Consumers on non-standard prefixes that cannot run the generator (module cache) override via env: `CGO_CFLAGS` / `CGO_CXXFLAGS` / `CGO_LDFLAGS` from `llvm-config-NN` (global, so they also reach `internal/binding`'s own compilation; a `#cgo` file in the consumer's main package cannot fix its include paths). `llvm-config --cxxflags` may contain `-fno-exceptions`, so filter it out when exporting `CGO_CXXFLAGS`.
+- **Compile-time version gate**: `internal/binding/version.go` includes `llvm/Config/llvm-config.h` and `#error`s when `LLVM_VERSION_MAJOR` differs from the major selected by the version tag (untagged = latest supported). It runs in every build mode — do not gate it behind `checks.Debug` — and must stay out of `cgo.go`, which the `llvmconfig` generator rewrites.
 - **Runtime version check (debug builds only)**: `NewContext` starts with `checkLinkedVersion`, comparing the major from `binding.LLVMGetVersion()` (1:1 `LLVMGetVersion`) against the header's `LLVM_VERSION_MAJOR` (only the major version is compared — minor/patch are ignored); a mismatch panics `ErrVersionMismatch` with both versions in the message before any LLVM state is created. Under `-tags=llvm_release` the constant `checks.Debug` makes the check dead code: no Go-side call or query happens at runtime (the release binary may still carry the C-side call trampoline's dynamic symbol, but the Go call path is eliminated).
 - Go callbacks into C use `//export` plus a tiny `.c`/`.h` trampoline (see `ErrorHandling.h`), never `reflect`-built function pointers. The JIT interop bridge (`internal/binding/bridge.c`) follows the same rule: `llvmBridgeGoChannel` → `goLLVMBridgeDispatch` for native→Go, `llvmBridgeCall` for Go→native through per-signature IR adapters.
 - ORC ownership: `LLVMOrcCreateNewThreadSafeModule` takes the module, and the ThreadSafeContext takes the LLVMContext. `jit.LLJIT.AddIRModule` therefore calls `Module.Disown()` + `Context.Disown()` (both invalidate Go handles immediately) and never disposes them itself; `LLJIT.Close()` frees them. `AddObjectFile` likewise consumes the `MemoryBuffer` (`Disown`).
 - C++ shims are compiled with `-fexceptions` (see `cgo.go`) and must catch exceptions at the `extern "C"` boundary, returning an error message instead of letting them cross into cgo.
+
+## Version tags
+
+The build targets exactly one LLVM major. `llvmNN` (currently `llvm23`) pins major NN;
+an untagged build targets the latest major the ref supports. The caller passes at most
+one version tag to the whole build and is responsible for consistency — the repository
+does not detect conflicting tags. `llvm_release` is orthogonal and may be combined.
+
+- `internal/binding/version.go` is the compile-time gate (`#error` on a tag/header
+  mismatch, every build mode); keep it separate from the generated `cgo.go`.
+- Only 23 is supported today, so untagged and `-tags=llvm23` compile the same files;
+  CI builds both to lock the contract (`default`/`release`/`llvm23` jobs).
+- A version tag is a **source-compatibility** device, not a Go API guarantee: the public
+  API may change with LLVM, but stays common across supported majors wherever the C API
+  allows it (`ir.OpBr` folding LLVM 23's split branch opcodes is the template).
+- When a second major is supported on master, keep the previous major selectable
+  instead of freezing a branch/tag:
+  * add `internal/binding/version_llvmNN.go` (`//go:build llvmNN`) with its own gate and
+    constrain the default gate to the latest supported major;
+  * split the `#cgo` flag candidates per tag once several majors are supported (`-I`/`-L`
+    order must follow the tag); teach `llvmconfig` to emit the matching file and have
+    `--check` report the detected major;
+  * put **symbol-presence** differences in tagged files: `xxx_sinceNN.go` for code that
+    needs `!llvmMM` (MM = each supported older tag), `xxx_llvmNN.go` for code that only
+    exists in NN. **Behavior** differences do not belong in tags — branch on the cgo
+    constant `binding.LLVM_VERSION_MAJOR` (constant-folded) or use `#if` in the shims;
+  * normalize the public API in `binding` with per-tag aliases where possible, so only
+    symbols genuinely absent from an older major appear conditionally;
+  * extend the CI matrix (`{llvm, flags}` rows) and gate version-specific tests with a
+    `requireLLVM(t, N)` helper (like `requireDebug(t)`);
+  * retire a major that drops out of the support window by deleting its tag files,
+    simplifying the `!llvmMM` constraints, and dropping its CI rows; the `vNN` git tag
+    stays as a permanent archive marker.
+- `git tag vNN` no longer selects a version; the version tags live in the source tree.
 
 ## Layout / architecture
 

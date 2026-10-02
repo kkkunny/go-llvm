@@ -29,15 +29,30 @@ inspired by [inkwell](https://github.com/TheDan64/inkwell).
 
 ## Supported LLVM versions
 
-| Local LLVM | How to use |
-|---|---|
-| 22 | `go get github.com/kkkunny/go-llvm` |
+Master always builds the latest LLVM major it supports when no version tag is given;
+pass a `llvmNN` build tag to pin a major explicitly. Currently only LLVM 23 is
+supported, so both builds are equivalent:
+
+| Build | Local LLVM | How to select |
+|---|---|---|
+| default (no version tag) | 23 (latest supported) | `go get github.com/kkkunny/go-llvm` |
+| `-tags=llvm23` | 23 (explicit) | `go build -tags=llvm23 ...` (or `GOFLAGS=-tags=llvm23`) |
 
 Notes:
 
 * Requires **Go 1.27+** (the API uses generic methods).
-* Only LLVM 23 is supported; LLVM 22 and earlier are no longer provided. They can be
-  pinned to historic commits if needed.
+* Version tags are a **whole-build** setting: pass at most one `llvmNN` tag, and pass
+  it to every `go build`/`go test`/`go run` that compiles this module (for example via
+  `GOFLAGS`). The caller is responsible for consistency — the library does not detect
+  conflicting tags.
+* A tag (or the untagged default) that does not match the installed headers fails at
+  compile time with a message pointing at this table (`internal/binding/version.go`).
+* `llvm_release` is orthogonal and may be combined: `-tags=llvm23,llvm_release`.
+* There is no Go API stability promise across LLVM majors: when LLVM changes the C API,
+  this library follows. Where the C API allows it, the public Go API stays common
+  across supported majors (for example `ir.OpBr` folds LLVM 23's split branch opcodes).
+* LLVM 22 and earlier are archived under the `v22` (and older) git tags — they are no
+  longer maintained on master.
 * The common Linux, macOS (Homebrew) and FreeBSD install layouts work with no extra
   setup; custom prefixes need a one-time step — see
   [Non-standard LLVM prefixes](#non-standard-llvm-prefixes).
@@ -266,6 +281,7 @@ and a vendor tree has no `go.mod`, so the generator cannot run inside it.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| `go-llvm: this build targets LLVM 23` (`#error`, compile time) | version tag (or the untagged default) does not match the installed LLVM major | install the matching major, or pass the `-tags llvmNN` from the support table |
 | `fatal error: llvm-c/Core.h: No such file or directory` | include path missed by the candidates | generate flags (B layer) or set `CGO_CFLAGS` **and** `CGO_CXXFLAGS` |
 | `could not determine what C.X refers to` | same — cgo compiled without the LLVM headers | same |
 | `cannot find -lLLVM` / undefined `LLVM*` symbols | library path (or library name) missed | generate flags (B layer) or set `CGO_LDFLAGS`; the generator may emit `-lLLVM-23` instead of `-lLLVM` — treat a miss on either the same way |
@@ -299,15 +315,17 @@ Runnable examples live in [`examples/`](examples); see
 go build ./...
 go vet ./...
 go test ./...                            # debug build (default): full check stack
+go test -tags=llvm23 ./...               # version tag contract: pinned-major build
 go test -tags=llvm_release ./...         # trust build: semantic checks compiled out
 go test ./ir -run TestGolden -update     # regenerate golden IR (must match in both builds)
-make test test-release bench bench-release
+make test test-tag test-release bench bench-release
 ```
 
 CI runs on every push and pull request via
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `gofmt` lint check plus a
-`default`/`release` test matrix on `ubuntu-24.04` with LLVM 23 installed from
-apt.llvm.org (the A-layer Linux layout).
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `gofmt` lint check plus
+`default`, `release` and `llvm23` jobs on `ubuntu-24.04` with LLVM 23 installed from
+apt.llvm.org (the A-layer Linux layout). The `llvm23` job locks the version-tag
+contract: every supported major must build both untagged (latest) and under its tag.
 
 Negative tests for semantic-contract misuse are gated by `requireDebug(t)` and run in
 debug builds only (skipped under the `llvm_release` matrix); crash-class floor tests
@@ -321,17 +339,18 @@ must pass in both builds.
 2. Cross-check every C symbol this repo references against the local headers:
    `rg -o 'C\.[A-Za-z_]\w*' --glob '*.go'`, then verify each name with
    `grep -rw NAME /usr/include/llvm-c/`.
-3. Freeze the previous line first, then bump the version spots on master:
-   `Makefile` `MIN/MAX_SUPPORT_MAJOR_VERSION`, the support table above, this README,
+3. Bump the version spots on master: `Makefile` `MIN/MAX_SUPPORT_MAJOR_VERSION` and
+   `VERSION_TAG`, the support table above, this README (and its Chinese counterpart),
    and the per-OS candidate paths in `internal/binding/cgo.go`. Check the flags against
    the local toolchain with `LLVM_CONFIG=/path/to/llvm-config-NN go generate
    ./internal/binding` (or `go run ./internal/cmd/llvmconfig --check`); the generated
    file is machine-specific, so keep the portable candidates in the commit.
 
-   ```shell
-   git branch llvm-NN master     # keep the old line reachable
-   git tag -a llvmNN -m "LLVM NN line"
-   ```
+   Old majors are no longer frozen onto branches: keep the previous major selectable
+   on master under its `llvmNN` tag (the gate in `internal/binding/version.go`, per-tag
+   `#cgo` candidates once two majors are supported, and a matching CI matrix row). The
+   `vNN` git tag remains as an archive marker only. See *Version tags* in
+   [`AGENTS.md`](AGENTS.md) for the full recipe.
 4. Enum constants need no changes: they are declared as `C.Name` and bind to
    whatever the local headers define. Unknown value kinds / opcodes degrade to
    generic fallback wrappers instead of panicking. Removed or renamed members are
