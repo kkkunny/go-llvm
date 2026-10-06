@@ -125,7 +125,9 @@ func TestE2EObjectRoundTrip(t *testing.T) {
 	defer j.Close()
 
 	ctx := llvm.NewContext()
+	defer ctx.Close()
 	m := ir.NewModule(ctx, "aot")
+	defer m.Close()
 	i32 := ctx.Int(32)
 	fn := m.NewFunction("square", ctx.Fn(i32, []llvm.AnyType{i32}, false))
 	b := ir.NewBuilder(ctx)
@@ -168,7 +170,10 @@ func TestE2EIRRoundTrip(t *testing.T) {
 
 	ctx := llvm.NewContext()
 	defer ctx.Close()
-	buf := llvm.NewMemoryBuffer([]byte(fibModule(t).String()), "fib.ll")
+	src := fibModule(t)
+	defer src.Close()
+	defer src.Context().Close()
+	buf := llvm.NewMemoryBuffer([]byte(src.String()), "fib.ll")
 	defer buf.Close()
 	m, err := ir.ParseIR(ctx, buf)
 	if err != nil {

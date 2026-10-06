@@ -1,6 +1,8 @@
 package jit
 
 import (
+	"sync"
+
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/checks"
@@ -27,12 +29,24 @@ func (j *LLJIT) NewResourceTracker() ResourceTracker {
 
 // ClearSymbols 卸载主 JITDylib 的全部符号定义（等价逐个 tracker remove，含默认 tracker）；
 // 之后可继续添加模块。对应 JITDylib::clear()。
+// 已缓存的按签名适配器与 callGoChannel 符号也会被卸载，这里同步重置缓存，
+// 使后续 Func/MapFunc 重新编译/定义；此前取得的 Func 闭包随之失效。
+// 与 Close 一样，本方法须由调用方与 Func/MapFunc/Lookup 串行化。
 func (j *LLJIT) ClearSymbols() error {
 	const op = "jit.LLJIT.ClearSymbols"
 	j.check(op)
 	if err := binding.LLVMOrcJITDylibClear(binding.LLVMOrcLLJITGetMainJITDylib(j.ref)); err != nil {
 		return errs.WrapError(llvm.ErrJIT, op, err)
 	}
+	j.mu.Lock()
+	j.adapters = nil
+	j.channelOnce = sync.Once{}
+	j.channelErr = nil
+	j.mu.Unlock()
+	j.sigMu.Lock()
+	j.symbolSigs = nil
+	j.goSigs = nil
+	j.sigMu.Unlock()
 	return nil
 }
 

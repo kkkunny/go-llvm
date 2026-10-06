@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"reflect"
+	"strconv"
 	"unsafe"
 
 	"github.com/kkkunny/go-llvm"
@@ -40,29 +41,33 @@ const (
 	slotPtr
 )
 
-// bridgeSlots 桥首版支持的 Go 类型（其余返回 ErrUnsupported）
+// bridgeSlots 桥首版支持的 Go 类型（其余返回 ErrUnsupported）。
+// int/uint/uintptr 的槽宽取决于宿主字长，见 slotKindOf。
 var bridgeSlots = map[reflect.Kind]bridgeSlotKind{
 	reflect.Bool:          slotI1,
 	reflect.Int32:         slotI32,
 	reflect.Uint32:        slotI32,
 	reflect.Int64:         slotI64,
 	reflect.Uint64:        slotI64,
-	reflect.Int:           slotI64,
-	reflect.Uint:          slotI64,
 	reflect.Float32:       slotF32,
 	reflect.Float64:       slotF64,
 	reflect.Pointer:       slotPtr,
 	reflect.UnsafePointer: slotPtr,
 }
 
-// slotKindOf 判定 Go 类型可否过桥
+// slotKindOf 判定 Go 类型可否过桥；int/uint 按宿主字长选择槽宽
+// （FnSignatureOfGo 映射为 i32/i64，必须与之一致，否则 32 位宿主上类型不符）。
 func slotKindOf(t reflect.Type) bridgeSlotKind {
+	switch t.Kind() {
+	case reflect.Int, reflect.Uint:
+		if strconv.IntSize == 32 {
+			return slotI32
+		}
+		return slotI64
+	}
 	k, ok := bridgeSlots[t.Kind()]
 	if !ok {
 		return slotUnsupported
-	}
-	if t.Kind() == reflect.Pointer && t.Elem() != nil {
-		// 允许 *T；不支持指向不支持类型的指针无影响（不透明指针）
 	}
 	return k
 }
@@ -164,11 +169,13 @@ func (j *LLJIT) compileAdapter(ft reflect.Type, e *adapterEntry) error {
 	}
 
 	call := b.CallIndirect[llvm.DynT](fnPtr, sig, args, "")
-	var ret llvm.AnyValue = call.Value
-	if e.ret != slotUnsupported {
-		ret = packSlot(b, ctx, call.Value, i64, e.ret)
+	if e.ret == slotUnsupported {
+		// 适配器自身签名是 i64(ptr, ptr)：void 调用必须显式返回 0，
+		// 不能把 void call 指令交给 Ret（会生成 ret void 导致验证失败）。
+		b.Ret(ctx.ConstInt(i64, 0).Value)
+	} else {
+		b.Ret(packSlot(b, ctx, call.Value, i64, e.ret))
 	}
-	b.Ret(ret)
 	if err := b.Close(); err != nil {
 		ctx.Close()
 		return errs.WrapError(llvm.ErrInternal, op, err)

@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/internal/errs"
 	"github.com/kkkunny/go-llvm/ir"
 )
 
@@ -193,5 +194,90 @@ func TestLLJITRunMain(t *testing.T) {
 	}
 	if code != 6 { // argc=3，加 3
 		t.Fatalf("RunMain exit code = %d", code)
+	}
+}
+
+// TestLLJITFuncVoid void 返回值必须可用（适配器 i64 返回槽与 void 签名的组合）。
+func TestLLJITFuncVoid(t *testing.T) {
+	j := newJIT(t)
+	defer j.Close()
+
+	ctx := llvm.NewContext()
+	m := ir.NewModule(ctx, "void")
+	i32 := ctx.Int(32)
+	noop := m.NewFunction("noop", ctx.Fn(ctx.Void(), []llvm.AnyType{i32}, false))
+	ping := m.NewFunction("ping", ctx.Fn(ctx.Void(), nil, false))
+	b := ir.NewBuilder(ctx)
+	b.MoveToEnd(noop.NewBlock("entry"))
+	b.RetVoid()
+	b.MoveToEnd(ping.NewBlock("entry"))
+	b.RetVoid()
+	if err := b.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := j.AddIRModule(m); err != nil {
+		t.Fatal(err)
+	}
+
+	noopFn, err := j.Func[func(int32)]("noop")
+	if err != nil {
+		t.Fatalf("Func[func(int32)]: %v", err)
+	}
+	noopFn(7)
+
+	pingFn, err := j.Func[func()]("ping")
+	if err != nil {
+		t.Fatalf("Func[func()]: %v", err)
+	}
+	pingFn()
+}
+
+// TestLLJITClearSymbolsReuse ClearSymbols 之后 Func/MapFunc 必须能重新工作。
+func TestLLJITClearSymbolsReuse(t *testing.T) {
+	j := newJIT(t)
+	defer j.Close()
+
+	if err := j.AddIRModule(addModule(t)); err != nil {
+		t.Fatal(err)
+	}
+	add, err := j.Func[func(int32, int32) int32]("add")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := add(1, 2); got != 3 {
+		t.Fatalf("add(1, 2) = %d", got)
+	}
+
+	if err := j.ClearSymbols(); err != nil {
+		t.Fatal(err)
+	}
+	if err := j.AddIRModule(addModule(t)); err != nil {
+		t.Fatal(err)
+	}
+	add2, err := j.Func[func(int32, int32) int32]("add")
+	if err != nil {
+		t.Fatalf("Func after ClearSymbols: %v", err)
+	}
+	if got := add2(2, 3); got != 5 {
+		t.Fatalf("add after clear (2, 3) = %d", got)
+	}
+
+	// callGoChannel 被 clear 卸载后必须能重新定义
+	if err := j.MapFunc("inc_after_clear", func(v int32) int32 { return v + 1 }); err != nil {
+		t.Fatalf("MapFunc after ClearSymbols: %v", err)
+	}
+	if _, err := j.Lookup("inc_after_clear"); err != nil {
+		t.Fatalf("Lookup after ClearSymbols: %v", err)
+	}
+}
+
+// TestLLJITMapFuncNil typed-nil 函数必须在注册前被拒绝。
+func TestLLJITMapFuncNil(t *testing.T) {
+	j := newJIT(t)
+	defer j.Close()
+
+	var f func(int32) int32
+	if err := errs.Catch(func() { _ = j.MapFunc("nil_fn", f) }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("MapFunc(nil) should panic ErrInvalidArg, got %v", err)
 	}
 }

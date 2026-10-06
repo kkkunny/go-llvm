@@ -41,7 +41,7 @@ func (j *LLJIT) Func[F any](name string) (F, error) {
 			slots[i] = boxValue(a)
 		}
 		raw := binding.BridgeCall(e.adapter, addr, slots)
-		for i := range slots {
+		for i := range args {
 			slots[i] = 0
 		}
 		slotsPool.Put(sp)
@@ -55,6 +55,7 @@ func (j *LLJIT) Func[F any](name string) (F, error) {
 
 // MapFunc 把宿主 Go 函数注册为 JIT 符号 name（native→Go 方向）。
 // 生成真实签名的 IR 包装体：装箱参数 → callGoChannel(idx, slots) → 解箱返回值。
+// f 为 nil 函数时 panic ErrInvalidArg。
 func (j *LLJIT) MapFunc[F any](name string, f F) error {
 	const op = "jit.LLJIT.MapFunc"
 	j.check(op)
@@ -66,15 +67,25 @@ func (j *LLJIT) MapFunc[F any](name string, f F) error {
 	if _, _, err := checkBridgeFunc(ft); err != nil {
 		return err
 	}
+	fv := reflect.ValueOf(f)
+	if fv.IsNil() {
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil function")
+	}
 	if err := j.ensureGoChannel(); err != nil {
 		return err
 	}
-	idx := registerGoFunc(reflect.ValueOf(f))
-	return j.compileWrapper(name, ft, idx)
+	idx := registerGoFunc(fv)
+	if err := j.compileWrapper(name, ft, idx); err != nil {
+		unregisterGoFunc(idx)
+		return err
+	}
+	return nil
 }
 
 // ensureGoChannel 把 C 通道函数挂接为 JIT 符号 callGoChannel（仅一次）
 func (j *LLJIT) ensureGoChannel() error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
 	j.channelOnce.Do(func() {
 		j.channelErr = j.MapSymbol("callGoChannel", binding.BridgeGoChannelAddr())
 	})
@@ -138,11 +149,13 @@ func (j *LLJIT) compileWrapper(name string, ft reflect.Type, idx int64) error {
 	return j.AddIRModule(m)
 }
 
-// RunMain 以 C 的 main(argc, argv, envp) 约定调用 JIT 中的 main，返回退出码
+// RunMain 以 C 的 main(argc, argv, envp) 约定调用 JIT 中的 main，返回退出码。
+// args 须包含 argv[0]（程序名），envp 恒为 NULL。
 func (j *LLJIT) RunMain(args []string) (int32, error) {
 	const op = "jit.LLJIT.RunMain"
 	j.check(op)
 	mainType := reflect.TypeOf((func(int32, unsafe.Pointer, unsafe.Pointer) int32)(nil))
+	j.checkSymbolSig(op, "main", mainType)
 	e, err := j.adapterFor(mainType)
 	if err != nil {
 		return 0, err

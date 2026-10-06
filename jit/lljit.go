@@ -157,7 +157,8 @@ func (j *LLJIT) AddProcessSymbols() error {
 	return nil
 }
 
-// MapSymbol 把宿主地址定义为 JIT 符号（绝对符号）；失败返回 ErrJIT
+// MapSymbol 把宿主地址定义为 JIT 符号（绝对符号），标记为 exported+callable，
+// 适用于函数地址；纯数据符号请用 MapSymbol 后自行承担 callable 标志的影响。失败返回 ErrJIT
 func (j *LLJIT) MapSymbol(name string, p unsafe.Pointer) error {
 	const op = "jit.LLJIT.MapSymbol"
 	j.check(op)

@@ -151,6 +151,8 @@ func TestLLJITAddObjectFile(t *testing.T) {
 	defer j.Close()
 
 	ctx, m := retModule(t, "obj", 3)
+	defer ctx.Close()
+	defer m.Close()
 	tm, err := target.NewTargetMachine(mustNativeTarget(t), target.DefaultTriple(), target.HostCPUName(), target.HostCPUFeatures(), target.OptNone, target.RelocPIC, target.CodeModelDefault)
 	if err != nil {
 		t.Fatal(err)
@@ -170,7 +172,6 @@ func TestLLJITAddObjectFile(t *testing.T) {
 	if _, err := j.Lookup("answer"); err != nil {
 		t.Fatal(err)
 	}
-	_ = ctx
 }
 
 func TestLLJITConcurrentFunc(t *testing.T) {
