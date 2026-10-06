@@ -30,12 +30,15 @@ jobs:
           - name: default
             llvm: 23
             flags: ''
+            race: '-race'
           - name: release
             llvm: 23
             flags: '-tags=llvm_release'
+            race: ''
           - name: llvm23
             llvm: 23
             flags: '-tags=llvm23'
+            race: ''
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -80,4 +83,4 @@ jobs:
         run: go vet ${{ matrix.flags }} ./...
 
       - name: Test
-        run: go test ${{ matrix.flags }} ./...
+        run: go test ${{ matrix.race }} ${{ matrix.flags }} ./...

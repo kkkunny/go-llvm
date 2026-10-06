@@ -193,7 +193,8 @@ code, _ := j.RunMain([]string{"prog"})             // called as main(argc, argv,
 ```
 
 `Func[F]` / `MapFunc[F]` calls go through `reflect` + a fixed-signature C channel, so each call costs
-roughly 0.1–0.5 µs and one small allocation (slot arrays are pooled). Fetch the Go function value once
+roughly 0.1–0.5 µs and a few small allocations (slot arrays are pooled; the local benchmark shows
+2 allocations per `Func` call and 7 on the Go-callback path). Fetch the Go function value once
 and keep it. Debug builds verify `F` against the signature the JIT module declared for the symbol
 (before registering), so a mismatched signature panics as `ErrTypeMismatch` instead of running
 undefined behavior; the trust build (`-tags=llvm_release`) skips this and trusts the caller.

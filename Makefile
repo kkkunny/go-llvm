@@ -13,7 +13,7 @@
 # README 支持矩阵、CI 矩阵一起升级。
 MIN_SUPPORT_MAJOR_VERSION = 23
 MAX_SUPPORT_MAJOR_VERSION = 23
-VERSION_TAG = llvm23
+VERSION_TAG = llvm$(MAX_SUPPORT_MAJOR_VERSION)
 
 .PHONY: test test-tag test-release vet bench bench-release config
 

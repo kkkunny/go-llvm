@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,10 +113,44 @@ func run(opts options) error {
 	if err := ensureWritableTarget(target, opts.gomodcache); err != nil {
 		return err
 	}
-	if err := os.WriteFile(target, renderCgo(cfg), 0o644); err != nil {
+	if err := writeFileAtomic(target, renderCgo(cfg)); err != nil {
 		return fmt.Errorf("写入 %s: %w", target, err)
 	}
 	fmt.Fprintf(opts.stdout, "wrote %s (llvm-config: %s, version: %s)\n", target, cfg.binary, cfg.version)
+	return nil
+}
+
+// writeFileAtomic 原子替换目标文件：先写同目录临时文件再 rename，避免中断/磁盘满
+// 把已检入的 cgo.go 截断；已存在文件的权限位保持不变。
+func writeFileAtomic(target string, data []byte) error {
+	mode := fs.FileMode(0o644)
+	if info, err := os.Stat(target); err == nil {
+		mode = info.Mode().Perm()
+	}
+	dir := filepath.Dir(target)
+	tmp, err := os.CreateTemp(dir, ".cgo-*.go.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Chmod(mode); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, target); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
 	return nil
 }
 
@@ -315,11 +350,12 @@ func linkFlags(cfg llvmConfig) string {
 	return strings.Join(flags, " ")
 }
 
-// quotedPath 用双引号包裹路径：go/build 的 splitQuoted 支持引号，含空格的非标准
-// 前缀（如 /opt/llvm 23）才能作为单个 -I/-L flag 传给编译器/链接器。
-// 只用于 includedir/libdir 这两个受控路径；--libs/--system-libs 的原样 flags 不动。
+// quotedPath 用双引号包裹并转义路径：go/build 的 splitQuoted 支持引号与反斜杠转义，
+// 含空格/引号/反斜杠的非标准前缀（如 /opt/llvm 23）才能作为单个 -I/-L flag 传给
+// 编译器/链接器。只用于 includedir/libdir 这两个受控路径；--libs/--system-libs 的
+// 原样 flags 不动。
 func quotedPath(path string) string {
-	return `"` + path + `"`
+	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(path) + `"`
 }
 
 // execCommand 运行外部命令并返回其标准输出；失败时附带 stderr 便于定位。

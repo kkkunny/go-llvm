@@ -181,7 +181,8 @@ code, _ := j.RunMain([]string{"prog"})             // 按 main(argc, argv, envp)
 ```
 
 `Func[F]` / `MapFunc[F]` 调用经由 `reflect` + 固定签名 C 通道，因此每次调用约 0.1–0.5 µs，
-并有一次小分配（slot 数组已池化）。请获取一次 Go 函数值后长期持有。调试构建会在注册前按 JIT
+并有数次小分配（slot 数组已池化；本机基准为 `Func` 每次 2 次分配，Go 回调路径 7 次）。请获取一次
+Go 函数值后长期持有。调试构建会在注册前按 JIT
 模块为该符号声明的签名校验 `F`，签名不匹配时以 `ErrTypeMismatch` panic，而不是执行未定义行为；
 信任构建（`-tags=llvm_release`）跳过校验、信任调用方。
 热循环场景请用 `Lookup` 取出符号地址，并在自己的 cgo 绑定中调用 —— 注意裸 `unsafe.Pointer`
