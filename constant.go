@@ -11,20 +11,50 @@ import (
 // IntConst 整数常量角色
 type IntConst struct{ Value[IntT] }
 
-// SignedValue 有符号值
+// SignedValue 有符号值；不是普通整数常量或值超出 64 位有符号范围时 panic ErrUnsupported
 func (c IntConst) SignedValue() int64 {
-	return binding.LLVMConstIntGetSExtValue(c.Ref())
+	v, ok := binding.LLVMGoConstIntGetSExtValue(c.Ref())
+	if !ok {
+		errs.Panicf(ErrUnsupported, "llvm.IntConst.SignedValue", "constant is not a plain integer constant or does not fit in int64")
+	}
+	return v
 }
 
-// UnsignedValue 无符号值
+// UnsignedValue 无符号值；不是普通整数常量或值超出 64 位无符号范围时 panic ErrUnsupported
 func (c IntConst) UnsignedValue() uint64 {
-	return binding.LLVMConstIntGetZExtValue(c.Ref())
+	v, ok := binding.LLVMGoConstIntGetZExtValue(c.Ref())
+	if !ok {
+		errs.Panicf(ErrUnsupported, "llvm.IntConst.UnsignedValue", "constant is not a plain integer constant or does not fit in uint64")
+	}
+	return v
 }
 
 // IsNegative 是否有符号语义下为负
 func (c IntConst) IsNegative() bool {
 	return c.SignedValue() < 0
 }
+
+// ByteConst 字节常量角色（LLVM 23）
+type ByteConst struct{ Value[ByteT] }
+
+// ZExtValue 零扩展值
+func (c ByteConst) ZExtValue() uint64 {
+	return binding.LLVMConstByteGetZExtValue(c.Ref())
+}
+
+// SExtValue 符号扩展值
+func (c ByteConst) SExtValue() int64 {
+	return binding.LLVMConstByteGetSExtValue(c.Ref())
+}
+
+// ConstByte 构造字节常量（LLVM 23）
+func (ctx *Context) ConstByte(t ByteType, v uint64) ByteConst {
+	ctx.CheckType("llvm.Context.ConstByte", t)
+	return ByteConst{newValue[ByteT](ctx, ctx.life, binding.LLVMConstByte(t.ref, v))}
+}
+
+// Const 该类型的字节常量（类型导向糖：b8.Const(0x12)）
+func (t ByteType) Const(v uint64) ByteConst { return t.ctx.ConstByte(t, v) }
 
 // FloatConst 浮点常量角色
 type FloatConst struct{ Value[FloatT] }
@@ -56,9 +86,19 @@ func (t IntType) ConstS(v int64) IntConst { return t.ctx.ConstSInt(t, v) }
 // Const 该类型的浮点常量（类型导向糖：f64.Const(3.14)）
 func (t FloatType) Const(v float64) FloatConst { return t.ctx.ConstFloat(t, v) }
 
-// ConstIntOfString 按进制解析字符串构造整数常量
+// ConstIntOfString 按进制解析字符串构造整数常量。
+// radix 只支持 2/8/10/16/36，s 不能为空；否则 panic ErrInvalidArg（上游 APInt 会断言）。
 func (ctx *Context) ConstIntOfString(t IntType, s string, radix uint8) IntConst {
-	ctx.CheckType("llvm.Context.ConstIntOfString", t)
+	const op = "llvm.Context.ConstIntOfString"
+	ctx.CheckType(op, t)
+	switch radix {
+	case 2, 8, 10, 16, 36:
+	default:
+		errs.Panicf(ErrInvalidArg, op, "invalid radix %d (want 2, 8, 10, 16 or 36)", radix)
+	}
+	if s == "" {
+		errs.Panicf(ErrInvalidArg, op, "empty integer string")
+	}
 	return IntConst{newValue[IntT](ctx, ctx.life, binding.LLVMConstIntOfString(t.ref, s, radix))}
 }
 
@@ -92,6 +132,9 @@ func (ctx *Context) ConstZero[T Kind](t TypeRef[T]) Value[T] {
 	switch kindOfType(tt.ref).(type) {
 	case StructT, ArrayT, VecT:
 		ref = binding.LLVMConstAggregateZero(tt.ref)
+		if ref.IsNil() {
+			errs.Panicf(ErrInternal, "llvm.Context.ConstZero", "LLVMConstAggregateZero failed")
+		}
 	default:
 		ref = binding.LLVMConstNull(tt.ref)
 	}
@@ -144,11 +187,15 @@ func (ctx *Context) ConstArray(elem AnyType, elems ...AnyValue) Value[ArrayT] {
 	return newValue[ArrayT](ctx, ctx.life, ref)
 }
 
-// ConstVector 构造向量常量；元素非常量或类型/归属不符则 panic
+// ConstVector 构造向量常量；元素为空、非常量或类型/归属不符则 panic
 func (ctx *Context) ConstVector(elem AnyType, elems ...AnyValue) Value[VecT] {
 	const op = "llvm.Context.ConstVector"
 	ctx.CheckType(op, elem)
 	ctx.CheckValues(op, elems...)
+	if len(elems) == 0 {
+		// 上游 ConstantVector::getImpl 断言 !V.empty()，NDEBUG 下解引用 V.front()
+		errs.Panicf(ErrInvalidArg, op, "vector constant requires at least one element")
+	}
 	elemRef := elem.Ref()
 	for i, e := range elems {
 		checkConstOperand(op, i, e)
@@ -290,6 +337,15 @@ func checkConstOperand(op string, i int, v AnyValue) {
 		desc += " @" + name
 	}
 	errs.Panicf(ErrInvalidArg, op, "%s is not a constant: %s", desc, strings.TrimSpace(binding.LLVMPrintValueToString(ref)))
+}
+
+// CheckConstant 校验值是否为常量表达式；非常量 panic [ErrInvalidArg]。
+// 供 llvm/* 子包在 LLVM 要求常量的入口（初始化器、别名、personality 等）统一调用。
+func CheckConstant(op string, v AnyValue) {
+	if v == nil || v.IsNil() {
+		errs.Panicf(ErrInvalidArg, op, "nil value")
+	}
+	checkConstOperand(op, -1, v)
 }
 
 // CheckValues 校验值归属同一 Context 且存活

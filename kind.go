@@ -8,6 +8,8 @@ type (
 	VoidT struct{}
 	// IntT 整数类型
 	IntT struct{}
+	// ByteT 字节类型（LLVM 23：任意位宽 byte，与整数类型是不同的种类）
+	ByteT struct{}
 	// FloatT 浮点类型
 	FloatT struct{}
 	// PtrT 指针类型
@@ -32,6 +34,7 @@ type (
 
 func (VoidT) kind()   {}
 func (IntT) kind()    {}
+func (ByteT) kind()   {}
 func (FloatT) kind()  {}
 func (PtrT) kind()    {}
 func (StructT) kind() {}

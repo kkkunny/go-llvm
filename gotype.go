@@ -17,9 +17,12 @@ func TypeOf[T any](ctx *Context) (Type[DynT], error) {
 	return TypeOfGo(ctx, reflect.TypeOf((*T)(nil)).Elem())
 }
 
-// TypeOfGo TypeOf 的 reflect.Type 版本
+// TypeOfGo TypeOf 的 reflect.Type 版本；t 为 nil 返回 ErrUnsupported
 func TypeOfGo(ctx *Context, t reflect.Type) (Type[DynT], error) {
 	ctx.CheckAlive("llvm.TypeOfGo")
+	if t == nil {
+		return Type[DynT]{}, &Error{Reason: ErrUnsupported, Op: "llvm.TypeOfGo", Msg: "nil reflect.Type"}
+	}
 	ty, err := typeOfGo(ctx, t)
 	if err != nil {
 		return Type[DynT]{}, err
@@ -110,9 +113,12 @@ func ConstOf[T any](ctx *Context, v T) (Value[DynT], error) {
 	return ConstOfGo(ctx, reflect.ValueOf(v))
 }
 
-// ConstOfGo ConstOf 的 reflect.Value 版本
+// ConstOfGo ConstOf 的 reflect.Value 版本；无效值（如 ConstOf[any](ctx, nil)）返回 ErrUnsupported
 func ConstOfGo(ctx *Context, v reflect.Value) (Value[DynT], error) {
 	ctx.CheckAlive("llvm.ConstOfGo")
+	if !v.IsValid() {
+		return Value[DynT]{}, &Error{Reason: ErrUnsupported, Op: "llvm.ConstOfGo", Msg: "invalid (zero) reflect.Value"}
+	}
 	c, err := constOfGo(ctx, v)
 	if err != nil {
 		return Value[DynT]{}, err
@@ -191,9 +197,12 @@ func FnSignatureOf[F any](ctx *Context) (FnType, reflect.Type, error) {
 	return FnSignatureOfGo(ctx, reflect.TypeOf((*F)(nil)).Elem())
 }
 
-// FnSignatureOfGo FnSignatureOf 的 reflect.Type 版本
+// FnSignatureOfGo FnSignatureOf 的 reflect.Type 版本；ft 为 nil 返回 ErrUnsupported
 func FnSignatureOfGo(ctx *Context, ft reflect.Type) (FnType, reflect.Type, error) {
 	ctx.CheckAlive("llvm.FnSignatureOf")
+	if ft == nil {
+		return FnType{}, nil, &Error{Reason: ErrUnsupported, Op: "llvm.FnSignatureOf", Msg: "nil reflect.Type"}
+	}
 	if sig, ok := ctx.lookupFnSig(ft); ok {
 		return sig, ft, nil
 	}

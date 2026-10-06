@@ -59,16 +59,21 @@ func (b *MemoryBuffer) check(op string) {
 	}
 }
 
-// Bytes 缓冲内容视图（零拷贝）；Close 后失效
+// Bytes 缓冲内容视图（零拷贝）；Close/GC 后失效。
+// 返回的切片不持有缓冲生命周期，调用方必须保证 b 在使用期间可达（如 KeepAlive 或持续引用）。
 func (b *MemoryBuffer) Bytes() []byte {
 	b.check("llvm.MemoryBuffer.Bytes")
-	return binding.LLVMGetBufferStart(b.ref)
+	data := binding.LLVMGetBufferStart(b.ref)
+	runtime.KeepAlive(b)
+	return data
 }
 
 // Len 缓冲字节数
 func (b *MemoryBuffer) Len() int {
 	b.check("llvm.MemoryBuffer.Len")
-	return int(binding.LLVMGetBufferSize(b.ref))
+	n := int(binding.LLVMGetBufferSize(b.ref))
+	runtime.KeepAlive(b)
+	return n
 }
 
 // Disown 移交底层缓冲给外部接管方（如 JIT）：此后 Go 侧句柄失效，Close 返回 ErrClosed；

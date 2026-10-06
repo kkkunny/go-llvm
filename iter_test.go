@@ -1,6 +1,7 @@
 package llvm
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/kkkunny/go-llvm/internal/errs"
@@ -46,6 +47,13 @@ func TestTypeOfGoCacheHit(t *testing.T) {
 	}
 	if !a.Equal(b) {
 		t.Fatal("cached mapping should return the same LLVM type")
+	}
+	// 直接断言缓存被填充（只比较返回值无法发现缓存被绕过）
+	ctx.cacheMu.Lock()
+	_, cached := ctx.typeCache[reflect.TypeOf(S{})]
+	ctx.cacheMu.Unlock()
+	if !cached {
+		t.Fatal("TypeOf should populate the per-context type cache")
 	}
 }
 

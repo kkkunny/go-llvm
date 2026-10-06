@@ -110,6 +110,9 @@ func (ctx *Context) Close() error {
 		_ = closers[i].c.Close()
 	}
 	ctx.life.Kill()
+	// Drop the Go diagnostic-handler registry entry before disposing the context;
+	// otherwise the closure (and everything it captures) leaks for the process lifetime.
+	binding.LLVMContextClearDiagnosticHandlerGo(ctx.ref, ctx.diagID)
 	binding.LLVMContextDispose(ctx.ref)
 	return nil
 }
@@ -148,10 +151,14 @@ func (ctx *Context) SyncScopeID(name string) uint32 {
 func (ctx *Context) Lifetime() *Lifetime { return ctx.life }
 
 // Alive 上下文是否存活
-func (ctx *Context) Alive() bool { return ctx.life.Alive() }
+func (ctx *Context) Alive() bool { return ctx != nil && ctx.life != nil && ctx.life.Alive() }
 
-// CheckAlive 校验上下文存活；类型/常量/值构造入口统一调用（供 llvm/* 子包使用）
+// CheckAlive 校验上下文存活；类型/常量/值构造入口统一调用（供 llvm/* 子包使用）。
+// nil 接收者同样 panic *Error（而不是裸 Go nil 解引用）。
 func (ctx *Context) CheckAlive(op string) {
+	if ctx == nil || ctx.life == nil {
+		errs.Panicf(ErrInvalidArg, op, "nil context")
+	}
 	if !ctx.life.Alive() {
 		errs.Panicf(ErrUseAfterFree, op, "context is closed")
 	}

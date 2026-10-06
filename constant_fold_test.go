@@ -58,10 +58,13 @@ func TestIntConstFolding(t *testing.T) {
 	if narrow.UnsignedValue() != 0x5678 {
 		t.Fatalf("Cast = %x", narrow.UnsignedValue())
 	}
-	// 扩展方向同样可用
-	wide := narrow.Cast(i32)
+	// 加宽必须显式走 SExt/ZExt
+	wide := narrow.ZExt(i32)
 	if wide.UnsignedValue() != 0x5678 {
-		t.Fatalf("Cast wide = %x", wide.UnsignedValue())
+		t.Fatalf("ZExt = %x", wide.UnsignedValue())
+	}
+	if got := i16.ConstS(-2).SExt(i32).SignedValue(); got != -2 {
+		t.Fatalf("SExt = %d", got)
 	}
 }
 

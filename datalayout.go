@@ -28,14 +28,20 @@ type DataLayout struct {
 // 空字符串得到的是 LLVM 默认布局（例如 i64 ABI 对齐为 4），与宿主目标无关；
 // 需要宿主目标的真实布局请用
 // [github.com/kkkunny/go-llvm/target.TargetMachine.DataLayout]。
+// 非法布局字符串 panic [ErrInvalidArg]（经 DataLayout::parse 解析，不会触发 LLVM
+// report_fatal_error 退出进程）。
 func NewDataLayout(layout string) *DataLayout {
-	ref := binding.LLVMCreateTargetData(layout)
-	if ref.IsNil() {
-		errs.Panicf(ErrInvalidArg, "llvm.NewDataLayout", "invalid data layout string %q", layout)
+	ref, errMsg := binding.LLVMGoCreateTargetData(layout)
+	if !ref.IsNil() {
+		d := &DataLayout{ref: ref}
+		runtime.SetFinalizer(d, (*DataLayout).finalize)
+		return d
 	}
-	d := &DataLayout{ref: ref}
-	runtime.SetFinalizer(d, (*DataLayout).finalize)
-	return d
+	if errMsg == "" {
+		errMsg = "unknown error"
+	}
+	errs.Panicf(ErrInvalidArg, "llvm.NewDataLayout", "invalid data layout string %q: %s", layout, errMsg)
+	return nil
 }
 
 // DataLayoutOf 由底层句柄构建数据布局（供 llvm/target 桥接使用，接管所有权）
@@ -94,91 +100,121 @@ func (d *DataLayout) Close() error {
 // String 布局字符串
 func (d *DataLayout) String() string {
 	d.check("llvm.DataLayout.String")
-	return binding.LLVMCopyStringRepOfTargetData(d.ref)
+	s := binding.LLVMCopyStringRepOfTargetData(d.ref)
+	runtime.KeepAlive(d)
+	return s
 }
 
 // ByteOrder 字节序
 func (d *DataLayout) ByteOrder() ByteOrder {
 	d.check("llvm.DataLayout.ByteOrder")
-	return ByteOrder(binding.LLVMByteOrder(d.ref))
+	v := ByteOrder(binding.LLVMByteOrder(d.ref))
+	runtime.KeepAlive(d)
+	return v
 }
 
 // PointerSize 指针字节数
 func (d *DataLayout) PointerSize() uint32 {
 	d.check("llvm.DataLayout.PointerSize")
-	return binding.LLVMPointerSize(d.ref)
+	v := binding.LLVMPointerSize(d.ref)
+	runtime.KeepAlive(d)
+	return v
 }
 
 // PointerSizeForAS 指定地址空间的指针字节数
 func (d *DataLayout) PointerSizeForAS(addrspace uint32) uint32 {
 	d.check("llvm.DataLayout.PointerSizeForAS")
-	return binding.LLVMPointerSizeForAS(d.ref, addrspace)
+	v := binding.LLVMPointerSizeForAS(d.ref, addrspace)
+	runtime.KeepAlive(d)
+	return v
 }
 
 // IntPtrType 指针等宽整数类型
 func (d *DataLayout) IntPtrType(ctx *Context) IntType {
 	d.check("llvm.DataLayout.IntPtrType")
 	ctx.CheckAlive("llvm.DataLayout.IntPtrType")
-	return IntType{Type[IntT]{ref: binding.LLVMIntPtrTypeInContext(ctx.ref, d.ref), ctx: ctx}}
+	t := IntType{Type[IntT]{ref: binding.LLVMIntPtrTypeInContext(ctx.ref, d.ref), ctx: ctx}}
+	runtime.KeepAlive(d)
+	return t
 }
 
 // IntPtrTypeForAS 指定地址空间指针等宽整数类型
 func (d *DataLayout) IntPtrTypeForAS(ctx *Context, addrspace uint32) IntType {
 	d.check("llvm.DataLayout.IntPtrTypeForAS")
 	ctx.CheckAlive("llvm.DataLayout.IntPtrTypeForAS")
-	return IntType{Type[IntT]{ref: binding.LLVMIntPtrTypeForASInContext(ctx.ref, d.ref, addrspace), ctx: ctx}}
+	t := IntType{Type[IntT]{ref: binding.LLVMIntPtrTypeForASInContext(ctx.ref, d.ref, addrspace), ctx: ctx}}
+	runtime.KeepAlive(d)
+	return t
 }
 
 // SizeOfTypeInBits 类型位宽（bit）
 func (d *DataLayout) SizeOfTypeInBits(t AnyType) uint64 {
 	d.checkType("llvm.DataLayout.SizeOfTypeInBits", t)
-	return binding.LLVMSizeOfTypeInBits(d.ref, t.Ref())
+	v := binding.LLVMSizeOfTypeInBits(d.ref, t.Ref())
+	runtime.KeepAlive(d)
+	return v
 }
 
 // StoreSizeOfType 实际存储大小（byte）
 func (d *DataLayout) StoreSizeOfType(t AnyType) uint64 {
 	d.checkType("llvm.DataLayout.StoreSizeOfType", t)
-	return binding.LLVMStoreSizeOfType(d.ref, t.Ref())
+	v := binding.LLVMStoreSizeOfType(d.ref, t.Ref())
+	runtime.KeepAlive(d)
+	return v
 }
 
 // ABISizeOfType ABI 大小（byte）
 func (d *DataLayout) ABISizeOfType(t AnyType) uint64 {
 	d.checkType("llvm.DataLayout.ABISizeOfType", t)
-	return binding.LLVMABISizeOfType(d.ref, t.Ref())
+	v := binding.LLVMABISizeOfType(d.ref, t.Ref())
+	runtime.KeepAlive(d)
+	return v
 }
 
 // ABIAlignOfType ABI 对齐（byte）
 func (d *DataLayout) ABIAlignOfType(t AnyType) uint32 {
 	d.checkType("llvm.DataLayout.ABIAlignOfType", t)
-	return binding.LLVMABIAlignmentOfType(d.ref, t.Ref())
+	v := binding.LLVMABIAlignmentOfType(d.ref, t.Ref())
+	runtime.KeepAlive(d)
+	return v
 }
 
 // CallFrameAlignOfType 调用栈帧对齐（byte）
 func (d *DataLayout) CallFrameAlignOfType(t AnyType) uint32 {
 	d.checkType("llvm.DataLayout.CallFrameAlignOfType", t)
-	return binding.LLVMCallFrameAlignmentOfType(d.ref, t.Ref())
+	v := binding.LLVMCallFrameAlignmentOfType(d.ref, t.Ref())
+	runtime.KeepAlive(d)
+	return v
 }
 
 // PrefAlignOfType 编译器推荐对齐（byte）
 func (d *DataLayout) PrefAlignOfType(t AnyType) uint32 {
 	d.checkType("llvm.DataLayout.PrefAlignOfType", t)
-	return binding.LLVMPreferredAlignmentOfType(d.ref, t.Ref())
+	v := binding.LLVMPreferredAlignmentOfType(d.ref, t.Ref())
+	runtime.KeepAlive(d)
+	return v
 }
 
 // PrefAlignOfGlobal 全局变量推荐对齐（byte）
 func (d *DataLayout) PrefAlignOfGlobal(g AnyValue) uint32 {
 	d.checkValue("llvm.DataLayout.PrefAlignOfGlobal", g)
-	return binding.LLVMPreferredAlignmentOfGlobal(d.ref, g.Ref())
+	v := binding.LLVMPreferredAlignmentOfGlobal(d.ref, g.Ref())
+	runtime.KeepAlive(d)
+	return v
 }
 
 // ElementAtOffset 包含指定字节偏移的结构体元素下标
 func (d *DataLayout) ElementAtOffset(st AnyType, offset uint64) uint32 {
 	d.checkType("llvm.DataLayout.ElementAtOffset", st)
-	return binding.LLVMElementAtOffset(d.ref, st.Ref(), offset)
+	v := binding.LLVMElementAtOffset(d.ref, st.Ref(), offset)
+	runtime.KeepAlive(d)
+	return v
 }
 
 // OffsetOfElement 指定结构体元素的字节偏移
 func (d *DataLayout) OffsetOfElement(st AnyType, i uint32) uint64 {
 	d.checkType("llvm.DataLayout.OffsetOfElement", st)
-	return binding.LLVMOffsetOfElement(d.ref, st.Ref(), i)
+	v := binding.LLVMOffsetOfElement(d.ref, st.Ref(), i)
+	runtime.KeepAlive(d)
+	return v
 }

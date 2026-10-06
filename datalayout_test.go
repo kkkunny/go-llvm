@@ -140,3 +140,11 @@ func TestDataLayoutClose(t *testing.T) {
 		t.Fatalf("use after close should panic ErrUseAfterFree, got %v", err)
 	}
 }
+
+func TestNewDataLayoutInvalid(t *testing.T) {
+	// 非法布局串必须可 recover（经 DataLayout::parse），而不是触发 report_fatal_error
+	err := errs.Catch(func() { NewDataLayout("garbage") })
+	if err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("invalid layout should panic ErrInvalidArg, got %v", err)
+	}
+}

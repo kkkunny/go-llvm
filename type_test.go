@@ -358,3 +358,42 @@ func TestStructSetBodyTwicePanics(t *testing.T) {
 		t.Fatalf("literal struct SetBody should panic ErrInvalidArg, got %v", err)
 	}
 }
+
+func TestTypeDomainGuards(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	if err := errs.Catch(func() { ctx.Int(0) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("Int(0) should panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() { ctx.Vec(ctx.Int(32), 0) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("Vec(..., 0) should panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() { ctx.Byte(0) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("Byte(0) should panic ErrInvalidArg, got %v", err)
+	}
+}
+
+func TestByteType(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	b8 := ctx.Byte(8)
+	if got := b8.Bits(); got != 8 {
+		t.Fatalf("Byte(8).Bits() = %d", got)
+	}
+	if _, err := b8.DynType().As[ByteT](); err != nil {
+		t.Fatalf("byte type As[ByteT] failed: %v", err)
+	}
+	// 字节类型与整数类型是不同种类
+	if _, err := b8.DynType().As[IntT](); err == nil {
+		t.Fatalf("byte type As[IntT] should fail")
+	}
+	c := b8.Const(0x12)
+	if got := c.ZExtValue(); got != 0x12 {
+		t.Fatalf("ByteConst.ZExtValue() = %d", got)
+	}
+	if _, err := c.As[IntT](); err == nil {
+		t.Fatalf("byte constant As[IntT] should fail")
+	}
+}

@@ -150,6 +150,9 @@ func MustVoidType(t AnyType) VoidType { return VoidType{typeMustRole[VoidT]("llv
 // MustIntType 提取整数类型角色
 func MustIntType(t AnyType) IntType { return IntType{typeMustRole[IntT]("llvm.AsIntType", t)} }
 
+// MustByteType 提取字节类型角色
+func MustByteType(t AnyType) ByteType { return ByteType{typeMustRole[ByteT]("llvm.AsByteType", t)} }
+
 // MustFloatType 提取浮点类型角色
 func MustFloatType(t AnyType) FloatType {
 	return FloatType{typeMustRole[FloatT]("llvm.AsFloatType", t)}
@@ -182,6 +185,9 @@ type VoidType struct{ Type[VoidT] }
 // IntType 整数类型
 type IntType struct{ Type[IntT] }
 
+// ByteType 字节类型（LLVM 23：任意位宽 byte；与整数类型种类不同，不可互相 As）
+type ByteType struct{ Type[ByteT] }
+
 // FloatType 浮点类型
 type FloatType struct{ Type[FloatT] }
 
@@ -203,6 +209,11 @@ type FnType struct{ Type[FnT] }
 // Bits 整数位宽
 func (t IntType) Bits() uint32 {
 	return binding.LLVMGetIntTypeWidth(t.Ref())
+}
+
+// Bits 字节位宽
+func (t ByteType) Bits() uint32 {
+	return binding.LLVMGetByteTypeWidth(t.Ref())
 }
 
 // Kind 浮点种类
@@ -330,15 +341,28 @@ func (ctx *Context) Void() VoidType {
 	return VoidType{Type[VoidT]{ref: binding.LLVMVoidTypeInContext(ctx.ref), ctx: ctx}}
 }
 
-// Int 指定位宽的整数类型
+// Int 指定位宽的整数类型；位宽须在 [1, 1<<23] 内，否则 panic ErrInvalidArg
+// （上游 IntegerType::get 对越界位宽会断言）。
 func (ctx *Context) Int(bits uint32) IntType {
 	ctx.CheckAlive("llvm.Context.Int")
+	if bits == 0 || bits > 1<<23 {
+		errs.Panicf(ErrInvalidArg, "llvm.Context.Int", "invalid integer width %d", bits)
+	}
 	return IntType{Type[IntT]{ref: binding.LLVMIntTypeInContext(ctx.ref, bits), ctx: ctx}}
 }
 
 // Bool 布尔类型（i1）；LLVM 没有独立的 bool 类型，bool 就是 i1 整数类型，
 // 配套常量为 [Context.ConstBool]（返回 Value[IntT]）。
 func (ctx *Context) Bool() IntType { return ctx.Int(1) }
+
+// Byte 指定位宽的字节类型（LLVM 23）；位宽须为正，否则 panic ErrInvalidArg
+func (ctx *Context) Byte(bits uint32) ByteType {
+	ctx.CheckAlive("llvm.Context.Byte")
+	if bits == 0 {
+		errs.Panicf(ErrInvalidArg, "llvm.Context.Byte", "byte width must be positive")
+	}
+	return ByteType{Type[ByteT]{ref: binding.LLVMByteTypeInContext(ctx.ref, bits), ctx: ctx}}
+}
 
 // Float 浮点类型
 func (ctx *Context) Float(kind FloatKind) FloatType {
@@ -391,10 +415,13 @@ func (ctx *Context) Array(elem AnyType, n uint64) ArrayType {
 	return ArrayType{Type[ArrayT]{ref: binding.LLVMArrayType2(elem.Ref(), n), ctx: ctx}}
 }
 
-// Vec 向量类型
+// Vec 向量类型；元素个数必须为正（上游 FixedVectorType::get 对 0 元素会断言）
 func (ctx *Context) Vec(elem AnyType, n uint32) VecType {
 	ctx.CheckAlive("llvm.Context.Vec")
 	ctx.CheckType("llvm.Context.Vec", elem)
+	if n == 0 {
+		errs.Panicf(ErrInvalidArg, "llvm.Context.Vec", "vector element count must be positive")
+	}
 	return VecType{Type[VecT]{ref: binding.LLVMVectorType(elem.Ref(), n), ctx: ctx}}
 }
 
@@ -446,6 +473,8 @@ func kindOfType(ref binding.LLVMTypeRef) Kind {
 		return VoidT{}
 	case binding.LLVMIntegerTypeKind:
 		return IntT{}
+	case binding.LLVMByteTypeKind:
+		return ByteT{}
 	case binding.LLVMHalfTypeKind, binding.LLVMBFloatTypeKind, binding.LLVMFloatTypeKind,
 		binding.LLVMDoubleTypeKind, binding.LLVMX86_FP80TypeKind, binding.LLVMFP128TypeKind,
 		binding.LLVMPPC_FP128TypeKind:
@@ -489,6 +518,8 @@ func kindName(k Kind) string {
 		return "void"
 	case IntT:
 		return "int"
+	case ByteT:
+		return "byte"
 	case FloatT:
 		return "float"
 	case PtrT:

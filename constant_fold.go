@@ -90,7 +90,9 @@ func (c IntConst) Not() IntConst {
 	return c.wrapFold(binding.LLVMConstNot(c.Ref()))
 }
 
-// Cast 常量整数位宽转换（trunc 或扩展皆可，语义同 LLVMConstTruncOrBitCast）
+// Cast 常量整数位宽转换：收窄为 trunc，等宽为 bitcast（语义同 LLVMConstTruncOrBitCast）。
+// 目标位宽大于源位宽时 panic [ErrInvalidArg]——加宽必须显式选择 [IntConst.SExt] 或
+// [IntConst.ZExt]（上游 getTrunc 对加宽会断言）。
 func (c IntConst) Cast(to IntType) IntConst {
 	const op = "llvm.IntConst.Cast"
 	c.Check(op)
@@ -98,7 +100,44 @@ func (c IntConst) Cast(to IntType) IntConst {
 	if c.Context() != to.Context() {
 		errs.Panicf(ErrCrossContext, op, "target type belongs to another context")
 	}
+	if dst := to.Bits(); dst > MustIntType(c.Type()).Bits() {
+		errs.Panicf(ErrInvalidArg, op, "cannot widen i%d to i%d with Cast; use SExt or ZExt", MustIntType(c.Type()).Bits(), dst)
+	}
 	return IntConst{newValue[IntT](to.Context(), to.Context().life, binding.LLVMConstTruncOrBitCast(c.Ref(), to.Ref()))}
+}
+
+// extPre 整数扩展转换前置校验：同上下文且目标位宽更大
+func (c IntConst) extPre(op string, to IntType) {
+	c.Check(op)
+	to.Check(op)
+	if c.Context() != to.Context() {
+		errs.Panicf(ErrCrossContext, op, "target type belongs to another context")
+	}
+	if dst, src := to.Bits(), MustIntType(c.Type()).Bits(); dst <= src {
+		errs.Panicf(ErrInvalidArg, op, "target i%d is not wider than source i%d", dst, src)
+	}
+}
+
+// SExt 常量整数符号扩展（目标位宽必须大于源位宽）
+func (c IntConst) SExt(to IntType) IntConst {
+	const op = "llvm.IntConst.SExt"
+	c.extPre(op, to)
+	ref := binding.LLVMGoConstSExt(c.Ref(), to.Ref())
+	if ref.IsNil() {
+		errs.Panicf(ErrUnsupported, op, "operand is not a plain integer constant")
+	}
+	return IntConst{newValue[IntT](to.Context(), to.Context().life, ref)}
+}
+
+// ZExt 常量整数零扩展（目标位宽必须大于源位宽）
+func (c IntConst) ZExt(to IntType) IntConst {
+	const op = "llvm.IntConst.ZExt"
+	c.extPre(op, to)
+	ref := binding.LLVMGoConstZExt(c.Ref(), to.Ref())
+	if ref.IsNil() {
+		errs.Panicf(ErrUnsupported, op, "operand is not a plain integer constant")
+	}
+	return IntConst{newValue[IntT](to.Context(), to.Context().life, ref)}
 }
 
 // AllOnes 该类型的全 1 常量（iN 为 -1）

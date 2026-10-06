@@ -311,3 +311,36 @@ func TestUndefPoison(t *testing.T) {
 		t.Fatalf("Poison = %s", p.String())
 	}
 }
+
+func TestConstGuards(t *testing.T) {
+	ctx := NewContext()
+	defer ctx.Close()
+
+	// 空向量常量：上游 ConstantVector::getImpl 断言 !V.empty()，NDEBUG 下解引用空指针
+	if err := errs.Catch(func() { ctx.ConstVector(ctx.Int(32)) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("empty ConstVector should panic ErrInvalidArg, got %v", err)
+	}
+	// 非法 radix / 空串：上游 APInt 断言
+	if err := errs.Catch(func() { ctx.ConstIntOfString(ctx.Int(32), "1", 3) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("bad radix should panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() { ctx.ConstIntOfString(ctx.Int(32), "", 10) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("empty integer string should panic ErrInvalidArg, got %v", err)
+	}
+	// 超宽值读取不再静默截断
+	wide := ctx.ConstIntOfString(ctx.Int(128), "1"+strings.Repeat("0", 25), 16) // 1<<100
+	if err := errs.Catch(func() { wide.UnsignedValue() }); err == nil || err.Reason != ErrUnsupported {
+		t.Fatalf("over-wide UnsignedValue should panic ErrUnsupported, got %v", err)
+	}
+	if err := errs.Catch(func() { wide.SignedValue() }); err == nil || err.Reason != ErrUnsupported {
+		t.Fatalf("over-wide SignedValue should panic ErrUnsupported, got %v", err)
+	}
+	// 加宽必须显式走 SExt/ZExt
+	i16, i32 := ctx.Int(16), ctx.Int(32)
+	if err := errs.Catch(func() { i16.Const(1).Cast(i32) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("widening Cast should panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() { i32.Const(1).SExt(i16) }); err == nil || err.Reason != ErrInvalidArg {
+		t.Fatalf("narrowing SExt should panic ErrInvalidArg, got %v", err)
+	}
+}

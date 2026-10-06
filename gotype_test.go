@@ -218,4 +218,11 @@ func TestFnSignatureOf(t *testing.T) {
 	if err != nil || goTy2 != goTy {
 		t.Fatalf("cache hit = %v, %v", goTy2, err)
 	}
+	// 直接断言缓存被填充（只比较返回值无法发现缓存被绕过）
+	ctx.cacheMu.Lock()
+	_, cached := ctx.fnCache[reflect.TypeOf((func(int32, float64) int32)(nil))]
+	ctx.cacheMu.Unlock()
+	if !cached {
+		t.Fatal("FnSignatureOf should populate the per-context function cache")
+	}
 }
