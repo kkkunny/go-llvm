@@ -68,8 +68,3 @@ type FuncPtr[T any] struct {
 func NewFuncPtr[T any](f unsafe.Pointer) FuncPtr[T] {
 	return FuncPtr[T]{ptr: f}
 }
-
-// Func returns the typed function pointer.
-func (f FuncPtr[T]) Func() T {
-	return *(*T)(unsafe.Pointer(&f.ptr))
-}

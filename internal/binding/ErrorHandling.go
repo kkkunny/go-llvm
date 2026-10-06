@@ -14,6 +14,8 @@ var goFatalHandler func(string)
 
 //export goLLVMFatalErrorHandler
 func goLLVMFatalErrorHandler(msg *C.char) {
+	// A panic must not unwind through LLVM's C++ frames (built without exceptions).
+	defer func() { _ = recover() }()
 	if goFatalHandler != nil {
 		goFatalHandler(C.GoString(msg))
 	}
@@ -24,6 +26,9 @@ var diagnosticHandlers sync.Map
 
 //export goLLVMDiagnosticHandler
 func goLLVMDiagnosticHandler(id C.uintptr_t, severity C.int, msg *C.char) {
+	// A user callback panic must not unwind through LLVM's C++ frames (built without
+	// exceptions); diagnostics are best-effort, so drop the panic.
+	defer func() { _ = recover() }()
 	if h, ok := diagnosticHandlers.Load(uint64(id)); ok {
 		h.(func(LLVMDiagnosticSeverity, string))(LLVMDiagnosticSeverity(severity), C.GoString(msg))
 	}

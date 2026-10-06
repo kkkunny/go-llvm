@@ -584,6 +584,16 @@ func LLVMGetIntTypeWidth(integerTy LLVMTypeRef) uint32 {
 	return uint32(C.LLVMGetIntTypeWidth(integerTy.c))
 }
 
+// LLVMByteTypeInContext Obtain a byte type from a context with the specified bit width (LLVM 23).
+func LLVMByteTypeInContext(c LLVMContextRef, numBits uint32) LLVMTypeRef {
+	return LLVMTypeRef{c: C.LLVMByteTypeInContext(c.c, C.unsigned(numBits))}
+}
+
+// LLVMGetByteTypeWidth Obtain the bit width of a byte type (LLVM 23).
+func LLVMGetByteTypeWidth(byteTy LLVMTypeRef) uint32 {
+	return uint32(C.LLVMGetByteTypeWidth(byteTy.c))
+}
+
 // LLVMHalfTypeInContext Obtain a 16-bit floating point type from a context.
 func LLVMHalfTypeInContext(c LLVMContextRef) LLVMTypeRef {
 	return LLVMTypeRef{c: C.LLVMHalfTypeInContext(c.c)}
@@ -868,6 +878,21 @@ func LLVMConstInt(intTy LLVMTypeRef, n uint64, signExtend bool) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstInt(intTy.c, C.ulonglong(n), bool2LLVMBool(signExtend))}
 }
 
+// LLVMConstByte Obtain a constant value for a byte type (LLVM 23).
+func LLVMConstByte(byteTy LLVMTypeRef, n uint64) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMConstByte(byteTy.c, C.ulonglong(n))}
+}
+
+// LLVMConstByteGetZExtValue Obtain the zero-extended value of a byte constant.
+func LLVMConstByteGetZExtValue(constantVal LLVMValueRef) uint64 {
+	return uint64(C.LLVMConstByteGetZExtValue(constantVal.c))
+}
+
+// LLVMConstByteGetSExtValue Obtain the sign-extended value of a byte constant.
+func LLVMConstByteGetSExtValue(constantVal LLVMValueRef) int64 {
+	return int64(C.LLVMConstByteGetSExtValue(constantVal.c))
+}
+
 // LLVMConstIntOfString Obtain a constant value for an integer parsed from a string.
 // A similar API, LLVMConstIntOfStringAndSize is also available. If the string's length is available, it is preferred to call that function instead.
 func LLVMConstIntOfString(intTy LLVMTypeRef, text string, radix uint8) LLVMValueRef {
@@ -899,6 +924,26 @@ func LLVMConstIntGetSExtValue(constantVal LLVMValueRef) int64 {
 	return int64(C.LLVMConstIntGetSExtValue(constantVal.c))
 }
 
+// LLVMGoConstIntGetZExtValue obtains the zero-extended value; ok is false when the
+// value does not fit in 64 bits (the plain getter asserts in that case).
+func LLVMGoConstIntGetZExtValue(constantVal LLVMValueRef) (uint64, bool) {
+	var out C.ulonglong
+	if C.LLVMGoConstIntGetZExtValue(constantVal.c, &out) == 0 {
+		return 0, false
+	}
+	return uint64(out), true
+}
+
+// LLVMGoConstIntGetSExtValue obtains the sign-extended value; ok is false when the
+// value does not fit in 64 bits (the plain getter asserts in that case).
+func LLVMGoConstIntGetSExtValue(constantVal LLVMValueRef) (int64, bool) {
+	var out C.longlong
+	if C.LLVMGoConstIntGetSExtValue(constantVal.c, &out) == 0 {
+		return 0, false
+	}
+	return int64(out), true
+}
+
 // LLVMConstRealGetDouble Obtain the double value for an floating point constant value.
 func LLVMConstRealGetDouble(constantVal LLVMValueRef) (float64, bool) {
 	var li C.LLVMBool
@@ -921,10 +966,15 @@ func LLVMIsConstantString(c LLVMValueRef) bool {
 }
 
 // LLVMGetAsString Get the given constant data sequential as a string.
+// The returned buffer is length-delimited and not necessarily NUL-terminated.
 // @see ConstantDataSequential::getAsString()
 func LLVMGetAsString(c LLVMValueRef) string {
 	var length C.size_t
-	return C.GoString(C.LLVMGetAsString(c.c, &length))
+	ptr := C.LLVMGetAsString(c.c, &length)
+	if ptr == nil || length == 0 {
+		return ""
+	}
+	return C.GoStringN(ptr, C.int(length))
 }
 
 // LLVMConstStructInContext Create an anonymous ConstantStruct with the specified values.
@@ -1051,6 +1101,18 @@ func LLVMConstAddrSpaceCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMVa
 
 func LLVMConstTruncOrBitCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
 	return LLVMValueRef{c: C.LLVMConstTruncOrBitCast(constantVal.c, toType.c)}
+}
+
+// LLVMGoConstSExt Sign-extend an integer constant (LLVM-C lacks a binding for
+// ConstantExpr::getSExt). The source width must be smaller than the destination.
+func LLVMGoConstSExt(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGoConstSExt(constantVal.c, toType.c)}
+}
+
+// LLVMGoConstZExt Zero-extend an integer constant (LLVM-C lacks a binding for
+// ConstantExpr::getZExt). The source width must be smaller than the destination.
+func LLVMGoConstZExt(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
+	return LLVMValueRef{c: C.LLVMGoConstZExt(constantVal.c, toType.c)}
 }
 
 func LLVMConstPointerCast(constantVal LLVMValueRef, toType LLVMTypeRef) LLVMValueRef {
@@ -2481,10 +2543,8 @@ const (
 	LLVMFastMathAllowReciprocal LLVMFastMathFlags = C.LLVMFastMathAllowReciprocal
 	LLVMFastMathAllowContract   LLVMFastMathFlags = C.LLVMFastMathAllowContract
 	LLVMFastMathApproxFunc      LLVMFastMathFlags = C.LLVMFastMathApproxFunc
-	LLVMFastMathNone            LLVMFastMathFlags = 0
-	LLVMFastMathAll             LLVMFastMathFlags = LLVMFastMathAllowReassoc | LLVMFastMathNoNaNs |
-		LLVMFastMathNoInfs | LLVMFastMathNoSignedZeros | LLVMFastMathAllowReciprocal |
-		LLVMFastMathAllowContract | LLVMFastMathApproxFunc
+	LLVMFastMathNone            LLVMFastMathFlags = C.LLVMFastMathNone
+	LLVMFastMathAll             LLVMFastMathFlags = C.LLVMFastMathAll
 )
 
 // LLVMGetFastMathFlags Get the fast-math flags of an FP instruction.

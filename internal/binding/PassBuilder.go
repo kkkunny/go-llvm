@@ -2,9 +2,20 @@ package binding
 
 /*
 #include "llvm-c/Transforms/PassBuilder.h"
+#include <stdlib.h>
 */
 import "C"
-import "errors"
+import (
+	"errors"
+	"sync"
+	"unsafe"
+)
+
+// aaPipelines keeps the C strings passed to LLVMPassBuilderOptionsSetAAPipeline alive:
+// LLVM does not copy the argument and reads it during LLVMRunPasses, so the buffer must
+// outlive the options instance. Keyed by the options handle; freed in
+// LLVMDisposePassBuilderOptions (and replaced on re-set).
+var aaPipelines sync.Map // uintptr(LLVMPassBuilderOptionsRef.c) -> unsafe.Pointer(*C.char)
 
 // LLVMPassBuilderOptionsRef A set of options passed which are attached to the Pass Manager upon run.
 // This corresponds to an llvm::LLVMPassBuilderOptions instance
@@ -59,11 +70,21 @@ func LLVMPassBuilderOptionsSetDebugLogging(options LLVMPassBuilderOptionsRef, de
 // LLVMPassBuilderOptionsSetAAPipeline Specify a custom alias analysis pipeline for the PassBuilder to be used
 // instead of the default one. The string argument is not copied; the caller
 // is responsible for ensuring it outlives the PassBuilderOptions instance.
+// This wrapper keeps the string alive until LLVMDisposePassBuilderOptions.
 func LLVMPassBuilderOptionsSetAAPipeline(options LLVMPassBuilderOptionsRef, aaPipeline string) {
-	string2CString(aaPipeline, func(aaPipeline *C.char) bool {
-		C.LLVMPassBuilderOptionsSetAAPipeline(options.c, aaPipeline)
-		return false
-	})
+	key := uintptr(unsafe.Pointer(options.c))
+	if len(aaPipeline) == 0 {
+		if old, ok := aaPipelines.LoadAndDelete(key); ok {
+			C.free(old.(unsafe.Pointer))
+		}
+		C.LLVMPassBuilderOptionsSetAAPipeline(options.c, emptyCString)
+		return
+	}
+	cstr := C.CString(aaPipeline)
+	if old, loaded := aaPipelines.Swap(key, unsafe.Pointer(cstr)); loaded {
+		C.free(old.(unsafe.Pointer))
+	}
+	C.LLVMPassBuilderOptionsSetAAPipeline(options.c, cstr)
 }
 
 func LLVMPassBuilderOptionsSetLoopInterleaving(options LLVMPassBuilderOptionsRef, loopInterleaving bool) {
@@ -108,5 +129,8 @@ func LLVMPassBuilderOptionsSetInlinerThreshold(options LLVMPassBuilderOptionsRef
 
 // LLVMDisposePassBuilderOptions Dispose of a heap-allocated PassBuilderOptions instance
 func LLVMDisposePassBuilderOptions(options LLVMPassBuilderOptionsRef) {
+	if old, ok := aaPipelines.LoadAndDelete(uintptr(unsafe.Pointer(options.c))); ok {
+		C.free(old.(unsafe.Pointer))
+	}
 	C.LLVMDisposePassBuilderOptions(options.c)
 }

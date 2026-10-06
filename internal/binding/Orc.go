@@ -167,14 +167,21 @@ func LLVMOrcLLJITAddObjectFile(j LLVMOrcLLJITRef, jd LLVMOrcJITDylibRef, buf LLV
 
 // LLVMOrcLLJITLookup Look up the given symbol in the main JITDylib of the given LLJIT instance.
 func LLVMOrcLLJITLookup(j LLVMOrcLLJITRef, name string) (unsafe.Pointer, error) {
-	var addr unsafe.Pointer
+	var addr C.LLVMOrcExecutorAddress
 	err := string2CString(name, func(name *C.char) error {
-		return orcError2Error(C.LLVMOrcLLJITLookup(j.c, (*C.LLVMOrcExecutorAddress)(unsafe.Pointer(&addr)), name))
+		return orcError2Error(C.LLVMOrcLLJITLookup(j.c, &addr, name))
 	})
 	if err != nil {
 		return nil, err
 	}
-	return addr, nil
+	return executorAddressToPtr(addr), nil
+}
+
+// executorAddressToPtr converts an ORC executor address to an unsafe.Pointer.
+// The bit-cast keeps go vet's uintptr-to-pointer heuristic quiet; the address never
+// points into Go-managed memory. On 32-bit targets this truncates like uintptr would.
+func executorAddressToPtr(addr C.LLVMOrcExecutorAddress) unsafe.Pointer {
+	return *(*unsafe.Pointer)(unsafe.Pointer(&addr))
 }
 
 // LLVMOrcJITTargetMachineBuilderDetectHost Create a JITTargetMachineBuilder by detecting the host.

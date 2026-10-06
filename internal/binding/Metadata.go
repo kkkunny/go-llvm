@@ -95,19 +95,20 @@ func LLVMGetNamedMetadataNumOperands(m LLVMModuleRef, name string) uint32 {
 
 // LLVMGetNamedMetadataOperands Obtain the named metadata operands for a module.
 func LLVMGetNamedMetadataOperands(m LLVMModuleRef, name string) []LLVMValueRef {
-	n := int(LLVMGetNamedMetadataNumOperands(m, name))
-	if n == 0 {
-		return nil
-	}
-	operands := make([]C.LLVMValueRef, n)
+	var refs []LLVMValueRef
 	string2CString(name, func(name *C.char) bool {
+		n := int(C.LLVMGetNamedMetadataNumOperands(m.c, name))
+		if n == 0 {
+			return false
+		}
+		operands := make([]C.LLVMValueRef, n)
 		C.LLVMGetNamedMetadataOperands(m.c, name, &operands[0])
+		refs = make([]LLVMValueRef, n)
+		for i, o := range operands {
+			refs[i] = LLVMValueRef{c: o}
+		}
 		return false
 	})
-	refs := make([]LLVMValueRef, n)
-	for i, o := range operands {
-		refs[i] = LLVMValueRef{c: o}
-	}
 	return refs
 }
 

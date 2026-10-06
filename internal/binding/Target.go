@@ -2,6 +2,7 @@ package binding
 
 /*
 #include "llvm-c/Target.h"
+#include "Core.h"
 */
 import "C"
 import "errors"
@@ -205,10 +206,26 @@ func LLVMSetModuleDataLayout(m LLVMModuleRef, dl LLVMTargetDataRef) {
 }
 
 // LLVMCreateTargetData Creates target data from a target layout string.
+// Deprecated: a malformed string aborts the process (DataLayout's constructor calls
+// report_fatal_error). Use LLVMGoCreateTargetData, which parses non-fatally.
 func LLVMCreateTargetData(stringRep string) LLVMTargetDataRef {
 	return string2CString(stringRep, func(stringRep *C.char) LLVMTargetDataRef {
 		return LLVMTargetDataRef{c: C.LLVMCreateTargetData(stringRep)}
 	})
+}
+
+// LLVMGoCreateTargetData parses a target layout string non-fatally (DataLayout::parse).
+// On failure it returns a nil ref and a malloc'd message in err (free with LLVMDisposeMessage).
+func LLVMGoCreateTargetData(stringRep string) (LLVMTargetDataRef, string) {
+	var errMsg *C.char
+	ref := string2CString(stringRep, func(stringRep *C.char) LLVMTargetDataRef {
+		return LLVMTargetDataRef{c: C.LLVMGoCreateTargetData(stringRep, &errMsg)}
+	})
+	if errMsg == nil {
+		return ref, ""
+	}
+	defer LLVMDisposeMessage(errMsg)
+	return ref, C.GoString(errMsg)
 }
 
 // LLVMDisposeTargetData Deallocates a TargetData.
