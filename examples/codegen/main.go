@@ -32,19 +32,6 @@ func main() {
 	module := ir.NewModule(ctx, "add")
 	defer module.Close()
 
-	// i32 add(i32 a, i32 b) { return a + b }
-	i32 := ctx.Int(32)
-	fn := module.NewFunction("add", ctx.Fn(i32, []llvm.AnyType{i32, i32}, false))
-	b := ir.NewBuilder(ctx)
-	b.MoveToEnd(fn.NewBlock("entry"))
-	b.Ret(b.Add(fn.ParamAs[llvm.IntT](0), fn.ParamAs[llvm.IntT](1), "sum"))
-	if err := b.Close(); err != nil {
-		panic(err)
-	}
-	if err := module.Verify(); err != nil {
-		panic(err)
-	}
-
 	// 目标机器是独立所有权根（不经 Context.Own），用毕 Close；
 	// 三元组/CPU/特性串取宿主值，优化级别与重定位模式按需选择
 	tm, err := target.NewTargetMachine(
@@ -61,8 +48,22 @@ func main() {
 	}
 	defer tm.Close()
 
-	// ApplyTo 把目标三元组与数据布局写入模块，是 EmitToFile 的前置步骤
+	// ApplyTo 必须在生成 IR 之前调用：Builder 构建 load/store 等指令时固化的
+	// 对齐/大小来自模块当时的数据布局，事后补调无法修正已生成的 IR
 	tm.ApplyTo(module)
+
+	// i32 add(i32 a, i32 b) { return a + b }
+	i32 := ctx.Int(32)
+	fn := module.NewFunction("add", ctx.Fn(i32, []llvm.AnyType{i32, i32}, false))
+	b := ir.NewBuilder(ctx)
+	b.MoveToEnd(fn.NewBlock("entry"))
+	b.Ret(b.Add(fn.ParamAs[llvm.IntT](0), fn.ParamAs[llvm.IntT](1), "sum"))
+	if err := b.Close(); err != nil {
+		panic(err)
+	}
+	if err := module.Verify(); err != nil {
+		panic(err)
+	}
 
 	// 输出到随机临时目录，退出时整目录删除
 	dir, err := os.MkdirTemp("", "go-llvm-codegen-")

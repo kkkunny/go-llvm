@@ -79,3 +79,16 @@ func TestTargetRefAndHasJIT(t *testing.T) {
 		t.Fatalf("native target %q should support JIT", native.Name())
 	}
 }
+
+// TestZeroTargetFloor 零值 Target 不得进入 LLVM（FromName 失败后的零值常见）。
+func TestZeroTargetFloor(t *testing.T) {
+	var zero Target
+	if err := errs.Catch(func() { _ = zero.Name() }); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("zero Target.Name should panic ErrInvalidArg, got %v", err)
+	}
+	if err := errs.Catch(func() {
+		_, _ = NewTargetMachine(zero, DefaultTriple(), "", "", OptNone, RelocDefault, CodeModelDefault)
+	}); err == nil || err.Reason != llvm.ErrInvalidArg {
+		t.Fatalf("NewTargetMachine(zero) should panic ErrInvalidArg, got %v", err)
+	}
+}

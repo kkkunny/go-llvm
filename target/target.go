@@ -116,8 +116,15 @@ func Init(arch Arch) {
 // Target 目标描述（初始化后全局唯一，无需释放）
 type Target struct{ ref binding.LLVMTargetRef }
 
-// Ref 返回底层句柄（供 llvm/target 内部桥接使用）
+// Ref 返回底层句柄（供 llvm/* 子包桥接使用；不做存活校验，业务路径请先用 [Target.check]）
 func (t Target) Ref() binding.LLVMTargetRef { return t.ref }
+
+// check 前置校验（崩溃类地板：零值/无效句柄不得进入 LLVM）
+func (t Target) check(op string) {
+	if t.ref.IsNil() {
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil target")
+	}
+}
 
 // FromName 按目标名查找（如 "x86-64"）
 func FromName(name string) (Target, bool) {
@@ -141,19 +148,34 @@ func FromTriple(triple string) (Target, error) {
 func NativeTarget() (Target, error) { return FromTriple(DefaultTriple()) }
 
 // Name 目标名
-func (t Target) Name() string { return binding.LLVMGetTargetName(t.ref) }
+func (t Target) Name() string {
+	t.check("target.Target.Name")
+	return binding.LLVMGetTargetName(t.ref)
+}
 
 // Description 目标描述
-func (t Target) Description() string { return binding.LLVMGetTargetDescription(t.ref) }
+func (t Target) Description() string {
+	t.check("target.Target.Description")
+	return binding.LLVMGetTargetDescription(t.ref)
+}
 
 // HasJIT 是否支持 JIT
-func (t Target) HasJIT() bool { return binding.LLVMTargetHasJIT(t.ref) }
+func (t Target) HasJIT() bool {
+	t.check("target.Target.HasJIT")
+	return binding.LLVMTargetHasJIT(t.ref)
+}
 
 // HasTargetMachine 是否支持目标机器
-func (t Target) HasTargetMachine() bool { return binding.LLVMTargetHasTargetMachine(t.ref) }
+func (t Target) HasTargetMachine() bool {
+	t.check("target.Target.HasTargetMachine")
+	return binding.LLVMTargetHasTargetMachine(t.ref)
+}
 
 // HasAsmBackend 是否有汇编后端
-func (t Target) HasAsmBackend() bool { return binding.LLVMTargetHasAsmBackend(t.ref) }
+func (t Target) HasAsmBackend() bool {
+	t.check("target.Target.HasAsmBackend")
+	return binding.LLVMTargetHasAsmBackend(t.ref)
+}
 
 // DefaultTriple 宿主三元组
 func DefaultTriple() string { return binding.LLVMGetDefaultTargetTriple() }

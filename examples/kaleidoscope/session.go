@@ -155,21 +155,28 @@ func (s *Session) Eval(input string) (val float64, isExpr bool, err error) {
 	// AddIRModule 无条件消费 module/context（失败路径同样移交），返回后标记 consumed；
 	// 调试层 Verify panic 发生在移交之前，此时 consumed 仍为 false，由 defer 正常释放。
 	rt := s.jit.NewResourceTracker()
+	unloaded := false
+	defer func() {
+		// panic（Verify/签名核对）路径也要释放 tracker，避免 REPL 会话累积泄漏
+		if !unloaded {
+			_ = rt.Remove()
+		}
+	}()
 	err = rt.AddIRModule(m)
 	consumed = true
 	if err != nil {
-		_ = rt.Remove()
 		return 0, false, err
 	}
 	compiled, err := s.jit.Func[func() float64](cur.Proto.Name)
 	if err != nil {
-		_ = rt.Remove()
 		return 0, false, err
 	}
 	val = compiled()
 	if err := rt.Remove(); err != nil {
+		unloaded = true // Remove 已释放引用（无论错误与否）
 		return val, true, err
 	}
+	unloaded = true
 	return val, true, nil
 }
 

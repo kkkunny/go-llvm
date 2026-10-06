@@ -150,7 +150,8 @@ func (c *Compiler) compileVarIn(e *VarInExpr) (llvm.Value[llvm.FloatT], error) {
 	if err != nil {
 		return llvm.Value[llvm.FloatT]{}, err
 	}
-	for _, b := range saved {
+	for i := len(saved) - 1; i >= 0; i-- {
+		b := saved[i]
 		if b.existed {
 			c.vars[b.name] = b.alloca
 		} else {

@@ -67,11 +67,13 @@ type TargetMachine struct {
 	closed bool
 }
 
-// NewTargetMachine 创建目标机器；失败返回 ErrCodeGen
+// NewTargetMachine 创建目标机器；t 为零值时 panic ErrInvalidArg，失败返回 ErrCodeGen
 func NewTargetMachine(t Target, triple, cpu, features string, opt OptLevel, reloc RelocMode, cm CodeModel) (*TargetMachine, error) {
+	const op = "target.NewTargetMachine"
+	t.check(op)
 	ref := binding.LLVMCreateTargetMachine(t.ref, triple, cpu, features, binding.LLVMCodeGenOptLevel(opt), binding.LLVMRelocMode(reloc), binding.LLVMCodeModel(cm))
 	if ref.IsNil() {
-		return nil, errs.WrapError(llvm.ErrCodeGen, "target.NewTargetMachine", errors.New("LLVMCreateTargetMachine returned null"))
+		return nil, errs.WrapError(llvm.ErrCodeGen, op, errors.New("LLVMCreateTargetMachine returned null"))
 	}
 	return &TargetMachine{ref: ref}, nil
 }
@@ -187,12 +189,15 @@ func (m *TargetMachine) EmitToFile(mod *ir.Module, path string, ft FileType) err
 }
 
 // Emit 将模块编译为汇编/目标代码内存缓冲。
-// 调试构建下校验模块数据布局与目标机器一致（见 [TargetMachine.ApplyTo]）。
+// 调试构建下先 Verify，并校验模块数据布局与目标机器一致（见 [TargetMachine.ApplyTo]）。
 func (m *TargetMachine) Emit(mod *ir.Module, ft FileType) (*llvm.MemoryBuffer, error) {
 	const op = "target.TargetMachine.Emit"
 	m.check(op)
 	mod.Check(op)
 	if checks.Debug {
+		if err := mod.Verify(); err != nil {
+			errs.Panicf(llvm.ErrVerify, op, "module verification failed before codegen: %s", err)
+		}
 		m.checkApplied(op, mod)
 	}
 	buf, err := binding.LLVMTargetMachineEmitToMemoryBuffer(m.ref, mod.Ref(), binding.LLVMCodeGenFileType(ft))
