@@ -179,6 +179,9 @@ func SetParamAlign(inst llvm.AnyValue, i uint32, align uint32) {
 		errs.Panicf(llvm.ErrInvalidArg, op, "nil or dead value")
 	}
 	preAlign(op, align)
+	if i == ^uint32(0) {
+		errs.Panicf(llvm.ErrInvalidArg, op, "argument index overflow")
+	}
 	if checks.Debug && i >= uint32(binding.LLVMGetNumArgOperands(inst.Ref())) {
 		errs.Panicf(llvm.ErrInvalidArg, op, "argument index %d out of range", i)
 	}

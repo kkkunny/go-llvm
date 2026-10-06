@@ -37,13 +37,17 @@ func (c Call[T]) SetArg(i uint32, v llvm.AnyValue) {
 	binding.LLVMSetOperand(c.Ref(), i, v.Ref())
 }
 
-// CalledFunction 被调用函数（非间接调用时）
+// CalledFunction 被调用函数（直接调用，含别名/IFunc）；间接调用返回 false
 func (c Call[T]) CalledFunction() (llvm.Value[llvm.FnT], bool) {
 	ref := binding.LLVMGetCalledValue(c.Ref())
 	if ref.IsNil() {
 		return llvm.Value[llvm.FnT]{}, false
 	}
-	return llvm.NewValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
+	switch binding.LLVMGetValueKind(ref) {
+	case binding.LLVMFunctionValueKind, binding.LLVMGlobalAliasValueKind, binding.LLVMGlobalIFuncValueKind:
+		return llvm.NewValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
+	}
+	return llvm.Value[llvm.FnT]{}, false
 }
 
 // SetTailCall 设置 tail 标志
@@ -81,13 +85,19 @@ type Incoming[T llvm.Kind] struct {
 	Block Block
 }
 
-// AddIncoming 追加 PHI 输入；值类型一致为语义契约，仅调试层
+// AddIncoming 追加 PHI 输入；值/块须同上下文，值类型一致为语义契约（仅调试层）
 func (p Phi[T]) AddIncoming(incomings ...Incoming[T]) {
 	const op = "ir.Phi.AddIncoming"
 	values := make([]binding.LLVMValueRef, len(incomings))
 	blocks := make([]binding.LLVMBasicBlockRef, len(incomings))
 	for i, in := range incomings {
 		in.Block.Check(op)
+		if in.Block.ctx != p.Context() {
+			errs.Panicf(llvm.ErrCrossContext, op, "incoming block belongs to another context")
+		}
+		if in.Value.Context() != p.Context() {
+			errs.Panicf(llvm.ErrCrossContext, op, "incoming value belongs to another context")
+		}
 		if checks.Debug {
 			phiTy := typeOfVal(p.Ref(), p.RawType())
 			inTy := typeOfVal(in.Value.Ref(), in.Value.RawType())

@@ -123,6 +123,7 @@ func (b *Builder) Not(v llvm.ValueRef[llvm.IntT], name string) llvm.Value[llvm.I
 // intBinop 整数二元指令公共实现
 func (b *Builder) intBinop(op string, l, r llvm.ValueRef[llvm.IntT], name string, build func(binding.LLVMBuilderRef, binding.LLVMValueRef, binding.LLVMValueRef, string) binding.LLVMValueRef) llvm.Value[llvm.IntT] {
 	lv, rv := l.AsValue(), r.AsValue()
+	b.pre(op, core(lv), core(rv))
 	b.preSameType(op, core(lv), core(rv))
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, build(b.ref, lv.Ref(), rv.Ref(), name))
 }
@@ -165,6 +166,7 @@ func (b *Builder) FNeg(v llvm.ValueRef[llvm.FloatT], name string) llvm.Value[llv
 // floatBinop 浮点二元指令公共实现
 func (b *Builder) floatBinop(op string, l, r llvm.ValueRef[llvm.FloatT], name string, build func(binding.LLVMBuilderRef, binding.LLVMValueRef, binding.LLVMValueRef, string) binding.LLVMValueRef) llvm.Value[llvm.FloatT] {
 	lv, rv := l.AsValue(), r.AsValue()
+	b.pre(op, core(lv), core(rv))
 	b.preSameType(op, core(lv), core(rv))
 	return llvm.NewValue[llvm.FloatT](b.ctx, b.inserted.life, build(b.ref, lv.Ref(), rv.Ref(), name))
 }
@@ -174,6 +176,7 @@ func (b *Builder) floatBinop(op string, l, r llvm.ValueRef[llvm.FloatT], name st
 // ICmp 插入整数/指针比较，返回 i1
 func (b *Builder) ICmp(pred llvm.IntPred, l, r llvm.AnyValue, name string) llvm.Value[llvm.IntT] {
 	const op = "ir.Builder.ICmp"
+	b.pre(op, coreAny(l), coreAny(r))
 	b.preSameType(op, coreAny(l), coreAny(r))
 	ref := binding.LLVMBuildICmp(b.ref, binding.LLVMIntPredicate(pred), l.Ref(), r.Ref(), name)
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)
@@ -183,6 +186,7 @@ func (b *Builder) ICmp(pred llvm.IntPred, l, r llvm.AnyValue, name string) llvm.
 func (b *Builder) FCmp(pred llvm.FloatPred, l, r llvm.ValueRef[llvm.FloatT], name string) llvm.Value[llvm.IntT] {
 	const op = "ir.Builder.FCmp"
 	lv, rv := l.AsValue(), r.AsValue()
+	b.pre(op, core(lv), core(rv))
 	b.preSameType(op, core(lv), core(rv))
 	ref := binding.LLVMBuildFCmp(b.ref, binding.LLVMRealPredicate(pred), lv.Ref(), rv.Ref(), name)
 	return llvm.NewValue[llvm.IntT](b.ctx, b.inserted.life, ref)

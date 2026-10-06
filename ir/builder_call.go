@@ -52,15 +52,14 @@ func (b *Builder) CallIndirect[U llvm.Kind](fnPtr llvm.ValueRef[llvm.PtrT], sig 
 	return Call[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}
 }
 
-// call 调用公共路径：实参预检 + 参数个数/类型校验后发指令（callee 已由调用方校验）
+// call 调用公共路径：实参预检 + 参数个数/类型校验后发指令（callee/定位已由调用方校验）
 func (b *Builder) call(op string, callee binding.LLVMValueRef, sig llvm.FnType, args []llvm.AnyValue, name string) binding.LLVMValueRef {
-	b.pre(op)
 	b.checkCallArgs(op, sig, args)
 	return binding.LLVMBuildCall(b.ref, sig.Ref(), callee, b.valueRefs(args), name)
 }
 
 // CallWithBundles 带操作数捆绑的调用；捆绑由调用方持有并负责 Close
-func (b *Builder) CallWithBundles[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyValue, bundles []OperandBundle, name string) Call[U] {
+func (b *Builder) CallWithBundles[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyValue, bundles []*OperandBundle, name string) Call[U] {
 	const op = "ir.Builder.CallWithBundles"
 	fv := fn.AsValue()
 	b.pre(op, core(fv))
@@ -68,7 +67,6 @@ func (b *Builder) CallWithBundles[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args 
 	if checks.Debug {
 		checkKind[U](op, b.ctx, binding.LLVMGetReturnType(sig.Ref()))
 	}
-	b.pre(op)
 	b.checkCallArgs(op, sig, args)
 	ref := binding.LLVMBuildCallWithOperandBundles(b.ref, sig.Ref(), fv.Ref(), b.valueRefs(args), bundlesToRefs(bundles), name)
 	return Call[U]{Value: llvm.NewValue[U](b.ctx, b.inserted.life, ref)}

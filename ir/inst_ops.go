@@ -30,7 +30,7 @@ func OperandAt(inst llvm.AnyValue, i uint32) llvm.Value[llvm.DynT] {
 	return llvm.ValueOf(inst.Context(), inst.Lifetime(), binding.LLVMGetOperand(inst.Ref(), i))
 }
 
-// SetOperand 替换第 i 个操作数；越界/跨上下文校验按三层约定
+// SetOperand 替换第 i 个操作数；越界/跨上下文校验按三层约定，类型一致仅调试层
 func SetOperand(inst llvm.AnyValue, i uint32, v llvm.AnyValue) {
 	const op = "ir.SetOperand"
 	if inst == nil || !inst.Alive() {
@@ -42,8 +42,15 @@ func SetOperand(inst llvm.AnyValue, i uint32, v llvm.AnyValue) {
 	if inst.Context() != v.Context() {
 		errs.Panicf(llvm.ErrCrossContext, op, "operand belongs to another context")
 	}
-	if checks.Debug && i >= OperandCount(inst) {
-		errs.Panicf(llvm.ErrInvalidArg, op, "operand index %d out of range", i)
+	if checks.Debug {
+		if i >= OperandCount(inst) {
+			errs.Panicf(llvm.ErrInvalidArg, op, "operand index %d out of range", i)
+		}
+		want := binding.LLVMTypeOf(binding.LLVMGetOperand(inst.Ref(), i))
+		if got := binding.LLVMTypeOf(v.Ref()); !want.Equal(got) {
+			errs.Panicf(llvm.ErrTypeMismatch, op, "operand type %s does not match replaced operand type %s",
+				llvm.TypeOfRef(inst.Context(), got), llvm.TypeOfRef(inst.Context(), want))
+		}
 	}
 	binding.LLVMSetOperand(inst.Ref(), i, v.Ref())
 }
@@ -70,12 +77,24 @@ type Use struct {
 
 // User 使用该值的指令/常量
 func (u Use) User() llvm.Value[llvm.DynT] {
+	u.check("ir.Use.User")
 	return llvm.ValueOf(u.ctx, u.life, binding.LLVMGetUser(u.ref))
 }
 
 // UsedValue 该使用记录指向的值
 func (u Use) UsedValue() llvm.Value[llvm.DynT] {
+	u.check("ir.Use.UsedValue")
 	return llvm.ValueOf(u.ctx, u.life, binding.LLVMGetUsedValue(u.ref))
+}
+
+// check 前置校验（崩溃类地板：句柄/上下文/生命周期）
+func (u Use) check(op string) {
+	if u.ref.IsNil() {
+		errs.Panicf(llvm.ErrInvalidArg, op, "nil use handle")
+	}
+	if u.ctx == nil || !u.ctx.Alive() || u.life == nil || !u.life.Alive() {
+		errs.Panicf(llvm.ErrUseAfterFree, op, "use handle is dead")
+	}
 }
 
 // Uses 值的使用记录遍历（谁在用我）
@@ -93,7 +112,8 @@ func Uses(v llvm.AnyValue) iter.Seq[Use] {
 	}
 }
 
-// ReplaceAllUses 把 old 的全部使用替换为 new（RAUW）；两者须同上下文
+// ReplaceAllUses 把 old 的全部使用替换为 new（RAUW）；两者须同上下文，类型一致仅调试层
+// （上游 Value::doRAUW 对类型不一致会断言）
 func ReplaceAllUses(old, new llvm.AnyValue) {
 	const op = "ir.ReplaceAllUses"
 	if old == nil || !old.Alive() {
@@ -104,6 +124,14 @@ func ReplaceAllUses(old, new llvm.AnyValue) {
 	}
 	if old.Context() != new.Context() {
 		errs.Panicf(llvm.ErrCrossContext, op, "replacement belongs to another context")
+	}
+	if checks.Debug {
+		oldTy := binding.LLVMTypeOf(old.Ref())
+		newTy := binding.LLVMTypeOf(new.Ref())
+		if !oldTy.Equal(newTy) {
+			errs.Panicf(llvm.ErrTypeMismatch, op, "replacement type %s differs from original type %s",
+				llvm.TypeOfRef(old.Context(), newTy), llvm.TypeOfRef(old.Context(), oldTy))
+		}
 	}
 	binding.LLVMReplaceAllUsesWith(old.Ref(), new.Ref())
 }

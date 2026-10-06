@@ -17,29 +17,32 @@ func (a Alias) Aliasee() llvm.Value[llvm.DynT] {
 	return llvm.ValueOf(a.Context(), a.Lifetime(), binding.LLVMAliasGetAliasee(a.Ref()))
 }
 
-// SetAliasee 设置别名指向的值
+// SetAliasee 设置别名指向的值；v 必须是常量（LLVM 侧 unwrap<Constant> 断言）
 func (a Alias) SetAliasee(v llvm.AnyValue) {
 	const op = "ir.Alias.SetAliasee"
 	a.Context().CheckValues(op, v)
+	llvm.CheckConstant(op, v)
 	binding.LLVMAliasSetAliasee(a.Ref(), v.Ref())
 }
 
-// NewAlias 创建全局别名（valueTy 为被指值类型，地址空间 0）
+// NewAlias 创建全局别名（valueTy 为被指值类型，地址空间 0）；aliasee 必须是常量
 func (m *Module) NewAlias(name string, valueTy llvm.AnyType, aliasee llvm.AnyValue) Alias {
 	const op = "ir.Module.NewAlias"
 	m.Check(op)
 	m.ctx.CheckType(op, valueTy)
 	m.ctx.CheckValues(op, aliasee)
+	llvm.CheckConstant(op, aliasee)
 	ref := binding.LLVMAddAlias2(m.ref, valueTy.Ref(), 0, aliasee.Ref(), name)
 	return Alias{Value: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}
 }
 
-// NewIFunc 创建全局 IFunc（resolver 为解析函数，地址空间 0）
+// NewIFunc 创建全局 IFunc（resolver 为解析函数，地址空间 0）；resolver 必须是常量
 func (m *Module) NewIFunc(name string, t llvm.AnyType, resolver llvm.AnyValue) Global {
 	const op = "ir.Module.NewIFunc"
 	m.Check(op)
 	m.ctx.CheckType(op, t)
 	m.ctx.CheckValues(op, resolver)
+	llvm.CheckConstant(op, resolver)
 	ref := binding.LLVMAddGlobalIFunc(m.ref, name, t.Ref(), 0, resolver.Ref())
 	return Global{Value: llvm.NewValue[llvm.PtrT](m.ctx, m.life, ref)}
 }

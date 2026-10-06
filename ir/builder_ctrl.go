@@ -17,14 +17,18 @@ func (s Switch) CondType() llvm.Type[llvm.IntT] {
 	return llvm.NewType[llvm.IntT](s.Context(), binding.LLVMTypeOf(binding.LLVMGetOperand(s.Ref(), 0)))
 }
 
-// AddCase 追加 case；条件类型不符 panic（语义契约，仅调试层）
+// AddCase 追加 case；条件必须是同类型常量，块须同上下文（不满足 panic）
 func (s Switch) AddCase(cond llvm.ValueRef[llvm.IntT], blk Block) {
 	const op = "ir.Switch.AddCase"
 	cv := cond.AsValue()
 	blk.Check(op)
-	if checks.Debug && !cv.Type().Equal(s.CondType()) {
+	if blk.ctx != s.Context() {
+		errs.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
+	}
+	if !cv.Type().Equal(s.CondType()) {
 		errs.Panicf(llvm.ErrTypeMismatch, op, "case type %s differs from switch type %s", cv.Type(), s.CondType())
 	}
+	llvm.CheckConstant(op, cv)
 	binding.LLVMAddCase(s.Ref(), cv.Ref(), blk.ref)
 }
 
@@ -46,6 +50,9 @@ func (s Switch) DefaultBlock() Block {
 // CaseBlock 第 i 个 case 的目标块（i 从 0 开始）；越界校验仅调试层
 func (s Switch) CaseBlock(i uint32) Block {
 	const op = "ir.Switch.CaseBlock"
+	if i == ^uint32(0) {
+		errs.Panicf(llvm.ErrInvalidArg, op, "case index overflow")
+	}
 	if checks.Debug && i >= s.Count() {
 		errs.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
 	}
@@ -56,6 +63,9 @@ func (s Switch) CaseBlock(i uint32) Block {
 // CaseValue 第 i 个 case 的常量（i 从 0 开始）；越界校验仅调试层
 func (s Switch) CaseValue(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.Switch.CaseValue"
+	if i == ^uint32(0) {
+		errs.Panicf(llvm.ErrInvalidArg, op, "case index overflow")
+	}
 	if checks.Debug && i >= s.Count() {
 		errs.Panicf(llvm.ErrInvalidArg, op, "case index %d out of range", i)
 	}

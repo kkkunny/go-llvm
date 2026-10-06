@@ -25,10 +25,11 @@ func (g Global) Initializer() (llvm.Value[llvm.DynT], bool) {
 	return llvm.ValueOf(g.Context(), g.Lifetime(), ref), true
 }
 
-// SetInitializer 设置初始化器
+// SetInitializer 设置初始化器；v 必须是常量（LLVM 侧 unwrap<Constant> 断言）
 func (g Global) SetInitializer(v llvm.AnyValue) {
 	const op = "ir.Global.SetInitializer"
 	g.Context().CheckValues(op, v)
+	llvm.CheckConstant(op, v)
 	binding.LLVMSetInitializer(g.Ref(), v.Ref())
 }
 

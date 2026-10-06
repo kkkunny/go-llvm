@@ -6,18 +6,20 @@ import (
 	"github.com/kkkunny/go-llvm/internal/errs"
 )
 
-// AppendCtor 向 llvm.global_ctors 追加构造器（priority 越小越先执行，clang 惯例 65535）
+// AppendCtor 向 llvm.global_ctors 追加构造器。
+// LLVM 按 priority 升序调用（越小越先执行，clang 惯例 65535）；同 priority 顺序未定义。
 func (m *Module) AppendCtor(fn Function, priority uint32) {
 	m.appendGlobalList("ir.Module.AppendCtor", "llvm.global_ctors", fn, priority)
 }
 
-// AppendDtor 向 llvm.global_dtors 追加析构器（priority 越小越先执行）
+// AppendDtor 向 llvm.global_dtors 追加析构器。
+// LLVM 按 priority 降序调用（越大越先执行，与构造顺序相反）。
 func (m *Module) AppendDtor(fn Function, priority uint32) {
 	m.appendGlobalList("ir.Module.AppendDtor", "llvm.global_dtors", fn, priority)
 }
 
 // appendGlobalList 读取既有 {i32, ptr, ptr} 数组并追加一项，重建 appending 全局。
-// LLVM 不允许 GlobalVariable 改类型，故先删后建
+// LLVM 不允许 GlobalVariable 改类型，故先删后建；数组顺序不影响执行顺序（LLVM 按 priority 排序）。
 func (m *Module) appendGlobalList(op, name string, fn Function, priority uint32) {
 	m.Check(op)
 	fn.Check(op)
@@ -30,9 +32,20 @@ func (m *Module) appendGlobalList(op, name string, fn Function, priority uint32)
 	var elems []llvm.AnyValue
 	if g, ok := m.GetGlobal(name); ok {
 		if init, has := g.Initializer(); has {
-			n := binding.LLVMGetArrayLength2(binding.LLVMTypeOf(init.Ref()))
+			ty := binding.LLVMTypeOf(init.Ref())
+			if binding.LLVMGetTypeKind(ty) != binding.LLVMArrayTypeKind {
+				errs.Panicf(llvm.ErrTypeMismatch, op, "%s initializer is not an array", name)
+			}
+			if got := binding.LLVMGetElementType(ty); !got.Equal(elemTy.Ref()) {
+				errs.Panicf(llvm.ErrTypeMismatch, op, "%s element type %s does not match { i32, ptr, ptr }", name, llvm.TypeOfRef(m.ctx, got))
+			}
+			n := binding.LLVMGetArrayLength2(ty)
 			for i := uint64(0); i < n; i++ {
-				elems = append(elems, llvm.ValueOf(m.ctx, m.life, binding.LLVMGetAggregateElement(init.Ref(), uint32(i))))
+				entry := binding.LLVMGetAggregateElement(init.Ref(), uint32(i))
+				if entry.IsNil() {
+					errs.Panicf(llvm.ErrInvalidArg, op, "%s element %d is not a constant aggregate", name, i)
+				}
+				elems = append(elems, llvm.ValueOf(m.ctx, m.life, entry))
 			}
 		}
 		m.DelGlobal(g)

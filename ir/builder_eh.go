@@ -28,7 +28,7 @@ func (c Invoke[T]) ArgCount() uint32 {
 	return binding.LLVMGetNumArgOperands(c.Ref())
 }
 
-// Arg 第 i 个实参（擦除种类）
+// Arg 第 i 个实参（擦除种类）；越界始终校验（崩溃类地板，LLVMGetOperand 越界为 UB）
 func (c Invoke[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 	const op = "ir.Invoke.Arg"
 	if i >= c.ArgCount() {
@@ -37,7 +37,7 @@ func (c Invoke[T]) Arg(i uint32) llvm.Value[llvm.DynT] {
 	return llvm.ValueOf(c.Context(), c.Lifetime(), binding.LLVMGetOperand(c.Ref(), i))
 }
 
-// SetArg 替换第 i 个实参
+// SetArg 替换第 i 个实参；越界始终校验（崩溃类地板）
 func (c Invoke[T]) SetArg(i uint32, v llvm.AnyValue) {
 	const op = "ir.Invoke.SetArg"
 	if i >= c.ArgCount() {
@@ -47,13 +47,17 @@ func (c Invoke[T]) SetArg(i uint32, v llvm.AnyValue) {
 	binding.LLVMSetOperand(c.Ref(), i, v.Ref())
 }
 
-// CalledFunction 被调用函数（非间接 invoke 时）
+// CalledFunction 被调用函数（直接 invoke，含别名/IFunc）；间接 invoke 返回 false
 func (c Invoke[T]) CalledFunction() (llvm.Value[llvm.FnT], bool) {
 	ref := binding.LLVMGetCalledValue(c.Ref())
 	if ref.IsNil() {
 		return llvm.Value[llvm.FnT]{}, false
 	}
-	return llvm.NewValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
+	switch binding.LLVMGetValueKind(ref) {
+	case binding.LLVMFunctionValueKind, binding.LLVMGlobalAliasValueKind, binding.LLVMGlobalIFuncValueKind:
+		return llvm.NewValue[llvm.FnT](c.Context(), c.Lifetime(), ref), true
+	}
+	return llvm.Value[llvm.FnT]{}, false
 }
 
 // SetTailCall 设置 tail 标志
@@ -86,11 +90,12 @@ type LandingPad[T llvm.Kind] struct {
 }
 
 // AddClause 追加 catch/filter 子句（catch：类型信息全局；filter：常量数组）。
+// 子句必须是常量（LLVM 侧 unwrap<Constant> 断言），不满足 panic。
 // 注：经 Dyn() 走 Value[DynT].IsConstant，避免 Global 角色遮蔽语义（全局常量标志）
 func (l LandingPad[T]) AddClause(v llvm.AnyValue) {
 	const op = "ir.LandingPad.AddClause"
 	l.Context().CheckValues(op, v)
-	if checks.Debug && !v.Dyn().IsConstant() {
+	if !v.Dyn().IsConstant() {
 		errs.Panicf(llvm.ErrInvalidArg, op, "clause must be a constant")
 	}
 	binding.LLVMAddClause(l.Ref(), v.Ref())
@@ -125,10 +130,20 @@ type CatchSwitch struct {
 	llvm.Value[llvm.TokenT]
 }
 
-// AddHandler 追加处理器入口块（须与 catchswitch 同函数）
+// AddHandler 追加处理器入口块（须与 catchswitch 同上下文/同函数）
 func (s CatchSwitch) AddHandler(blk Block) {
 	const op = "ir.CatchSwitch.AddHandler"
 	blk.Check(op)
+	if blk.ctx != s.Context() {
+		errs.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
+	}
+	if checks.Debug {
+		if parent := binding.LLVMGetInstructionParent(s.Ref()); !parent.IsNil() {
+			if wrapBlock(s.Context(), s.Lifetime(), parent).Belong().Ref() != blk.Belong().Ref() {
+				errs.Panicf(llvm.ErrInvalidArg, op, "handler block belongs to another function")
+			}
+		}
+	}
 	binding.LLVMAddHandler(s.Ref(), blk.ref)
 }
 
@@ -200,7 +215,7 @@ func (b *Builder) Invoke[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.An
 }
 
 // InvokeWithBundles 带操作数捆绑的 invoke；捆绑由调用方持有并负责 Close
-func (b *Builder) InvokeWithBundles[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyValue, bundles []OperandBundle, then, unwind Block, name string) Invoke[U] {
+func (b *Builder) InvokeWithBundles[U llvm.Kind](fn llvm.ValueRef[llvm.FnT], args []llvm.AnyValue, bundles []*OperandBundle, then, unwind Block, name string) Invoke[U] {
 	const op = "ir.Builder.InvokeWithBundles"
 	fv := fn.AsValue()
 	b.pre(op, core(fv))

@@ -53,8 +53,8 @@ func (b *Builder) InsertElement(vec llvm.ValueRef[llvm.VecT], elem llvm.AnyValue
 func (b *Builder) ShuffleVector(v1, v2 llvm.ValueRef[llvm.VecT], mask llvm.ValueRef[llvm.VecT], name string) llvm.Value[llvm.VecT] {
 	const op = "ir.Builder.ShuffleVector"
 	a, c, mv := v1.AsValue(), v2.AsValue(), mask.AsValue()
+	b.pre(op, core(a), core(c), core(mv))
 	b.preSameType(op, core(a), core(c))
-	b.checkVal(op, core(mv))
 	if checks.Debug {
 		maskElem := binding.LLVMGetElementType(b.vecKindTy(op, core(mv)))
 		i32Ref := b.ctx.Int(32).Ref()

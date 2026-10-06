@@ -141,13 +141,19 @@ func (b *Builder) MoveToEnd(blk Block) {
 	binding.LLVMPositionBuilderAtEnd(b.ref, blk.ref)
 }
 
-// MoveBefore 将插入点移到指令之前
+// MoveBefore 将插入点移到指令之前；inst 必须是已挂在基本块上的指令
 func (b *Builder) MoveBefore(inst llvm.AnyValue) {
 	const op = "ir.Builder.MoveBefore"
 	b.preAlive(op)
 	checkOwner(op, &b.ownerGID, &b.ops, "builder", true)
 	b.checkVal(op, coreAny(inst))
+	if binding.LLVMGetValueKind(inst.Ref()) != binding.LLVMInstructionValueKind {
+		b.panicf(llvm.ErrInvalidArg, op, "value is not an instruction")
+	}
 	ref := binding.LLVMGetInstructionParent(inst.Ref())
+	if ref.IsNil() {
+		b.panicf(llvm.ErrInvalidArg, op, "instruction is not attached to a basic block")
+	}
 	blk := wrapBlock(b.ctx, inst.Lifetime(), ref)
 	b.inserted = &blk
 	b.before = rawRefOf(inst)
@@ -156,6 +162,8 @@ func (b *Builder) MoveBefore(inst llvm.AnyValue) {
 
 // CurrentBlock 当前插入块
 func (b *Builder) CurrentBlock() (Block, bool) {
+	const op = "ir.Builder.CurrentBlock"
+	b.preAlive(op)
 	ref := binding.LLVMGetInsertBlock(b.ref)
 	if ref.IsNil() {
 		return Block{}, false
@@ -257,6 +265,9 @@ func typeRefString(ctx *llvm.Context, ref binding.LLVMTypeRef) string {
 
 // preAlive 校验 Builder 未关闭（不要求已定位，供定位类方法使用）
 func (b *Builder) preAlive(op string) {
+	if b.ref.IsNil() {
+		b.panicf(llvm.ErrInvalidArg, op, "nil builder")
+	}
 	if b.closed {
 		b.panicf(llvm.ErrClosed, op, "builder already closed")
 	}
@@ -286,6 +297,9 @@ func (b *Builder) recordOp(op string) {
 func (b *Builder) prePosition(op string) {
 	if b.inserted == nil {
 		b.panicf(llvm.ErrInvalidArg, op, "builder is not positioned at any block")
+	}
+	if b.inserted.ref.IsNil() {
+		b.panicf(llvm.ErrInvalidArg, op, "insert block is nil")
 	}
 	if !b.inserted.life.Alive() {
 		b.panicf(llvm.ErrUseAfterFree, op, "insert block is freed")
@@ -320,9 +334,9 @@ func (b *Builder) pre(op string, vs ...preVal) {
 	}
 }
 
-// preSameType 预检并要求两操作数类型一致（语义契约，仅调试层）
+// preSameType 要求两操作数类型一致（语义契约，仅调试层）。
+// 调用方必须先调用 pre 完成句柄/定位校验，本函数不再重复 pre。
 func (b *Builder) preSameType(op string, l, r preVal) {
-	b.pre(op, l, r)
 	if !checks.Debug {
 		return
 	}

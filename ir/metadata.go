@@ -8,7 +8,19 @@ import (
 
 // ===== 命名元数据 / 模块 flag =====
 
-// AddNamedMetadataOperand 向命名元数据节点追加操作数（不存在则创建）
+// checkMDNode 校验元数据可用作 MDNode 位置。
+// LLVM 的 extractMDNode 只接受 MDNode 或 ConstantAsMetadata；本绑定未区分
+// ConstantAsMetadata，故保守地要求真正的 MDNode（IsNode 对 ValueAsMetadata 也为真）。
+func checkMDNode(op string, md llvm.Metadata) {
+	if !md.IsNode() {
+		errs.Panicf(llvm.ErrInvalidArg, op, "metadata must be an MDNode")
+	}
+	if md.IsValueAsMetadata() {
+		errs.Panicf(llvm.ErrInvalidArg, op, "metadata must be an MDNode, not a value wrapper")
+	}
+}
+
+// AddNamedMetadataOperand 向命名元数据节点追加操作数（不存在则创建）；md 必须是 MDNode
 func (m *Module) AddNamedMetadataOperand(name string, md llvm.Metadata) {
 	const op = "ir.Module.AddNamedMetadataOperand"
 	m.Check(op)
@@ -16,6 +28,7 @@ func (m *Module) AddNamedMetadataOperand(name string, md llvm.Metadata) {
 	if md.Context() != m.ctx {
 		errs.Panicf(llvm.ErrCrossContext, op, "metadata belongs to another context")
 	}
+	checkMDNode(op, md)
 	binding.LLVMAddNamedMetadataOperand(m.ref, name, md.Value().Ref())
 }
 
@@ -72,9 +85,7 @@ func AttachMetadata(inst llvm.AnyValue, kind string, md llvm.Metadata) {
 	if inst.Context() != md.Context() {
 		errs.Panicf(llvm.ErrCrossContext, op, "metadata belongs to another context")
 	}
-	if !md.IsNode() {
-		errs.Panicf(llvm.ErrInvalidArg, op, "instruction metadata must be an MDNode")
-	}
+	checkMDNode(op, md)
 	kindID := binding.LLVMGetMDKindIDInContext(inst.Context().Ref(), kind)
 	binding.LLVMSetMetadata(inst.Ref(), kindID, md.Value().Ref())
 }
@@ -95,13 +106,16 @@ func InstMetadata(inst llvm.AnyValue, kind string) (llvm.Metadata, bool) {
 
 // ===== blockaddress =====
 
-// BlockAddress 构造 blockaddress 常量（指向函数内某基本块）
+// BlockAddress 构造 blockaddress 常量（指向函数内某基本块）；块必须属于该函数
 func BlockAddress(fn Function, blk Block) llvm.Value[llvm.PtrT] {
 	const op = "ir.BlockAddress"
 	fn.Check(op)
 	blk.Check(op)
 	if fn.Context() != blk.ctx {
 		errs.Panicf(llvm.ErrCrossContext, op, "block belongs to another context")
+	}
+	if blk.Belong().Ref() != fn.Ref() {
+		errs.Panicf(llvm.ErrInvalidArg, op, "block does not belong to function %s", fn.Name())
 	}
 	ref := binding.LLVMBlockAddress(fn.Ref(), blk.ref)
 	return llvm.NewValue[llvm.PtrT](fn.Context(), fn.Lifetime(), ref)

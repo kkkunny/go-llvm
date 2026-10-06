@@ -30,10 +30,10 @@ func TestOperandBundles(t *testing.T) {
 	// invoke 带捆绑（entry 以 invoke 终结），call 放在 then 块
 	then := caller.NewBlock("then")
 	catch := caller.NewBlock("catch")
-	b.InvokeWithBundles[llvm.IntT](fn, []llvm.AnyValue{a}, []OperandBundle{tag}, then, catch, "inv")
+	b.InvokeWithBundles[llvm.IntT](fn, []llvm.AnyValue{a}, []*OperandBundle{tag}, then, catch, "inv")
 	b.MoveToEnd(then)
 
-	call := b.CallWithBundles[llvm.IntT](fn, []llvm.AnyValue{a}, []OperandBundle{tag}, "c")
+	call := b.CallWithBundles[llvm.IntT](fn, []llvm.AnyValue{a}, []*OperandBundle{tag}, "c")
 	if call.ArgCount() != 1 {
 		t.Fatalf("args = %d", call.ArgCount())
 	}
@@ -56,8 +56,18 @@ func TestOperandBundles(t *testing.T) {
 		t.Fatalf("Tag on closed bundle should panic ErrUseAfterFree, got %v", err)
 	}
 	if err := errs.Catch(func() {
-		b.CallWithBundles[llvm.IntT](fn, []llvm.AnyValue{a}, []OperandBundle{tag}, "")
+		b.CallWithBundles[llvm.IntT](fn, []llvm.AnyValue{a}, []*OperandBundle{tag}, "")
 	}); err == nil || err.Reason != llvm.ErrUseAfterFree {
 		t.Fatalf("CallWithBundles with closed bundle should panic ErrUseAfterFree, got %v", err)
+	}
+
+	// 指针语义：拷贝不产生独立生命周期
+	tag2 := NewOperandBundle(ctx, "funclet", []llvm.AnyValue{a})
+	alias := tag2
+	if err := tag2.Close(); err != nil {
+		t.Fatalf("Close tag2: %v", err)
+	}
+	if err := errs.Catch(func() { _ = alias.Tag() }); err == nil || err.Reason != llvm.ErrUseAfterFree {
+		t.Fatalf("alias after Close should panic ErrUseAfterFree, got %v", err)
 	}
 }

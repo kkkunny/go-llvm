@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"runtime"
+
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/internal/binding"
 	"github.com/kkkunny/go-llvm/internal/errs"
@@ -20,6 +22,7 @@ func ParseIR(ctx *llvm.Context, buf *llvm.MemoryBuffer) (*Module, error) {
 		errs.Panicf(llvm.ErrUseAfterFree, op, "memory buffer is closed")
 	}
 	ref, err := binding.LLVMParseIRInContext(ctx.Ref(), buf.Ref())
+	runtime.KeepAlive(buf)
 	if err != nil {
 		return nil, errs.WrapError(llvm.ErrParse, op, err)
 	}
@@ -40,6 +43,7 @@ func ParseBitcode(ctx *llvm.Context, buf *llvm.MemoryBuffer) (*Module, error) {
 		errs.Panicf(llvm.ErrUseAfterFree, op, "memory buffer is closed")
 	}
 	ref, err := binding.LLVMParseBitcodeInContext(ctx.Ref(), buf.Ref())
+	runtime.KeepAlive(buf)
 	if err != nil {
 		return nil, errs.WrapError(llvm.ErrParse, op, err)
 	}

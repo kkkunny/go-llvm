@@ -17,7 +17,11 @@ type Function struct {
 
 // Signature 函数类型
 func (f Function) Signature() llvm.FnType {
-	return llvm.MustFnType(llvm.TypeOfRef(f.Context(), binding.LLVMGetFunctionType(f.Ref())))
+	ref := binding.LLVMGetFunctionType(f.Ref())
+	if ref.IsNil() {
+		errs.Panicf(llvm.ErrInternal, "ir.Function.Signature", "failed to obtain function type")
+	}
+	return llvm.MustFnType(llvm.TypeOfRef(f.Context(), ref))
 }
 
 // CountParams 参数个数
@@ -25,14 +29,17 @@ func (f Function) CountParams() uint {
 	return uint(binding.LLVMCountParams(f.Ref()))
 }
 
-// Param 第 i 个参数（擦除种类）
+// Param 第 i 个参数（擦除种类）；i 超出 uint32 时 panic ErrInvalidArg
 func (f Function) Param(i uint) Param {
 	const op = "ir.Function.Param"
+	if i > uint(^uint32(0)) {
+		errs.Panicf(llvm.ErrInvalidArg, op, "parameter index %d out of range", i)
+	}
 	if checks.Debug && i >= f.CountParams() {
 		errs.Panicf(llvm.ErrInvalidArg, op, "parameter index %d out of range", i)
 	}
 	ref := binding.LLVMGetParam(f.Ref(), uint32(i))
-	return Param{Value: llvm.NewValue[llvm.DynT](f.Context(), f.Lifetime(), ref)}
+	return Param{Value: llvm.NewValue[llvm.DynT](f.Context(), f.Lifetime(), ref), index: uint32(i), hasIndex: true}
 }
 
 // ParamAs 第 i 个参数（泛型方法；种类不符 panic）
@@ -119,7 +126,7 @@ func (f Function) SetLinkage(l llvm.Linkage) {
 	binding.LLVMSetLinkage(f.Ref(), binding.LLVMLinkage(l))
 }
 
-// SetPersonality 设置 personality 函数（EH 展开用）
+// SetPersonality 设置 personality 函数（EH 展开用）；必须是常量
 func (f Function) SetPersonality(pers llvm.ValueRef[llvm.FnT]) {
 	const op = "ir.Function.SetPersonality"
 	pv := pers.AsValue()
@@ -127,6 +134,7 @@ func (f Function) SetPersonality(pers llvm.ValueRef[llvm.FnT]) {
 		errs.Panicf(llvm.ErrInvalidArg, op, "nil personality")
 	}
 	f.Context().CheckValues(op, pv)
+	llvm.CheckConstant(op, pv)
 	binding.LLVMSetPersonalityFn(f.Ref(), pv.Ref())
 }
 
@@ -167,10 +175,11 @@ func (f Function) PrefixData() llvm.Value[llvm.DynT] {
 	return llvm.ValueOf(f.Context(), f.Lifetime(), binding.LLVMGetPrefixData(f.Ref()))
 }
 
-// SetPrefixData 设置前缀数据
+// SetPrefixData 设置前缀数据；必须是常量
 func (f Function) SetPrefixData(v llvm.AnyValue) {
 	const op = "ir.Function.SetPrefixData"
 	f.Context().CheckValues(op, v)
+	llvm.CheckConstant(op, v)
 	binding.LLVMSetPrefixData(f.Ref(), v.Ref())
 }
 
@@ -179,16 +188,19 @@ func (f Function) PrologueData() llvm.Value[llvm.DynT] {
 	return llvm.ValueOf(f.Context(), f.Lifetime(), binding.LLVMGetPrologueData(f.Ref()))
 }
 
-// SetPrologueData 设置序言数据
+// SetPrologueData 设置序言数据；必须是常量
 func (f Function) SetPrologueData(v llvm.AnyValue) {
 	const op = "ir.Function.SetPrologueData"
 	f.Context().CheckValues(op, v)
+	llvm.CheckConstant(op, v)
 	binding.LLVMSetPrologueData(f.Ref(), v.Ref())
 }
 
 // Param 函数参数角色（内嵌 Value[DynT]）
 type Param struct {
 	llvm.Value[llvm.DynT]
+	index    uint32 // 父函数中的序号（由 Function.Param 填充）
+	hasIndex bool   // 外部经内嵌 Value 构造时为 false，Index 回退扫描
 }
 
 // SetAlign 设置参数对齐（align 参数属性，仅指针参数有效，非指针参数会在 [Module.Verify] 时报错）。

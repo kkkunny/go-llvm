@@ -143,9 +143,14 @@ func (f Function) SetCallConv(cc llvm.CallConv) {
 
 // ===== Param =====
 
-// Index 参数在函数中的序号（从 0 起）
+// Index 参数在函数中的序号（从 0 起）。
+// 经 [Function.Param] 取得的参数直接返回构造时记录的序号；外部自行拼装的参数
+// 回退到父函数扫描（找不到 panic ErrNotFound）。
 func (p Param) Index() uint32 {
 	const op = "ir.Param.Index"
+	if p.hasIndex {
+		return p.index
+	}
 	fn := p.Belong()
 	n := uint32(fn.CountParams())
 	for i := uint32(0); i < n; i++ {

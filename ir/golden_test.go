@@ -65,7 +65,7 @@ func TestGoldenMain(t *testing.T) {
 	checkGolden(t, m.String(), "main.ll")
 }
 
-// TestGoldenLoop 覆盖 PHI/Switch/内存指令的端到端场景
+// TestGoldenLoop 覆盖 PHI/内存指令的端到端场景
 func TestGoldenLoop(t *testing.T) {
 	ctx := llvm.NewContext()
 	defer ctx.Close()
@@ -73,8 +73,6 @@ func TestGoldenLoop(t *testing.T) {
 	defer m.Close()
 
 	i32 := ctx.Int(32)
-	i64 := ctx.Int(64)
-	boolTy := ctx.Bool()
 	fn, err := m.NewFunc[func(int32) int32]("sum_to")
 	if err != nil {
 		t.Fatal(err)
@@ -93,15 +91,13 @@ func TestGoldenLoop(t *testing.T) {
 
 	b.MoveToEnd(loop)
 	i := b.PHI(i32, "i")
-	cur := b.Load(acc, i32, "cur")
+	b.Load(acc, i32, "cur") // golden 场景的一部分，值本身不需要使用
 	i.AddIncoming(Incoming[llvm.IntT]{Value: ctx.ConstInt(i32, 0).Value, Block: entry})
 	next := b.Add(i, ctx.ConstInt(i32, 1).Value, "next")
 	b.Store(next, acc)
 	done := b.ICmp(llvm.IntSGE, next, fn.Function().ParamAs[llvm.IntT](0), "done")
 	b.CondBr(done, exit, loop)
 	i.AddIncoming(Incoming[llvm.IntT]{Value: next, Block: loop})
-	_ = cur
-	_ = boolTy
 
 	b.MoveToEnd(exit)
 	result := b.Load(acc, i32, "result")
@@ -112,7 +108,6 @@ func TestGoldenLoop(t *testing.T) {
 	}
 
 	checkGolden(t, m.String(), "loop.ll")
-	_ = i64
 }
 
 // TestGoldenEH 覆盖 Itanium 式（invoke/landingpad/resume）与 funclet 式（catchswitch/catchpad/catchret/cleanuppad/cleanupret）

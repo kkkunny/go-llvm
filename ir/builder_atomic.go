@@ -51,14 +51,14 @@ func orderingRank(o llvm.AtomicOrdering) int {
 	}
 }
 
-// preOrderingCmpXchg 比较交换内存序预检：失败序不得为 release/acq_rel 且不得强于成功序
+// preOrderingCmpXchg 比较交换内存序预检：失败序不得为 release/acq_rel/unordered 且不得强于成功序
 func preOrderingCmpXchg(op string, success, failure llvm.AtomicOrdering) {
 	if !checks.Debug {
 		return
 	}
 	preOrderingRMW(op, success)
 	switch failure {
-	case llvm.AtomicUnordered, llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicSequentiallyConsistent:
+	case llvm.AtomicMonotonic, llvm.AtomicAcquire, llvm.AtomicSequentiallyConsistent:
 	default:
 		errs.Panicf(llvm.ErrInvalidArg, op, "invalid cmpxchg failure ordering %d", failure)
 	}
